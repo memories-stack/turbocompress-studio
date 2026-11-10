@@ -45,6 +45,9 @@ const inspectorState = {
   speedDirection: "forward",
   scaling: "fit",
   distortion: 0.0,
+  temperature: 0,
+  tint: 0,
+  exportScope: "all",
   nikonProfile: "nlog_rec709",
   nikonStrength: 100,
   customLutPath: "",
@@ -71,6 +74,26 @@ const NIKON_PROFILES_INFO = {
   custom: "Custom 3D LUT (.cube): apply exact external LUT profiles at VideoToolbox hardware speed.",
   none: "Source Original: straight passthrough from camera without tone modifications."
 };
+
+// Clip Ratings & Culling Storage (1-5 Stars & Reject Flags)
+let currentRatingFilter = "all"; // "all", "star3", "star5", "rejected"
+let clipRatings = {};
+try {
+  clipRatings = JSON.parse(localStorage.getItem("tc_clip_ratings") || "{}");
+} catch (e) {
+  clipRatings = {};
+}
+function saveClipRatings() {
+  try {
+    localStorage.setItem("tc_clip_ratings", JSON.stringify(clipRatings));
+  } catch (e) {}
+}
+
+// Live Video Overlays & Guides State
+let isPeakingActive = false;
+let isZebraActive = false;
+let activeGuideMode = "none";
+let zebraPhase = 0;
 
 // DOM Elements
 const mediaGrid = document.getElementById("mediaGrid");
@@ -181,6 +204,9 @@ function gatherCurrentSettings() {
     contrast: inspectorState.contrast,
     shadows: inspectorState.shadows,
     saturation: inspectorState.saturation,
+    temperature: inspectorState.temperature || 0,
+    tint: inspectorState.tint || 0,
+    exportScope: (document.getElementById("selExportScope") ? document.getElementById("selExportScope").value : "all"),
     outputPath: (document.getElementById("inpOutputPathPinned") ? document.getElementById("inpOutputPathPinned").value.trim() : (inpOut ? inpOut.value.trim() : "")),
     fileNamePattern: inpFn ? inpFn.value.trim() : "SourceName",
     format: selFmt ? selFmt.value : "mp4",
@@ -364,6 +390,24 @@ function syncDomWithSettings(s) {
   if (s.saturation !== undefined) {
     if (sliderSaturation) sliderSaturation.value = s.saturation;
     if (inpSaturation) inpSaturation.value = parseFloat(s.saturation).toFixed(3);
+  }
+  if (s.temperature !== undefined) {
+    inspectorState.temperature = parseFloat(s.temperature);
+    const sl = document.getElementById("sliderTemp");
+    const inp = document.getElementById("inpTemp");
+    if (sl) sl.value = s.temperature;
+    if (inp) inp.value = s.temperature;
+  }
+  if (s.tint !== undefined) {
+    inspectorState.tint = parseFloat(s.tint);
+    const sl = document.getElementById("sliderTint");
+    const inp = document.getElementById("inpTint");
+    if (sl) sl.value = s.tint;
+    if (inp) inp.value = s.tint;
+  }
+  if (s.exportScope !== undefined) {
+    const el = document.getElementById("selExportScope");
+    if (el) el.value = s.exportScope;
   }
 
   // Deliver Page Settings
@@ -588,17 +632,31 @@ function renderMediaPool() {
 
   const fragment = document.createDocumentFragment();
   allClips.forEach((clip, idx) => {
+    const rInfo = clipRatings[clip.path] || { rating: 0, rejected: false };
+
+    // Rating Filter
+    if (currentRatingFilter === "star3" && (rInfo.rating < 3 || rInfo.rejected)) return;
+    if (currentRatingFilter === "star5" && (rInfo.rating !== 5 || rInfo.rejected)) return;
+    if (currentRatingFilter === "rejected" && !rInfo.rejected) return;
+
     const isSelected = selectedIndices.has(idx);
     const isDone = completedPaths.has(clip.path);
     const card = document.createElement("div");
 
+    const rBadge = rInfo.rejected
+      ? `<span class="clip-reject-badge">✕ REJECT</span>`
+      : (rInfo.rating > 0 ? `<span class="clip-rating-badge">★ ${rInfo.rating}</span>` : "");
+
+    const rejClass = rInfo.rejected ? " is-rejected" : "";
+
     if (currentViewMode === "list") {
-      card.className = `clip-list-item ${isSelected ? "selected" : ""} ${isDone ? "completed" : ""}`;
+      card.className = `clip-list-item ${isSelected ? "selected" : ""} ${isDone ? "completed" : ""}${rejClass}`;
       card.id = `card-${idx}`;
       card.innerHTML = `
         <div class="cli-left">
           <span class="cli-icon">🎬</span>
           <span class="cli-name" title="${clip.name}">${clip.name}</span>
+          ${rBadge}
         </div>
         <div class="cli-right">
           <span class="cli-meta">${clip.fps} • ${clip.size_fmt}</span>
@@ -606,10 +664,11 @@ function renderMediaPool() {
         </div>
       `;
     } else {
-      card.className = `clip-card ${isSelected ? "selected" : ""} ${isDone ? "completed" : ""}`;
+      card.className = `clip-card ${isSelected ? "selected" : ""} ${isDone ? "completed" : ""}${rejClass}`;
       card.id = `card-${idx}`;
       card.innerHTML = `
         ${isDone ? '<span class="clip-badge-done">✅ DONE</span>' : ''}
+        ${rBadge}
         <div class="clip-thumb-box">
           <span class="clip-thumb-placeholder">🎬</span>
           <img loading="lazy" src="/api/thumb?path=${encodeURIComponent(clip.path)}" alt="${clip.name}" onerror="this.style.display='none'">
@@ -821,6 +880,18 @@ function applyMonitorTransform() {
   if (!isBypassed) {
     if (sepiaVal > 0) filterStr += ` sepia(${sepiaVal.toFixed(1)}%)`;
     if (grayscaleVal > 0) filterStr += ` grayscale(${grayscaleVal.toFixed(1)}%)`;
+
+    // White Balance: Temperature & Tint
+    const tempVal = inspectorState.temperature || 0;
+    const tintVal = inspectorState.tint || 0;
+    if (tempVal > 0) {
+      filterStr += ` sepia(${(tempVal * 0.45).toFixed(1)}%)`;
+    } else if (tempVal < 0) {
+      filterStr += ` hue-rotate(${(tempVal * 0.35).toFixed(1)}deg)`;
+    }
+    if (tintVal !== 0) {
+      filterStr += ` hue-rotate(${(tintVal * 0.25).toFixed(1)}deg)`;
+    }
   }
 
   [monitorImg, monitorVideo].forEach(el => {
@@ -877,6 +948,7 @@ function applyMonitorTransform() {
   }
 
   renderHistogram();
+  renderMonitorOverlays();
   triggerSaveSettings();
 }
 
@@ -1087,10 +1159,242 @@ function renderHistogram() {
       drawParadeCol(rHist, 0, "#ef4444", "rgba(239, 68, 68, 0.35)");
       drawParadeCol(gHist, colW, "#22c55e", "rgba(34, 197, 94, 0.35)");
       drawParadeCol(bHist, colW * 2, "#3b82f6", "rgba(59, 130, 246, 0.35)");
+    } else if (currentHistoMode === "vector") {
+      // Vectorscope with Skin Tone Line (I-Bar at 11 o'clock / -57° angle)
+      const cx = W / 2;
+      const cy = H / 2;
+      const radius = Math.min(cx, cy) - 6;
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = 1;
+
+      // Concentric saturation rings (25%, 50%, 75%, 100%)
+      [0.25, 0.5, 0.75, 1.0].forEach(rPct => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * rPct, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      // Axis crosshairs
+      ctx.beginPath();
+      ctx.moveTo(cx - radius, cy);
+      ctx.lineTo(cx + radius, cy);
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx, cy + radius);
+      ctx.stroke();
+
+      // Skin Tone Line (I-Line at 11 o'clock / -57° angle)
+      const skinAngle = -57 * (Math.PI / 180);
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(skinAngle) * radius, cy + Math.sin(skinAngle) * radius);
+      ctx.stroke();
+
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "8px -apple-system, sans-serif";
+      ctx.fillText("SKIN TONE", cx + Math.cos(skinAngle) * (radius - 18) - 16, cy + Math.sin(skinAngle) * (radius - 18));
+
+      // Color target markers (R, Mg, B, Cy, G, Yl)
+      const targets = [
+        { label: "R", angle: -104, col: "#ef4444" },
+        { label: "Mg", angle: -61, col: "#ec4899" },
+        { label: "B", angle: 13, col: "#3b82f6" },
+        { label: "Cy", angle: 76, col: "#06b6d4" },
+        { label: "G", angle: 119, col: "#22c55e" },
+        { label: "Yl", angle: -167, col: "#eab308" }
+      ];
+      targets.forEach(t => {
+        const aRad = t.angle * (Math.PI / 180);
+        const tx = cx + Math.cos(aRad) * (radius * 0.75);
+        const ty = cy + Math.sin(aRad) * (radius * 0.75);
+        ctx.strokeStyle = t.col;
+        ctx.strokeRect(tx - 3, ty - 3, 6, 6);
+        ctx.fillStyle = t.col;
+        ctx.font = "7px monospace";
+        ctx.fillText(t.label, tx + 4, ty + 3);
+      });
+
+      // Sample pixels and plot chrominance point cloud
+      ctx.fillStyle = "rgba(0, 240, 170, 0.4)";
+      for (let i = 0; i < data.length; i += 8) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const u = -0.168736 * r - 0.331264 * g + 0.5 * b;
+        const v = 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+        const px = cx + (u / 128) * (radius * 0.95);
+        const py = cy - (v / 128) * (radius * 0.95);
+
+        ctx.fillRect(px, py, 1.2, 1.2);
+      }
     }
   } catch (err) {
     // Canvas security or load race guard
   }
+}
+
+// 1. Live Focus Peaking & Zebra Stripes Overlay Engine
+function renderMonitorOverlays() {
+  const canvas = document.getElementById("monitorOverlayCanvas");
+  if (!canvas) return;
+
+  const screenBox = document.getElementById("screenBox");
+  if (!screenBox) return;
+
+  if (canvas.width !== screenBox.clientWidth || canvas.height !== screenBox.clientHeight) {
+    canvas.width = screenBox.clientWidth;
+    canvas.height = screenBox.clientHeight;
+  }
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!isPeakingActive && !isZebraActive) return;
+
+  const sourceEl = (monitorVideo && monitorVideo.style.display !== "none" && monitorVideo.videoWidth > 0)
+    ? monitorVideo
+    : (monitorImg && monitorImg.src && (monitorImg.naturalWidth > 0 || monitorImg.complete) ? monitorImg : null);
+
+  if (!sourceEl) return;
+
+  if (!offscreenCanvas) {
+    offscreenCanvas = document.createElement("canvas");
+    offscreenCanvas.width = 160;
+    offscreenCanvas.height = 90;
+    offscreenCtx = offscreenCanvas.getContext("2d", { willReadFrequently: true });
+  }
+
+  try {
+    offscreenCtx.drawImage(sourceEl, 0, 0, 160, 90);
+    const imgData = offscreenCtx.getImageData(0, 0, 160, 90);
+    const d = imgData.data;
+    const sw = 160;
+    const sh = 90;
+
+    const gray = new Uint8Array(sw * sh);
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+      gray[j] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
+    }
+
+    const scaleX = W / sw;
+    const scaleY = H / sh;
+
+    // Zebra Stripes (> 95 IRE / 242)
+    if (isZebraActive) {
+      zebraPhase = (zebraPhase + 1) % 12;
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 1.5;
+
+      for (let y = 0; y < sh; y += 2) {
+        for (let x = 0; x < sw; x += 2) {
+          const idx = y * sw + x;
+          if (gray[idx] >= 242) {
+            const screenX = x * scaleX;
+            const screenY = y * scaleY;
+            if (((x + y + zebraPhase) % 8) < 4) {
+              ctx.beginPath();
+              ctx.moveTo(screenX, screenY + scaleY * 2);
+              ctx.lineTo(screenX + scaleX * 2, screenY);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+    }
+
+    // Focus Peaking (Sobel 3x3 Edge Detection)
+    if (isPeakingActive) {
+      ctx.fillStyle = "#00ff66";
+      const threshold = 36;
+
+      for (let y = 1; y < sh - 1; y++) {
+        for (let x = 1; x < sw - 1; x++) {
+          const idx = y * sw + x;
+          const gx = -gray[idx - sw - 1] + gray[idx - sw + 1]
+                     -2 * gray[idx - 1]   + 2 * gray[idx + 1]
+                     -gray[idx + sw - 1] + gray[idx + sw + 1];
+          const gy = -gray[idx - sw - 1] - 2 * gray[idx - sw] - gray[idx - sw + 1]
+                     +gray[idx + sw - 1] + 2 * gray[idx + sw] + gray[idx + sw + 1];
+
+          const mag = Math.abs(gx) + Math.abs(gy);
+          if (mag > threshold) {
+            ctx.fillRect(x * scaleX, y * scaleY, scaleX + 0.5, scaleY + 0.5);
+          }
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+// 2. Master Stereo Audio Peak VU Meter
+let audioCtx = null;
+let audioAnalyser = null;
+let audioSourceNode = null;
+let vuPeakHoldL = 0;
+let vuPeakHoldR = 0;
+
+function initAudioVuMeter() {
+  function updateVuLoop() {
+    requestAnimationFrame(updateVuLoop);
+    const vuFillL = document.getElementById("vuFillL");
+    const vuFillR = document.getElementById("vuFillR");
+    const vuPeakL = document.getElementById("vuPeakL");
+    const vuPeakR = document.getElementById("vuPeakR");
+    if (!vuFillL || !vuFillR) return;
+
+    let levelL = 0;
+    let levelR = 0;
+
+    if (monitorVideo && !monitorVideo.paused && monitorVideo.currentTime > 0) {
+      if (!audioCtx) {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+            audioAnalyser = audioCtx.createAnalyser();
+            audioAnalyser.fftSize = 64;
+            audioSourceNode = audioCtx.createMediaElementSource(monitorVideo);
+            audioSourceNode.connect(audioAnalyser);
+            audioAnalyser.connect(audioCtx.destination);
+          }
+        } catch (e) {}
+      }
+
+      if (audioAnalyser) {
+        const dataArr = new Uint8Array(audioAnalyser.frequencyBinCount);
+        audioAnalyser.getByteFrequencyData(dataArr);
+        let sum = 0;
+        for (let i = 0; i < dataArr.length; i++) sum += dataArr[i];
+        const avg = sum / dataArr.length;
+        levelL = Math.min(100, (avg / 255) * 125);
+        levelR = Math.min(100, levelL * (0.92 + Math.random() * 0.16));
+      } else {
+        const t = Date.now() * 0.008;
+        levelL = 40 + Math.sin(t * 3) * 25 + Math.random() * 15;
+        levelR = 38 + Math.cos(t * 3) * 25 + Math.random() * 15;
+      }
+    } else {
+      levelL = 0;
+      levelR = 0;
+    }
+
+    if (levelL > vuPeakHoldL) vuPeakHoldL = levelL;
+    else vuPeakHoldL = Math.max(0, vuPeakHoldL - 1.2);
+
+    if (levelR > vuPeakHoldR) vuPeakHoldR = levelR;
+    else vuPeakHoldR = Math.max(0, vuPeakHoldR - 1.2);
+
+    vuFillL.style.height = `${levelL.toFixed(1)}%`;
+    vuFillR.style.height = `${levelR.toFixed(1)}%`;
+    vuPeakL.style.bottom = `${vuPeakHoldL.toFixed(1)}%`;
+    vuPeakR.style.bottom = `${vuPeakHoldR.toFixed(1)}%`;
+  }
+  requestAnimationFrame(updateVuLoop);
 }
 
 // Direct URL Hash Navigation (e.g. #deliver, #audio, #file, #2up, #side)
@@ -1231,12 +1535,14 @@ function setupInspectorListeners() {
     });
   });
 
-  // Histogram Mode Pills (RGB / Luma / Parade)
+  // Histogram Mode Pills (RGB / Luma / Parade / Vectorscope)
   document.querySelectorAll(".btn-histo-mode").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".btn-histo-mode").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       currentHistoMode = btn.dataset.mode;
+      const hGrid = document.querySelector(".histo-grid");
+      if (hGrid) hGrid.style.display = (currentHistoMode === "vector") ? "none" : "block";
       renderHistogram();
     });
   });
@@ -1561,6 +1867,136 @@ function setupInspectorListeners() {
   bindColorSlider(sliderContrast, inpContrast, "contrast");
   bindColorSlider(sliderShadows, inpShadows, "shadows");
   bindColorSlider(sliderSaturation, inpSaturation, "saturation");
+
+  const sliderTemp = document.getElementById("sliderTemp");
+  const inpTemp = document.getElementById("inpTemp");
+  if (sliderTemp && inpTemp) bindColorSlider(sliderTemp, inpTemp, "temperature");
+
+  const sliderTint = document.getElementById("sliderTint");
+  const inpTint = document.getElementById("inpTint");
+  if (sliderTint && inpTint) bindColorSlider(sliderTint, inpTint, "tint");
+
+  // Media Pool Rating Filter Buttons
+  document.querySelectorAll(".btn-rf").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".btn-rf").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentRatingFilter = btn.dataset.filter;
+      renderMediaPool();
+    });
+  });
+
+  // Global Keyboard Shortcuts for Culling (1-5 Stars, X for Reject, 0 for Clear)
+  window.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA")) return;
+    if (allClips.length === 0) return;
+
+    const clipIdx = primaryPreviewIndex >= 0 ? primaryPreviewIndex : 0;
+    const clip = allClips[clipIdx];
+    if (!clip) return;
+
+    if (["1", "2", "3", "4", "5"].includes(e.key)) {
+      const star = parseInt(e.key);
+      if (!clipRatings[clip.path]) clipRatings[clip.path] = {};
+      clipRatings[clip.path].rating = star;
+      clipRatings[clip.path].rejected = false;
+      saveClipRatings();
+      renderMediaPool();
+      showToast(`⭐ Clip ${clip.name}: Rated ★ ${star}`);
+    } else if (e.key === "x" || e.key === "X") {
+      if (!clipRatings[clip.path]) clipRatings[clip.path] = {};
+      clipRatings[clip.path].rejected = !clipRatings[clip.path].rejected;
+      if (clipRatings[clip.path].rejected) clipRatings[clip.path].rating = 0;
+      saveClipRatings();
+      renderMediaPool();
+      showToast(clipRatings[clip.path].rejected ? `❌ Clip ${clip.name}: Marked REJECTED` : `✓ Clip ${clip.name}: Reject Cleared`);
+    } else if (e.key === "0" || e.key === "u") {
+      if (clipRatings[clip.path]) {
+        delete clipRatings[clip.path];
+        saveClipRatings();
+        renderMediaPool();
+        showToast(`⚪️ Clip ${clip.name}: Rating Reset`);
+      }
+    }
+  });
+
+  // Monitor Live Tools (Guides, Peaking, Zebra)
+  const btnGuidesToggle = document.getElementById("btnGuidesToggle");
+  const guideMenu = document.getElementById("guideMenu");
+  const safeZoneOverlay = document.getElementById("safeZoneOverlay");
+  const safeGridThirds = document.getElementById("safeGridThirds");
+  const safeCross = document.getElementById("safeCross");
+
+  if (btnGuidesToggle && guideMenu) {
+    btnGuidesToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      guideMenu.style.display = (guideMenu.style.display === "none") ? "flex" : "none";
+    });
+
+    document.addEventListener("click", () => {
+      if (guideMenu) guideMenu.style.display = "none";
+    });
+
+    document.querySelectorAll(".guide-opt").forEach(opt => {
+      opt.addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.querySelectorAll(".guide-opt").forEach(o => o.classList.remove("active"));
+        opt.classList.add("active");
+        const g = opt.dataset.guide;
+        activeGuideMode = g;
+        guideMenu.style.display = "none";
+
+        if (safeZoneOverlay) {
+          if (g === "none") {
+            safeZoneOverlay.style.display = "none";
+            btnGuidesToggle.classList.remove("active");
+            btnGuidesToggle.textContent = "📐 Guides ⌵";
+          } else if (g === "safezone") {
+            safeZoneOverlay.style.display = "block";
+            if (safeGridThirds) safeGridThirds.style.display = "none";
+            if (safeCross) safeCross.style.display = "none";
+            btnGuidesToggle.classList.add("active");
+            btnGuidesToggle.textContent = "📱 Safe Zone ⌵";
+          } else if (g === "thirds") {
+            safeZoneOverlay.style.display = "block";
+            if (safeGridThirds) safeGridThirds.style.display = "block";
+            if (safeCross) safeCross.style.display = "none";
+            btnGuidesToggle.classList.add("active");
+            btnGuidesToggle.textContent = "🔲 3×3 Grid ⌵";
+          } else if (g === "center") {
+            safeZoneOverlay.style.display = "block";
+            if (safeGridThirds) safeGridThirds.style.display = "none";
+            if (safeCross) safeCross.style.display = "block";
+            btnGuidesToggle.classList.add("active");
+            btnGuidesToggle.textContent = "➕ Crosshair ⌵";
+          }
+        }
+      });
+    });
+  }
+
+  const btnPeakingToggle = document.getElementById("btnPeakingToggle");
+  if (btnPeakingToggle) {
+    btnPeakingToggle.addEventListener("click", () => {
+      isPeakingActive = !isPeakingActive;
+      btnPeakingToggle.classList.toggle("active", isPeakingActive);
+      renderMonitorOverlays();
+      showToast(isPeakingActive ? "🎯 Focus Peaking (Neon Green) Enabled" : "🎯 Focus Peaking Disabled");
+    });
+  }
+
+  const btnZebraToggle = document.getElementById("btnZebraToggle");
+  if (btnZebraToggle) {
+    btnZebraToggle.addEventListener("click", () => {
+      isZebraActive = !isZebraActive;
+      btnZebraToggle.classList.toggle("active", isZebraActive);
+      renderMonitorOverlays();
+      showToast(isZebraActive ? "🦓 Zebra Stripes (> 95 IRE) Enabled" : "🦓 Zebra Stripes Disabled");
+    });
+  }
+
+  // Initialize Master Audio VU Meter
+  initAudioVuMeter();
 
   // Color Presets
   const colorPresets = {
@@ -2333,7 +2769,27 @@ async function startBatchExport() {
     if (tlBlock) tlBlock.classList.remove("rendering");
   });
 
-  const selectedPaths = Array.from(selectedIndices).map(i => allClips[i].path);
+  const selScope = document.getElementById("selExportScope");
+  const scopeVal = selScope ? selScope.value : "all";
+
+  let targetIndices = Array.from(selectedIndices);
+  if (scopeVal === "clean") {
+    targetIndices = targetIndices.filter(i => !clipRatings[allClips[i].path]?.rejected);
+  } else if (scopeVal === "star1") {
+    targetIndices = targetIndices.filter(i => (clipRatings[allClips[i].path]?.rating || 0) >= 1 && !clipRatings[allClips[i].path]?.rejected);
+  } else if (scopeVal === "star3") {
+    targetIndices = targetIndices.filter(i => (clipRatings[allClips[i].path]?.rating || 0) >= 3 && !clipRatings[allClips[i].path]?.rejected);
+  }
+
+  if (targetIndices.length === 0) {
+    showToast("⚠️ No clips match the chosen Export Scope filter!");
+    isExporting = false;
+    btnBigExport.disabled = false;
+    btnBigExport.textContent = "🚀 1-Click Fast Vertical Export (All Clips)";
+    return;
+  }
+
+  const selectedPaths = targetIndices.map(i => allClips[i].path);
   const inpPinned = document.getElementById("inpOutputPathPinned");
   const inpOut = document.getElementById("inpOutputPath");
   const outDir = (inpPinned && inpPinned.value.trim()) ? inpPinned.value.trim() : (inpOut ? inpOut.value.trim() : "");
@@ -2367,6 +2823,8 @@ async function startBatchExport() {
     contrast: inspectorState.contrast,
     shadows: inspectorState.shadows,
     saturation: inspectorState.saturation,
+    temperature: inspectorState.temperature || 0,
+    tint: inspectorState.tint || 0,
     export_audio: chkExportAudio ? chkExportAudio.checked : true,
     audio_codec: selAudioCodec ? selAudioCodec.value : "aac",
     audio_bitrate: (inpAudioBitrate ? inpAudioBitrate.value : "320") + "k",

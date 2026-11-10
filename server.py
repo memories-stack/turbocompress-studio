@@ -717,6 +717,15 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     if (abs(eff_brightness) > 0.001 or abs(eff_contrast - 1.0) > 0.001 or abs(gamma_val - 1.0) > 0.001 or abs(eff_sat - 1.0) > 0.001):
         vf.append(f"eq=brightness={eff_brightness:.3f}:contrast={eff_contrast:.3f}:saturation={eff_sat:.3f}:gamma={gamma_val:.3f}")
 
+    # White Balance: Temperature (Warm/Cool) & Tint (Green/Magenta) via hardware colorchannelmixer
+    temp = float(params.get("temperature", 0.0))
+    tint = float(params.get("tint", 0.0))
+    if abs(temp) > 0.01 or abs(tint) > 0.01:
+        r_scale = max(0.5, min(1.5, 1.0 + (temp * 0.006)))
+        b_scale = max(0.5, min(1.5, 1.0 - (temp * 0.006)))
+        g_scale = max(0.5, min(1.5, 1.0 - (tint * 0.006)))
+        vf.append(f"colorchannelmixer=rr={r_scale:.3f}:gg={g_scale:.3f}:bb={b_scale:.3f}")
+
     def execute_ffmpeg(enc_codec):
         cmd = [
             FFMPEG_BIN, "-y", "-i", src,

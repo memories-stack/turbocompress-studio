@@ -72,6 +72,12 @@
                 <span class="search-lens">🔍</span>
                 <input type="text" class="search-input" id="searchInput" placeholder="Search clips...">
               </div>
+              <div class="rating-filter-pills" title="Filter clips by Star Rating or Rejection">
+                <button class="btn-rf active" data-filter="all" title="Show All Clips">All</button>
+                <button class="btn-rf" data-filter="star3" title="Show 3+ Stars">★ 3+</button>
+                <button class="btn-rf" data-filter="star5" title="Show 5 Stars Only">★ 5</button>
+                <button class="btn-rf" data-filter="rejected" title="Show Rejected Clips">✕</button>
+              </div>
             </div>
           </div>
 
@@ -100,6 +106,21 @@
                 <button class="seg-cmp-btn" id="btnModeSide" title="Side-by-Side Dual Comparison">◫ 2-Up</button>
                 <button class="btn-bypass-cmp" id="btnBypassToggle" title="Bypass Rotation & Color Grades (Quick Before/After Toggle)">⚡️ Bypass</button>
               </div>
+
+              <!-- Live Video Monitoring Tools: Safe Zone Guides, Peaking & Zebra -->
+              <div class="mh-tools">
+                <div class="guide-dropdown-wrap">
+                  <button class="btn-mtool" id="btnGuidesToggle" title="Overlay Guides (TikTok Safe Zone, Rule of Thirds)">📐 Guides ⌵</button>
+                  <div class="guide-menu" id="guideMenu" style="display: none;">
+                    <div class="guide-opt active" data-guide="none">🚫 No Guides</div>
+                    <div class="guide-opt" data-guide="safezone">📱 TikTok / Reels 9:16 Safe Zone</div>
+                    <div class="guide-opt" data-guide="thirds">🔲 Rule of Thirds (3×3)</div>
+                    <div class="guide-opt" data-guide="center">➕ Center Crosshair</div>
+                  </div>
+                </div>
+                <button class="btn-mtool" id="btnPeakingToggle" title="Toggle Live Focus Peaking (Sharp Edge Highlight)">🎯 Peaking</button>
+                <button class="btn-mtool" id="btnZebraToggle" title="Toggle Zebra Stripes (Highlight Overexposure > 95 IRE)">🦓 Zebra</button>
+              </div>
             </div>
             <span class="m-time-dur" id="timelineDur">00:01:22:20</span>
           </div>
@@ -120,6 +141,30 @@
                 <span class="split-badge badge-after" id="badgeAfter" style="display: none;">AFTER (9:16)</span>
               </div>
 
+              <!-- Live Video Overlay Canvas (Focus Peaking & Zebra Stripes) -->
+              <canvas id="monitorOverlayCanvas" class="monitor-overlay-canvas"></canvas>
+
+              <!-- Safe Zone UI Overlay (TikTok / Reels 9:16 Safe Guides) -->
+              <div class="safe-zone-overlay" id="safeZoneOverlay" style="display: none;">
+                <div class="safe-top-bar"><span>9:16 Safe Top</span></div>
+                <div class="safe-center-grid" id="safeGridThirds" style="display: none;">
+                  <div class="grid-line-v v1"></div>
+                  <div class="grid-line-v v2"></div>
+                  <div class="grid-line-h h1"></div>
+                  <div class="grid-line-h h2"></div>
+                </div>
+                <div class="safe-center-cross" id="safeCross" style="display: none;">+</div>
+                <div class="safe-reels-buttons">
+                  <div class="reels-btn-dummy">❤️</div>
+                  <div class="reels-btn-dummy">💬</div>
+                  <div class="reels-btn-dummy">✈️</div>
+                  <div class="reels-label">UI Area</div>
+                </div>
+                <div class="safe-reels-bottom">
+                  <span>@creator • Caption &amp; Audio UI Safe Zone</span>
+                </div>
+              </div>
+
               <!-- Draggable Split Wipe Divider Curtain -->
               <div class="split-wipe-handle" id="splitWipeHandle" style="display: none;">
                 <div class="wipe-line"></div>
@@ -129,6 +174,28 @@
               <div class="no-clip-msg" id="noClipMsg">
                 <span>🎬</span>
                 <p>No Clip Selected</p>
+              </div>
+            </div>
+
+            <!-- Master Stereo Audio VU Peak Meter -->
+            <div class="audio-vu-bar" id="audioVuBar" title="Master Audio Peak VU Meter (L / R dB)">
+              <div class="vu-track">
+                <div class="vu-channel ch-l">
+                  <div class="vu-fill" id="vuFillL"></div>
+                  <div class="vu-peak" id="vuPeakL"></div>
+                </div>
+                <div class="vu-channel ch-r">
+                  <div class="vu-fill" id="vuFillR"></div>
+                  <div class="vu-peak" id="vuPeakR"></div>
+                </div>
+              </div>
+              <div class="vu-scale">
+                <span>0</span>
+                <span>-6</span>
+                <span>-12</span>
+                <span>-18</span>
+                <span>-24</span>
+                <span>-36</span>
               </div>
             </div>
 
@@ -466,6 +533,7 @@
                 <button class="btn-histo-mode active" data-mode="rgb" title="RGB Overlay Histogram">RGB</button>
                 <button class="btn-histo-mode" data-mode="luma" title="Luminance (Y) Waveform">Luma</button>
                 <button class="btn-histo-mode" data-mode="parade" title="RGB Separate Parade">Parade</button>
+                <button class="btn-histo-mode" data-mode="vector" title="Vectorscope &amp; Skin Tone Line">Vectorscope</button>
               </div>
             </div>
 
@@ -566,6 +634,28 @@
                 <button class="btn-color-preset" data-preset="shadows" title="Brighten shadows and reveal shadow details">☀️ Lift Shadows</button>
                 <button class="btn-color-preset" data-preset="cinematic" title="Punchy contrast and rich tones">🎬 Cinematic</button>
                 <button class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">🌟 Vibrant</button>
+              </div>
+
+              <!-- White Balance: Color Temperature (Cool/Blue to Warm/Amber) -->
+              <div class="dv-row">
+                <label class="row-label">Temperature</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderTemp" min="-50" max="50" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpTemp" value="0">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="temperature">↺</span>
+                </div>
+              </div>
+
+              <!-- White Balance: Tint (Green to Magenta) -->
+              <div class="dv-row">
+                <label class="row-label">Tint</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderTint" min="-50" max="50" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpTint" value="0">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="tint">↺</span>
+                </div>
               </div>
 
               <!-- Brightness -->
@@ -1050,6 +1140,15 @@
           <div class="dfc-path-row">
             <input type="text" class="dfc-path-input" id="inpOutputPathPinned" readonly value="/Users/siamratchongtong/Desktop/STD_VT/test_Exp" title="Click Change Folder to select destination">
             <button class="btn-dfc-open" id="btnOpenDestinationPinned" title="Open Destination Folder in macOS Finder">📂 Open</button>
+          </div>
+          <div class="dfc-scope-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 10px;">
+            <span style="color: #8c93a8;">Scope / คัดคลิป:</span>
+            <select class="dv-select" id="selExportScope" style="width: 175px; height: 22px; font-size: 10px; padding: 1px 6px;">
+              <option value="all" selected>All Clips (ส่งออกทั้งหมด)</option>
+              <option value="clean">Skip Rejected (ข้ามคลิป ❌)</option>
+              <option value="star1">Rated Only (เฉพาะคลิป ★ 1+)</option>
+              <option value="star3">Top Rated (เฉพาะคลิป ★ 3+)</option>
+            </select>
           </div>
         </div>
 
