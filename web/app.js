@@ -886,13 +886,13 @@ function renderMediaPool() {
   mediaGrid.innerHTML = "";
   if (allClips.length === 0) {
     mediaGrid.innerHTML = `
-      <div class="empty-media-pool-zone" style="grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; text-align: center; border: 2px dashed #282a3a; border-radius: 12px; margin: 16px 8px; background: rgba(18, 20, 29, 0.45);">
-        <span style="font-size: 36px; margin-bottom: 10px; filter: drop-shadow(0 0 14px rgba(0, 240, 170, 0.35));">📥</span>
-        <div style="font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px;">Media Pool is Clean &amp; Ready</div>
-        <div style="font-size: 11px; color: #72778c; margin-bottom: 16px; max-width: 280px; line-height: 1.4;">Drag &amp; drop Nikon Z8 video clips or camera folders here to start your next batch project.</div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn-davinci-pill" id="btnEmptyBrowseFolder" style="padding: 6px 16px; font-size: 11px; font-weight: 600; background: #00ddff; color: #000; cursor: pointer;">📁 Import Folder...</button>
-          <button class="btn-davinci-pill" id="btnEmptyBrowseFiles" style="padding: 6px 16px; font-size: 11px; font-weight: 600; background: #232636; color: #e2e8f0; border: 1px solid #36394e; cursor: pointer;">🎬 Select Files...</button>
+      <div class="empty-media-pool-zone">
+        <span class="empty-zone-icon">📥</span>
+        <div class="empty-zone-title">Media Pool is Clean &amp; Ready</div>
+        <div class="empty-zone-desc">Drag &amp; drop Nikon Z8 video clips or camera folders here to start your next batch project.</div>
+        <div class="empty-zone-actions">
+          <button class="btn-davinci-pill btn-empty-import" id="btnEmptyBrowseFolder">📁 Import Folder...</button>
+          <button class="btn-davinci-pill btn-empty-select" id="btnEmptyBrowseFiles">🎬 Select Files...</button>
         </div>
       </div>
     `;
