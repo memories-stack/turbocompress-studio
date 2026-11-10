@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en" class="notranslate" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="google" content="notranslate">
+  <title>DaVinci Resolve Studio 20 - Fast Batch Cut & Inspector</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- TOP MENU BAR (Modern Studio Toolbar - Clean & Uncluttered) -->
+  <header class="dv-topbar">
+    <div class="top-left">
+      <div class="brand-box">
+        <span class="brand-icon">⚡️</span>
+        <span class="brand-name">TurboCompress Studio</span>
+        <span class="brand-tag">PRO</span>
+      </div>
+      <div class="engine-badge" title="Apple VideoToolbox Hardware Active">
+        <span class="pulse-indicator"></span>
+        <span class="engine-label">M-Series GPU Media Engine</span>
+      </div>
+    </div>
+
+    <div class="top-center">
+      <div class="top-source-pill" id="topSourceFolder" title="Active Camera Shoot Folder">
+        <span class="pill-folder-icon">📁</span>
+        <span class="pill-folder-path">STD_VT / 081169 / 100NC_Z8</span>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <button class="btn-top-action" id="btnOpenFolder" title="Open Destination Folder in macOS Finder">
+        <span>📂</span> Open Output Folder
+      </button>
+      <button class="btn-top-action" id="btnClearCache" title="Free Thumbnail Cache & System RAM">
+        <span>🧹</span> Clear Cache &amp; RAM
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="dv-workspace">
+    <!-- LEFT & CENTER WORK AREA -->
+    <section class="dv-workarea">
+      <!-- TOP SPLIT: MEDIA POOL + MONITOR -->
+      <div class="top-split">
+        <!-- 1. MEDIA POOL -->
+        <div class="media-pool-panel" id="dropZone">
+          <div class="panel-header">
+            <div class="ph-left">
+              <span class="ph-title">MEDIA POOL</span>
+              <button class="btn-pool-import" id="btnImportFolderPool">➕ Import Media...</button>
+              <button class="btn-select-all" id="btnSelectAll">✓ Select All</button>
+              <span class="pool-stats-badge" id="clipCountBadge">0 Clips</span>
+              <span class="pool-meta-badge">25.000 fps • 1080p</span>
+            </div>
+            <div class="ph-right">
+              <div class="sort-wrapper" title="Sort Media Pool Clips">
+                <select class="pool-sort-select" id="selPoolSort">
+                  <option value="name_asc" selected>🔤 Name (A-Z / Shoot Order)</option>
+                  <option value="time_asc">⏱ Time (Oldest First)</option>
+                  <option value="time_desc">⏱ Time (Newest First)</option>
+                  <option value="size_desc">💾 Size (Largest First)</option>
+                </select>
+              </div>
+              <div class="segmented-view-control">
+                <button class="seg-btn active" id="btnViewThumb" title="Thumbnail Grid View">🖼 Grid</button>
+                <button class="seg-btn" id="btnViewList" title="Filename List View">☰ List</button>
+              </div>
+              <div class="search-wrapper">
+                <span class="search-lens">🔍</span>
+                <input type="text" class="search-input" id="searchInput" placeholder="Search clips...">
+              </div>
+            </div>
+          </div>
+
+          <!-- Virtual Grid Container (Zero Lag for 1,000+ clips) -->
+          <div class="media-grid-scroll" id="mediaGrid">
+            <!-- Cards rendered dynamically -->
+          </div>
+
+          <div class="media-pool-footer">
+            <span class="drop-hint">📥 Drag &amp; drop camera folders or video files here</span>
+            <div class="footer-actions">
+              <button class="btn-clear" id="btnClearPool">Clear Pool</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. VERTICAL 9:16 MONITOR -->
+        <div class="monitor-panel">
+          <div class="monitor-header">
+            <div class="mh-left">
+              <span class="m-title">Timeline 1 ⌵</span>
+              <!-- Before / After Display Mode Selector (DaVinci Wipe & Split Style) -->
+              <div class="segmented-compare-control">
+                <button class="seg-cmp-btn active" id="btnModeSingle" title="Full 9:16 Recoded Output">📱 Result</button>
+                <button class="seg-cmp-btn" id="btnModeSplit" title="Interactive Split Wipe (A/B Curtain)">🌗 Split Wipe</button>
+                <button class="seg-cmp-btn" id="btnModeSide" title="Side-by-Side Dual Comparison">◫ 2-Up</button>
+                <button class="btn-bypass-cmp" id="btnBypassToggle" title="Bypass Rotation & Color Grades (Quick Before/After Toggle)">⚡️ Bypass</button>
+              </div>
+            </div>
+            <span class="m-time-dur" id="timelineDur">00:01:22:20</span>
+          </div>
+
+          <div class="monitor-screen-container" id="monitorScreenContainer">
+            <!-- 1. Normal & Split Wipe Screen Box -->
+            <div class="screen-box vertical-9-16" id="screenBox">
+              <!-- Layer Before (Raw Camera Sensor) -->
+              <div class="split-layer layer-before" id="layerBefore" style="display: none;">
+                <img id="monitorImgBefore" src="" alt="">
+                <span class="split-badge badge-before">BEFORE (RAW)</span>
+              </div>
+
+              <!-- Layer After (Rotated 270° & Color Graded) -->
+              <div class="split-layer layer-after" id="layerAfter">
+                <video id="monitorVideo" playsinline style="display: none;"></video>
+                <img id="monitorImg" src="" alt="" style="display: none;">
+                <span class="split-badge badge-after" id="badgeAfter" style="display: none;">AFTER (9:16)</span>
+              </div>
+
+              <!-- Draggable Split Wipe Divider Curtain -->
+              <div class="split-wipe-handle" id="splitWipeHandle" style="display: none;">
+                <div class="wipe-line"></div>
+                <div class="wipe-knob">⬌</div>
+              </div>
+
+              <div class="no-clip-msg" id="noClipMsg">
+                <span>🎬</span>
+                <p>No Clip Selected</p>
+              </div>
+            </div>
+
+            <!-- 2. Side-by-Side (2-Up) Dual Comparison Boxes -->
+            <div class="side-by-side-container" id="sideBySideContainer" style="display: none;">
+              <div class="sbs-box sbs-before">
+                <div class="sbs-header-tag">BEFORE (Original Nikon Z8 Sensor)</div>
+                <div class="sbs-media-wrap">
+                  <img id="sbsImgBefore" src="" alt="">
+                </div>
+              </div>
+              <div class="sbs-box sbs-after">
+                <div class="sbs-header-tag active">AFTER (9:16 Vertical Recode)</div>
+                <div class="sbs-media-wrap">
+                  <img id="sbsImgAfter" src="" alt="">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transport Bar -->
+          <div class="transport-bar">
+            <div class="transport-buttons">
+              <button class="t-btn" id="btnFirst" title="First Clip">|&lt;</button>
+              <button class="t-btn" id="btnPrev" title="Previous Clip">&lt;&lt;</button>
+              <button class="t-btn play-btn" id="btnPlay" title="Play / Pause Video (Spacebar)">▶</button>
+              <button class="t-btn" id="btnNext" title="Next Clip">&gt;&gt;</button>
+              <button class="t-btn" id="btnLast" title="Last Clip">&gt;|</button>
+              <button class="t-btn" id="btnLoop" title="Loop Playback">🔁</button>
+            </div>
+            <div class="transport-scrub-box">
+              <input type="range" class="transport-scrub-slider" id="scrubSlider" min="0" max="100" value="0" step="0.1">
+            </div>
+            <div class="digital-timecode" id="digitalTimecode">00:00:00:00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM: DUAL TIMELINE -->
+      <div class="timeline-panel">
+        <div class="tl-header">
+          <div class="tl-tracks-badge">
+            <span class="badge-v1">V1</span>
+            <span class="badge-a1">A1</span>
+          </div>
+          <div class="tl-status-text" id="exportStatusText">
+            Ready • 1-Click Fast Batch Vertical Export
+          </div>
+          <div class="tl-speed-badge" id="exportSpeedBadge"></div>
+        </div>
+
+        <!-- Upper Overview Track (Segmented Blue Bar) -->
+        <div class="timeline-overview" id="tlOverview">
+          <div class="overview-bar" id="overviewBar"></div>
+          <div class="export-progress-fill" id="exportProgressFill" style="position: absolute; top: 0; left: 0; bottom: 0; width: 0%; background: #00f0aa; opacity: 0.7; transition: width 0.3s;"></div>
+          <div class="playhead-overview" id="playheadOverview"></div>
+        </div>
+
+        <!-- Lower Detailed Track -->
+        <div class="timeline-detail" id="tlDetail">
+          <div class="detail-track-content" id="detailTrack"></div>
+          <div class="playhead-detail" id="playheadDetail"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: PIXEL-PERFECT DAVINCI INSPECTOR PANEL -->
+    <aside class="dv-inspector">
+      <!-- Tab Header Icons: Transform, Color & Light, Deliver -->
+      <div class="insp-tabs">
+        <div class="insp-tab active" data-tab="transform" title="Rotation, Orientation & Framing">
+          <div class="tab-icon">🔄</div>
+          <div class="tab-label">Transform</div>
+        </div>
+        <div class="insp-tab" data-tab="color" title="Color Grading, Brightness, Shadows & Contrast">
+          <div class="tab-icon">🎨</div>
+          <div class="tab-label">Color &amp; Light</div>
+        </div>
+        <div class="insp-tab" data-tab="deliver" title="Resolution, Bitrate, Destination & Export Setup">
+          <div class="tab-icon">🚀</div>
+          <div class="tab-label">Deliver</div>
+        </div>
+      </div>
+
+      <!-- Clip Header Name -->
+      <div class="insp-subheader">
+        <span class="clip-title" id="inspClipTitle">Media Pool - Multiple Clips</span>
+        <span class="batch-apply-tag" id="batchApplyTag">⚡️ Batch Multi-Clip Applied</span>
+      </div>
+
+      <!-- Scrollable Inspector Content with Tab Panes -->
+      <div class="insp-body">
+        <!-- PANE 1: TRANSFORM & ORIENTATION -->
+        <div class="insp-pane active" id="paneTransform">
+          <!-- 1. TRANSFORM -->
+          <div class="dv-card">
+            <div class="dv-card-header">
+              <span class="pill-dot active">🔴</span>
+              <span class="card-title">Transform &amp; Orientation</span>
+              <div class="card-tools">
+                <span class="tool-icon">◇</span>
+                <span class="tool-icon reset-btn" id="resetTransform">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body">
+              <!-- Rotation Angle (270.000 / -90° for Nikon Z8 Vertical!) -->
+              <div class="dv-row">
+                <label class="row-label">Rotation Angle</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderRotation" min="0" max="360" value="270">
+                  <input type="text" class="dv-num-box" id="inpRotation" value="270.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon">↺</span>
+                </div>
+              </div>
+
+              <!-- Quick Angle Buttons (Nikon Z8 & Camera Orientations) -->
+              <div class="quick-angle-row">
+                <button class="btn-quick-ang active" data-ang="270" title="Nikon Z8 Vertical (Grip Bottom / Counter-Clockwise)">🔄 270° / -90° (Nikon Z8)</button>
+                <button class="btn-quick-ang" data-ang="90" title="Nikon Z8 Vertical (Grip Top / Clockwise)">🔄 90° CW</button>
+                <button class="btn-quick-ang" data-ang="0" title="Reset to Landscape">⏪ 0° Reset</button>
+                <button class="btn-quick-ang" data-ang="180" title="Invert 180°">🔁 180°</button>
+              </div>
+
+              <!-- Zoom -->
+              <div class="dv-row">
+                <label class="row-label">Zoom</label>
+                <div class="row-controls">
+                  <span class="axis-label">X</span>
+                  <input type="text" class="dv-num-box" id="inpZoomX" value="1.000">
+                  <button class="btn-link-icon" id="btnZoomLink" title="Link X/Y">🔗</button>
+                  <span class="axis-label">Y</span>
+                  <input type="text" class="dv-num-box" id="inpZoomY" value="1.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon">↺</span>
+                </div>
+              </div>
+
+              <!-- Position -->
+              <div class="dv-row">
+                <label class="row-label">Position</label>
+                <div class="row-controls">
+                  <span class="axis-label">X</span>
+                  <input type="text" class="dv-num-box" id="inpPosX" value="0.000">
+                  <span class="axis-label">Y</span>
+                  <input type="text" class="dv-num-box" id="inpPosY" value="0.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon">↺</span>
+                </div>
+              </div>
+
+              <!-- Anchor Point -->
+              <div class="dv-row">
+                <label class="row-label">Anchor Point</label>
+                <div class="row-controls">
+                  <span class="axis-label">X</span>
+                  <input type="text" class="dv-num-box" id="inpAnchorX" value="0.000">
+                  <span class="axis-label">Y</span>
+                  <input type="text" class="dv-num-box" id="inpAnchorY" value="0.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon">↺</span>
+                </div>
+              </div>
+
+              <!-- Pitch -->
+              <div class="dv-row">
+                <label class="row-label">Pitch</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderPitch" min="-45" max="45" step="0.5" value="0">
+                  <input type="text" class="dv-num-box" id="inpPitch" value="0.000">
+                  <span class="tool-icon reset-single" data-key="pitch">↺</span>
+                </div>
+              </div>
+
+              <!-- Yaw -->
+              <div class="dv-row">
+                <label class="row-label">Yaw</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderYaw" min="-45" max="45" step="0.5" value="0">
+                  <input type="text" class="dv-num-box" id="inpYaw" value="0.000">
+                  <span class="tool-icon reset-single" data-key="yaw">↺</span>
+                </div>
+              </div>
+
+              <!-- Flip -->
+              <div class="dv-row">
+                <label class="row-label">Flip</label>
+                <div class="row-controls">
+                  <button class="btn-flip" id="btnFlipH">◀▶ Flip Horizontal</button>
+                  <button class="btn-flip" id="btnFlipV">▲▼ Flip Vertical</button>
+                  <span class="tool-icon reset-single" data-key="flip" style="margin-left: auto;">↺</span>
+                </div>
+              </div>
+
+              <!-- Scaling Mode -->
+              <div class="dv-row" style="margin-top: 6px;">
+                <label class="row-label">Scaling Mode</label>
+                <div class="row-controls">
+                  <select class="dv-select" id="selScalingModeTransform">
+                    <option value="fit" selected>Fit (Show Full Frame)</option>
+                    <option value="crop">Crop (Fill Vertical 9:16)</option>
+                    <option value="stretch">Stretch</option>
+                  </select>
+                  <span class="tool-icon reset-single" data-key="scaling">↺</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. CROPPING -->
+          <div class="dv-card" id="cardCrop">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotCrop" title="Bypass / Enable Cropping">🔴</span>
+              <span class="card-title">Cropping</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetCrop" title="Reset Cropping">↺</span>
+              </div>
+            </div>
+            <div class="dv-card-body" id="bodyCrop">
+              <div class="dv-row">
+                <label class="row-label">Crop Left</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderCropL" min="0" max="250" value="0">
+                  <input type="text" class="dv-num-box" id="inpCropL" value="0.000">
+                  <span class="tool-icon reset-single" data-crop="L">↺</span>
+                </div>
+              </div>
+              <div class="dv-row">
+                <label class="row-label">Crop Right</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderCropR" min="0" max="250" value="0">
+                  <input type="text" class="dv-num-box" id="inpCropR" value="0.000">
+                  <span class="tool-icon reset-single" data-crop="R">↺</span>
+                </div>
+              </div>
+              <div class="dv-row">
+                <label class="row-label">Crop Top</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderCropT" min="0" max="250" value="0">
+                  <input type="text" class="dv-num-box" id="inpCropT" value="0.000">
+                  <span class="tool-icon reset-single" data-crop="T">↺</span>
+                </div>
+              </div>
+              <div class="dv-row">
+                <label class="row-label">Crop Bottom</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderCropB" min="0" max="250" value="0">
+                  <input type="text" class="dv-num-box" id="inpCropB" value="0.000">
+                  <span class="tool-icon reset-single" data-crop="B">↺</span>
+                </div>
+              </div>
+              <div class="dv-row">
+                <label class="row-label">Softness</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderCropSoftness" min="0" max="50" value="0">
+                  <input type="text" class="dv-num-box" id="inpCropSoftness" value="0.000">
+                  <span class="tool-icon reset-single" data-crop="softness">↺</span>
+                </div>
+              </div>
+              <div class="dv-chk-row" style="margin-top: 2px;">
+                <input type="checkbox" id="chkCropRetain">
+                <label for="chkCropRetain">Retain crop</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- SPEED CHANGE -->
+          <div class="dv-card" id="cardSpeed">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotSpeed" title="Bypass / Enable Speed Change">🔴</span>
+              <span class="card-title">Speed Change</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetSpeed" title="Reset Speed Change">↺</span>
+              </div>
+            </div>
+            <div class="dv-card-body" id="bodySpeed">
+              <div class="dv-row">
+                <label class="row-label">Speed</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderSpeed" min="25" max="400" step="5" value="100">
+                  <input type="text" class="dv-num-box" id="inpSpeed" value="100.00 %">
+                  <span class="tool-icon reset-single" data-key="speed">↺</span>
+                </div>
+              </div>
+              <div class="dv-row">
+                <label class="row-label">Direction</label>
+                <div class="row-controls">
+                  <select class="dv-select" id="selSpeedDirection">
+                    <option value="forward" selected>Forward</option>
+                    <option value="reverse">Reverse</option>
+                  </select>
+                  <span class="tool-icon">↺</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. STABILIZATION -->
+          <div class="dv-card" id="cardStabilization">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotStabilization" title="Bypass / Enable Stabilization">🔴</span>
+              <span class="card-title">Stabilization</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetStabilization" title="Reset Stabilization">↺</span>
+              </div>
+            </div>
+            <div class="dv-card-body" id="bodyStabilization">
+              <div class="dv-row">
+                <label class="row-label">Mode</label>
+                <div class="row-controls">
+                  <select class="dv-select" id="selStabMode">
+                    <option value="perspective" selected>Perspective</option>
+                    <option value="similarity">Similarity</option>
+                    <option value="translation">Translation</option>
+                  </select>
+                  <span class="tool-icon">↺</span>
+                </div>
+              </div>
+              <div class="dv-action-row" style="margin-top: 6px; display: flex; justify-content: center;">
+                <button class="btn-davinci-pill" id="btnStabilize" style="padding: 4px 34px; font-size: 11px; font-weight: 600;">Stabilize</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANE 2: NIKON COLOR ENGINE & GRADING -->
+        <div class="insp-pane" id="paneColor" style="display: none;">
+          <!-- CARD 1: NIKON PICTURE CONTROL & TONE PROFILES -->
+          <div class="dv-card" id="cardNikonColor">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotNikonColor">🔴</span>
+              <span class="card-title">Nikon Color &amp; Tone Engine</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetNikonProfile" title="Reset to Default N-Log Rec.709">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body">
+              <!-- Profile Selector -->
+              <div class="dv-row">
+                <label class="row-label">Tone Profile</label>
+                <div class="row-controls">
+                  <select class="dv-select" id="selNikonProfile">
+                    <option value="nlog_rec709" selected>🎨 Nikon N-Log ➔ Rec.709 (Auto-Contrast)</option>
+                    <option value="rich_portrait">🌸 Nikon Rich Tone Portrait (Skin Glow)</option>
+                    <option value="portrait">🌺 Nikon Standard Portrait (Natural)</option>
+                    <option value="vivid">🌿 Nikon Landscape &amp; Vivid (Punchy)</option>
+                    <option value="flat">🎬 Nikon Flat / Film Soft (Cine DR)</option>
+                    <option value="monochrome">🎞️ Nikon Deep Tone Monochrome (B&amp;W)</option>
+                    <option value="custom">📁 Custom 3D LUT (.cube)...</option>
+                    <option value="none">⚪️ None (Source Original)</option>
+                  </select>
+                  <span class="tool-icon reset-single" data-key="nikonProfile">↺</span>
+                </div>
+              </div>
+
+              <!-- Profile Description Pill -->
+              <div id="nikonProfileDesc" style="margin: 4px 0 8px 110px; padding: 4px 8px; background: rgba(0, 221, 255, 0.08); border-left: 2px solid #00ddff; border-radius: 4px; font-size: 10px; color: #8ecae6; line-height: 1.35;">
+                Nikon Z8 golden ratio curve: +18% Contrast, +22% Saturation &amp; shadow detail recovery for punchy, ready-to-share vertical reels.
+              </div>
+
+              <!-- Custom LUT row (Hidden by default, shown when custom selected) -->
+              <div class="dv-row" id="rowCustomLut" style="display: none; margin-top: 4px;">
+                <label class="row-label">LUT File (.cube)</label>
+                <div class="row-controls" style="display: flex; gap: 6px;">
+                  <input type="text" class="dv-deliver-input" id="inpCustomLutPath" placeholder="Select .cube LUT file..." readonly style="font-size: 10px; flex: 1;">
+                  <button class="btn-davinci-browse" id="btnBrowseLut" style="padding: 2px 8px; font-size: 10px;">Browse</button>
+                  <input type="file" id="fileLutPicker" accept=".cube" style="display: none;">
+                </div>
+              </div>
+
+              <!-- Tone Strength Slider (0% - 100%) -->
+              <div class="dv-row" style="margin-top: 6px;">
+                <label class="row-label">Tone Strength</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderNikonStrength" min="0" max="100" step="1" value="100">
+                  <input type="text" class="dv-num-box" id="inpNikonStrength" value="100%">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="nikonStrength">↺</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2: MASTER EXPOSURE & FINE TUNING -->
+          <div class="dv-card" style="margin-top: 8px;">
+            <div class="dv-card-header">
+              <span class="pill-dot active">🔴</span>
+              <span class="card-title">Exposure &amp; Fine Tuning</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetColor" title="Reset Exposure &amp; Sliders">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body">
+              <!-- Quick Color Presets -->
+              <div class="quick-color-row">
+                <button class="btn-color-preset active" data-preset="normal">⚪️ Normal</button>
+                <button class="btn-color-preset" data-preset="shadows" title="Brighten shadows and reveal shadow details">☀️ Lift Shadows</button>
+                <button class="btn-color-preset" data-preset="cinematic" title="Punchy contrast and rich tones">🎬 Cinematic</button>
+                <button class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">🌟 Vibrant</button>
+              </div>
+
+              <!-- Brightness -->
+              <div class="dv-row">
+                <label class="row-label">Brightness</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderBrightness" min="-0.3" max="0.3" step="0.01" value="0">
+                  <input type="text" class="dv-num-box" id="inpBrightness" value="0.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="brightness">↺</span>
+                </div>
+              </div>
+
+              <!-- Contrast -->
+              <div class="dv-row">
+                <label class="row-label">Contrast</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderContrast" min="0.5" max="1.8" step="0.02" value="1.0">
+                  <input type="text" class="dv-num-box" id="inpContrast" value="1.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="contrast">↺</span>
+                </div>
+              </div>
+
+              <!-- Shadow Lift -->
+              <div class="dv-row">
+                <label class="row-label">Shadow Lift</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderShadows" min="-0.3" max="0.6" step="0.02" value="0">
+                  <input type="text" class="dv-num-box" id="inpShadows" value="0.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="shadows">↺</span>
+                </div>
+              </div>
+
+              <!-- Saturation -->
+              <div class="dv-row">
+                <label class="row-label">Saturation</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderSaturation" min="0.0" max="2.0" step="0.02" value="1.0">
+                  <input type="text" class="dv-num-box" id="inpSaturation" value="1.000">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="saturation">↺</span>
+                </div>
+              </div>
+
+              <div class="color-hint-banner" style="margin-top: 8px; padding: 6px 8px; background: #151824; border-radius: 4px; border-left: 3px solid #00f0aa; font-size: 10px; color: #8c93a8; line-height: 1.4;">
+                ⚡️ <b>Hardware VideoToolbox Accelerated:</b> Real-time 9:16 preview &amp; batch export at 250+ FPS directly to Apple Silicon encoders.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANE 3: EXACT DAVINCI RESOLVE STUDIO DELIVER SETTINGS -->
+        <div class="insp-pane" id="paneDeliver" style="display: none;">
+          <div class="dv-card dv-deliver-card">
+            <!-- Top Section: File Name & Location -->
+            <div class="deliver-top-section">
+              <div class="dv-row deliver-row">
+                <label class="deliver-label">File Name</label>
+                <div class="deliver-controls">
+                  <input type="text" class="dv-deliver-input" id="inpFileNamePattern" value="SourceName">
+                </div>
+              </div>
+              <div class="dv-row deliver-row">
+                <label class="deliver-label">Location</label>
+                <div class="deliver-controls location-group">
+                  <input type="text" class="dv-deliver-input location-input" id="inpOutputPath" readonly value="/Users/siamratchongtong/Desktop/STD_VT/test_Exp" title="Export Destination Directory">
+                  <button class="btn-davinci-browse" id="btnBrowseOutput" title="Browse / Select Destination Folder">Browse</button>
+                </div>
+              </div>
+
+              <!-- Render Radio: Single clip vs Individual clips -->
+              <div class="dv-row deliver-row render-radio-row">
+                <label class="deliver-label">Render</label>
+                <div class="deliver-controls radio-group">
+                  <label class="dv-radio-label">
+                    <input type="radio" name="renderMode" value="single">
+                    <span class="dv-radio-circle"></span>
+                    <span>Single clip</span>
+                  </label>
+                  <label class="dv-radio-label">
+                    <input type="radio" name="renderMode" value="individual" checked>
+                    <span class="dv-radio-circle"></span>
+                    <span>Individual clips</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Subtabs: Video | Audio | File -->
+            <div class="deliver-subtabs">
+              <button class="d-subtab active" data-subtab="video">Video</button>
+              <button class="d-subtab" data-subtab="audio">Audio</button>
+              <button class="d-subtab" data-subtab="file">File</button>
+            </div>
+
+            <!-- Subtab Pane: Video (Matches DaVinci Deliver Exactly) -->
+            <div class="deliver-body-scroll">
+              <div class="deliver-subtab-pane" id="dPaneVideo">
+                <!-- Export Video Checkbox -->
+                <div class="dv-chk-row major-chk">
+                  <input type="checkbox" id="chkExportVideo" checked>
+                  <label for="chkExportVideo">Export Video</label>
+                </div>
+
+                <!-- Format -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Format</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selFormat">
+                      <option value="mp4" selected>MP4</option>
+                      <option value="mov">QuickTime</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Codec -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Codec</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selCodec">
+                      <option value="h264" selected>H.264</option>
+                      <option value="hevc">H.265</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="dv-chk-row sub-chk">
+                  <input type="checkbox" id="chkHwAccel" checked>
+                  <label for="chkHwAccel">Use hardware acceleration if available</label>
+                </div>
+
+                <div class="dv-chk-row sub-chk">
+                  <input type="checkbox" id="chkNetworkOpt" checked>
+                  <label for="chkNetworkOpt">Network Optimization</label>
+                </div>
+
+                <div class="deliver-divider"></div>
+
+                <!-- Resolution Section -->
+                <div class="dv-chk-row sub-chk">
+                  <input type="checkbox" id="chkTimelineEffects">
+                  <label for="chkTimelineEffects">Render timeline effects</label>
+                </div>
+
+                <div class="dv-chk-row sub-chk">
+                  <input type="checkbox" id="chkSourceRes">
+                  <label for="chkSourceRes">Render at source resolution</label>
+                </div>
+
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Resolution</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selResolution">
+                      <option value="1080x1920" selected>Timeline Resolution</option>
+                      <option value="2160x3840">3840 x 2160 Ultra HD</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="dv-row deliver-row res-boxes-row">
+                  <div class="deliver-label"></div>
+                  <div class="deliver-controls res-inputs-wrap">
+                    <input type="text" class="dv-deliver-input res-box" id="inpResW" value="1080">
+                    <span class="res-x">x</span>
+                    <input type="text" class="dv-deliver-input res-box" id="inpResH" value="1920">
+                  </div>
+                </div>
+
+                <div class="dv-chk-row sub-chk">
+                  <input type="checkbox" id="chkVerticalRes" checked>
+                  <label for="chkVerticalRes">Use vertical resolution</label>
+                </div>
+
+                <div class="deliver-divider"></div>
+
+                <!-- Quality & Bitrate Section -->
+                <div class="dv-row deliver-row quality-top-row">
+                  <label class="deliver-label">Quality</label>
+                  <div class="deliver-controls radio-group quality-radio-group">
+                    <label class="dv-radio-label">
+                      <input type="radio" name="qualityMode" value="auto" checked>
+                      <span class="dv-radio-circle"></span>
+                      <span>Automatic</span>
+                    </label>
+
+                    <div class="quality-restrict-line">
+                      <label class="dv-radio-label">
+                        <input type="radio" name="qualityMode" value="restrict">
+                        <span class="dv-radio-circle"></span>
+                        <span>Restrict to</span>
+                      </label>
+                      <input type="text" class="dv-deliver-input bitrate-box" id="inpBitrateKbps" value="80000">
+                      <span class="unit-tag">Kb/s</span>
+                    </div>
+
+                    <div class="quality-limit-line">
+                      <input type="checkbox" id="chkLimitDataRate">
+                      <label for="chkLimitDataRate">Limit data rate every</label>
+                      <input type="text" class="dv-deliver-input rate-sec-box" id="inpRateSec" value="6">
+                      <span class="unit-tag">sec</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Encoding Profile</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selProfile">
+                      <option value="auto" selected>Auto</option>
+                      <option value="high">High</option>
+                      <option value="main">Main</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Entropy Mode</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selEntropy">
+                      <option value="auto" selected>Auto</option>
+                      <option value="cabac">CABAC</option>
+                      <option value="cavlc">CAVLC</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="dv-chk-row sub-chk">
+                  <input type="checkbox" id="chkMultipass">
+                  <label for="chkMultipass">Multi-pass encode</label>
+                </div>
+
+                <!-- Key Frames -->
+                <div class="dv-row deliver-row keyframe-top-row">
+                  <label class="deliver-label">Key Frames</label>
+                  <div class="deliver-controls radio-group keyframe-radio-group">
+                    <label class="dv-radio-label">
+                      <input type="radio" name="keyframeMode" value="auto" checked>
+                      <span class="dv-radio-circle"></span>
+                      <span>Automatic</span>
+                    </label>
+                    <div class="keyframe-every-line">
+                      <label class="dv-radio-label">
+                        <input type="radio" name="keyframeMode" value="every">
+                        <span class="dv-radio-circle"></span>
+                        <span>Every</span>
+                      </label>
+                      <input type="text" class="dv-deliver-input kf-box" id="inpKeyframeInterval" value="30">
+                      <span class="unit-tag">frames</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dv-chk-row sub-chk">
+                  <input type="checkbox" id="chkFrameReorder" checked>
+                  <label for="chkFrameReorder">Frame reordering</label>
+                </div>
+              </div>
+
+              <!-- Subtab Pane: Audio (Exact DaVinci Resolve Studio Replication) -->
+              <div class="deliver-subtab-pane" id="dPaneAudio" style="display: none;">
+                <!-- Export Audio Checkbox -->
+                <div class="dv-chk-row major-chk">
+                  <input type="checkbox" id="chkExportAudio" checked>
+                  <label for="chkExportAudio">Export Audio</label>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- Codec -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Codec</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selAudioCodec">
+                      <option value="aac" selected>AAC</option>
+                      <option value="pcm">Linear PCM</option>
+                      <option value="copy">Direct Copy (Pass-through)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- Render full extents & Frame Handles -->
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px;">
+                  <input type="checkbox" id="chkRenderFullExtents">
+                  <label for="chkRenderFullExtents">Render full extents</label>
+                </div>
+                <div class="dv-row deliver-row" style="margin-top: 4px;">
+                  <label class="deliver-label">Add</label>
+                  <div class="deliver-controls" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="number" class="dv-deliver-input num-spinner" id="inpFrameHandles" value="0" min="0" max="1000" style="width: 50px;">
+                    <span class="unit-tag">frame handles</span>
+                  </div>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- Bit Rate Strategy -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Bit Rate Strategy</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selAudioBitrateStrategy">
+                      <option value="cbr" selected>Constant Bit Rate</option>
+                      <option value="vbr">Variable Bit Rate</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Track Data Rate -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Track Data Rate</label>
+                  <div class="deliver-controls">
+                    <input type="text" class="dv-deliver-input rate-box" id="inpAudioBitrate" value="320">
+                    <span class="unit-tag">Kb/s</span>
+                  </div>
+                </div>
+
+                <!-- Channels -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Channels</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selAudioChannels">
+                      <option value="2" selected>2</option>
+                      <option value="1">1</option>
+                      <option value="same">Same as source</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px; margin-top: 6px;">
+                  <input type="checkbox" id="chkTrackPerChannel">
+                  <label for="chkTrackPerChannel">Render one track per channel</label>
+                </div>
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px;">
+                  <input type="checkbox" id="chkDiscreteTracks">
+                  <label for="chkDiscreteTracks">Render as discrete audio tracks</label>
+                </div>
+              </div>
+
+              <!-- Subtab Pane: File (Exact DaVinci Resolve Studio Replication) -->
+              <div class="deliver-subtab-pane" id="dPaneFile" style="display: none;">
+                <!-- Filename uses: Custom name vs Source name -->
+                <div class="dv-row deliver-row file-radio-row">
+                  <label class="deliver-label">Filename uses</label>
+                  <div class="deliver-controls radio-group">
+                    <label class="dv-radio-label">
+                      <input type="radio" name="filenameUses" value="custom">
+                      <span class="dv-radio-circle"></span>
+                      <span>Custom name</span>
+                    </label>
+                    <label class="dv-radio-label">
+                      <input type="radio" name="filenameUses" value="source" checked>
+                      <span class="dv-radio-circle"></span>
+                      <span>Source name</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px;">
+                  <input type="checkbox" id="chkUniqueFilenames">
+                  <label for="chkUniqueFilenames">Use unique filenames</label>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- File subfolder -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">File subfolder</label>
+                  <div class="deliver-controls">
+                    <input type="text" class="dv-deliver-input" id="inpFileSubfolder" placeholder="">
+                  </div>
+                </div>
+
+                <!-- Use 8 digits in the filename -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Use</label>
+                  <div class="deliver-controls" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="number" class="dv-deliver-input num-spinner" id="inpFilenameDigits" value="8" min="1" max="16" style="width: 50px;">
+                    <span class="unit-tag">digits in the filename</span>
+                  </div>
+                </div>
+
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px; display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chkClipStartsAtFrame">
+                  <label for="chkClipStartsAtFrame">Each clip starts at frame</label>
+                  <input type="text" class="dv-deliver-input" id="inpStartFrame" value="1" style="width: 45px; height: 20px; font-size: 10px; text-align: center; margin-left: 4px;">
+                </div>
+
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px; margin-top: 4px;">
+                  <input type="checkbox" id="chkReplaceInPlace">
+                  <label for="chkReplaceInPlace">Replace existing files in place <span class="info-bubble" title="Replaces existing file in destination folder without prompt">ⓘ</span></label>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- Place clips in separate folders -->
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px;">
+                  <input type="checkbox" id="chkSeparateFolders">
+                  <label for="chkSeparateFolders">Place clips in separate folders</label>
+                </div>
+
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px; margin-top: 4px;">
+                  <input type="checkbox" id="chkPreserveSourceDir" checked>
+                  <label for="chkPreserveSourceDir">Preserve source directory levels</label>
+                </div>
+
+                <div class="dv-row deliver-row" style="margin-top: 4px;">
+                  <label class="deliver-label">Preserve</label>
+                  <div class="deliver-controls" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="number" class="dv-deliver-input num-spinner" id="inpPreserveLevels" value="0" min="0" max="10" style="width: 48px;">
+                    <label class="dv-radio-label">
+                      <input type="radio" name="preserveFrom" value="head">
+                      <span class="dv-radio-circle"></span>
+                      <span>After head</span>
+                    </label>
+                    <label class="dv-radio-label">
+                      <input type="radio" name="preserveFrom" value="tail" checked>
+                      <span class="dv-radio-circle"></span>
+                      <span>From tail</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="dv-row deliver-row" style="margin-top: 4px;">
+                  <label class="deliver-label">Preserved Path</label>
+                  <div class="deliver-controls">
+                    <input type="text" class="dv-deliver-input" id="inpPreservedPath" readonly placeholder="" style="background: #14151e; color: #72778c;">
+                  </div>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- Commercial workflow -->
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px;">
+                  <input type="checkbox" id="chkCommercialWorkflow">
+                  <label for="chkCommercialWorkflow">Use commercial workflow</label>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- Render speed -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Render speed</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selRenderSpeed">
+                      <option value="max" selected>Maximum</option>
+                      <option value="75">75</option>
+                      <option value="50">50</option>
+                      <option value="25">25</option>
+                      <option value="10">10</option>
+                      <option value="1">1</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="deliver-divider"></div>
+
+                <!-- Smart Resume & Parallel Engine -->
+                <div class="dv-chk-row sub-chk" style="margin-left: 110px;">
+                  <input type="checkbox" id="chkSmartResume" checked>
+                  <label for="chkSmartResume">Smart Resume (Skip Already Rendered Clips)</label>
+                </div>
+                <div class="dv-row deliver-row" style="margin-top: 6px;">
+                  <label class="deliver-label">Parallel Engine</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selWorkers">
+                      <option value="2" selected>⚡️ 2 Workers (Recommended for M-Series)</option>
+                      <option value="1">1 Worker (Sequential Standard)</option>
+                      <option value="3">⚡️⚡️ 3 Workers (Max Turbo Boost)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIG QUICK EXPORT ACTION BUTTON (PINNED AT BOTTOM) -->
+      <div class="quick-export-action-box pinned-export">
+        <button class="btn-big-export" id="btnBigExport">
+          🚀 1-Click Fast Vertical Export (All Clips)
+        </button>
+        <!-- Live Export Pause / Stop Controls -->
+        <div class="export-controls-row" id="exportControlsRow" style="display: none;">
+          <button class="btn-action-pause" id="btnPauseRender">
+            ⏸ Pause
+          </button>
+          <button class="btn-action-stop" id="btnStopRender">
+            🛑 Stop Render
+          </button>
+        </div>
+        <span class="export-note" id="exportNote">Rendered into destination folder via Apple VideoToolbox</span>
+      </div>
+    </aside>
+  </main>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast-notify" id="toastNotify"></div>
+
+  <!-- IMPORT MODAL DIALOG (Media Storage & Finder) -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">📁 Import Media & Folders (Media Storage)</span>
+        <button class="btn-close-modal" id="btnCloseModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- TOP ACTIONS: NATIVE FINDER -->
+        <div class="native-picker-row">
+          <button class="btn-native-picker" id="btnLaunchNativePicker">
+            📂 Open macOS Finder Folder Picker
+          </button>
+          <button class="btn-native-picker-files" id="btnLaunchNativeFiles">
+            📄 Open Finder File Picker
+          </button>
+        </div>
+
+        <div class="modal-divider"><span>QUICK ACCESS SHORTCUTS</span></div>
+
+        <!-- Method 2: One-click Desktop Folder shortcuts -->
+        <div class="quick-folder-list">
+          <button class="btn-quick-folder active-quick" data-path="/Users/siamratchongtong/Desktop/STD_VT/081169/100NC_Z8">
+            <span class="qf-icon">⚡️</span>
+            <div class="qf-text">
+              <span class="qf-name">Desktop / STD_VT / 081169 / 100NC_Z8</span>
+              <span class="qf-sub">Mass Batch (2,145 Nikon Z8 Video Clips)</span>
+            </div>
+            <span class="qf-btn-action">Import 2,145 Clips ➔</span>
+          </button>
+          <button class="btn-quick-folder" data-path="/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8">
+            <span class="qf-icon">📁</span>
+            <div class="qf-text">
+              <span class="qf-name">Desktop / STD_VT / 100NC_Z8</span>
+              <span class="qf-sub">Nikon Z8 Footage (318 Video Clips)</span>
+            </div>
+            <span class="qf-btn-action">Import Now ➔</span>
+          </button>
+          <button class="btn-quick-folder" data-path="/Users/siamratchongtong/Desktop/STD_VT">
+            <span class="qf-icon">📁</span>
+            <div class="qf-text">
+              <span class="qf-name">Desktop / STD_VT</span>
+              <span class="qf-sub">Parent Project Directory</span>
+            </div>
+            <span class="qf-btn-action">Import Now ➔</span>
+          </button>
+          <div class="quick-folder-subrow">
+            <button class="btn-quick-folder-chip" data-path="/Users/siamratchongtong/Desktop">📁 Desktop</button>
+            <button class="btn-quick-folder-chip" data-path="/Users/siamratchongtong/Downloads">📁 Downloads</button>
+            <button class="btn-quick-folder-chip" data-path="/Users/siamratchongtong/Movies">📁 Movies</button>
+          </div>
+        </div>
+
+        <div class="modal-divider"><span>IN-APP FOLDER BROWSER</span></div>
+
+        <!-- In-app Interactive Media Storage Explorer -->
+        <div class="folder-browser-widget">
+          <div class="fb-nav-bar">
+            <button class="btn-fb-up" id="btnFbUp" title="Go Up Directory">⬆️ Parent</button>
+            <span class="fb-current-path" id="fbCurrentPath">/Users/siamratchongtong/Desktop/STD_VT</span>
+            <button class="btn-fb-import-here" id="btnFbImportHere">📥 Import This Folder</button>
+          </div>
+          <div class="fb-entries-list" id="fbEntriesList">
+            <!-- Dynamic entries -->
+          </div>
+        </div>
+
+        <div class="modal-divider"><span>OR ENTER FOLDER PATH DIRECTLY</span></div>
+
+        <!-- Method 3: Direct Path Input -->
+        <div class="modal-input-row">
+          <input type="text" class="modal-text-input" id="customFolderPath" placeholder="/Users/siamratchongtong/Desktop/..." value="/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8">
+          <button class="btn-load-path" id="btnLoadCustomPath">Load Folder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
