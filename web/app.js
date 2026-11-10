@@ -2327,7 +2327,7 @@ function setupInspectorListeners() {
         nikonProfileDesc.textContent = NIKON_PROFILES_INFO[matchedProfile];
       }
       applyMonitorTransform();
-      showToast(`⚡️ ดึงโค้ดกล้องสำเร็จ: ${nMeta.camera_model || "Nikon Z8"} [${pc}]`);
+      showToast(`⚡️ ดึงโค้ดกล้องสำเร็จ: ${nMeta.camera_model || "Nikon Z8 / ZR / Z6 III"} [${pc}]`);
     });
   }
 

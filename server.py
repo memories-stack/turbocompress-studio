@@ -203,16 +203,42 @@ def extract_nikon_metadata(filepath):
             meta["is_nikon"] = True
             meta["make"] = "Nikon"
 
-        if b"NIKON Z 8" in data:
+        # Regex detect Nikon Z models (Z8, Z9, Z6 III, Zf, ZR, Zfc, Z7 II, Z6 II, Z5, etc.)
+        z_match = re.search(rb"NIKON\s+(Z\s*[0-9a-zA-Z_]+(?:\s*(?:III|II|IV|f|fc|R))?)", data, re.IGNORECASE)
+        if z_match:
+            raw_model = z_match.group(1).decode("latin1", errors="ignore").replace("_", " ").strip()
+            if any(k in raw_model for k in ["6 3", "6_3", "6 III", "6III"]):
+                meta["camera_model"] = "Nikon Z6 III"
+            elif "8" in raw_model:
+                meta["camera_model"] = "Nikon Z8"
+            elif "9" in raw_model:
+                meta["camera_model"] = "Nikon Z9"
+            elif "fc" in raw_model.lower():
+                meta["camera_model"] = "Nikon Zfc"
+            elif "f" in raw_model.lower():
+                meta["camera_model"] = "Nikon Zf"
+            elif "r" in raw_model.lower():
+                meta["camera_model"] = "Nikon ZR"
+            elif "7" in raw_model:
+                meta["camera_model"] = "Nikon Z7 II" if "ii" in raw_model.lower() else "Nikon Z7"
+            elif "6" in raw_model:
+                meta["camera_model"] = "Nikon Z6 II" if "ii" in raw_model.lower() else "Nikon Z6"
+            elif "50" in raw_model:
+                meta["camera_model"] = "Nikon Z50"
+            elif "30" in raw_model:
+                meta["camera_model"] = "Nikon Z30"
+            elif "5" in raw_model:
+                meta["camera_model"] = "Nikon Z5"
+            else:
+                meta["camera_model"] = f"Nikon {raw_model}"
+        elif b"NIKON Z 8" in data:
             meta["camera_model"] = "Nikon Z8"
-        elif b"NIKON Z 9" in data:
-            meta["camera_model"] = "Nikon Z9"
+        elif b"NIKON Z 6" in data:
+            meta["camera_model"] = "Nikon Z6 III" if (b"III" in data or b"6_3" in data) else "Nikon Z6"
         elif b"NIKON Z f" in data:
             meta["camera_model"] = "Nikon Zf"
-        elif b"NIKON Z 6" in data:
-            meta["camera_model"] = "Nikon Z6"
         elif b"NIKON" in data:
-            meta["camera_model"] = "Nikon Camera"
+            meta["camera_model"] = "Nikon Z Series"
 
         # Firmware
         fw_idx = data.find(b"Ver.")
