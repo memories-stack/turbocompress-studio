@@ -1844,6 +1844,18 @@ function setupInspectorListeners() {
     });
   });
 
+  // Collapsible Scopes Header Toggle
+  const headerHistogram = document.getElementById("headerHistogram");
+  const cardHistogram = document.getElementById("cardHistogram");
+  if (headerHistogram && cardHistogram) {
+    headerHistogram.addEventListener("click", () => {
+      cardHistogram.classList.toggle("collapsed");
+      if (!cardHistogram.classList.contains("collapsed")) {
+        setTimeout(renderHistogram, 20);
+      }
+    });
+  }
+
   // Deliver Subtabs Switcher (Video, Audio, File)
   const dSubtabs = document.querySelectorAll(".d-subtab");
   const dPanes = {

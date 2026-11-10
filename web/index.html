@@ -531,22 +531,22 @@
         <!-- PANE 2: NIKON COLOR ENGINE & GRADING -->
         <div class="insp-pane" id="paneColor" style="display: none;">
           <!-- CARD 0: REAL-TIME SCOPE & HISTOGRAM -->
-          <div class="dv-card" id="cardHistogram" style="margin-bottom: 8px;">
-            <div class="dv-card-header">
+          <div class="dv-card dv-card-scopes" id="cardHistogram">
+            <div class="dv-card-header" id="headerHistogram" style="cursor: pointer;" title="คลิกเพื่อย่อ/ขยายกราฟสโคป">
               <span class="pill-dot active" id="dotHistogram">🔴</span>
-              <span class="card-title">Live Scopes • Histogram</span>
-              <div class="histo-mode-pills">
-                <button class="btn-histo-mode active" data-mode="rgb" title="RGB Overlay Histogram">RGB</button>
-                <button class="btn-histo-mode" data-mode="luma" title="Luminance (Y) Waveform">Luma</button>
-                <button class="btn-histo-mode" data-mode="parade" title="RGB Separate Parade">Parade</button>
-                <button class="btn-histo-mode" data-mode="vector" title="Vectorscope &amp; Skin Tone Line">Vectorscope</button>
+              <span class="card-title">Live Scopes • Waveform <span id="scopeToggleArrow" style="font-size: 8px; opacity: 0.65; margin-left: 4px;">▼</span></span>
+              <div class="histo-mode-pills" onclick="event.stopPropagation();">
+                <button type="button" class="btn-histo-mode active" data-mode="rgb" title="RGB Overlay Histogram">RGB</button>
+                <button type="button" class="btn-histo-mode" data-mode="luma" title="Luminance (Y) Waveform">Luma</button>
+                <button type="button" class="btn-histo-mode" data-mode="parade" title="RGB Separate Parade">Parade</button>
+                <button type="button" class="btn-histo-mode" data-mode="vector" title="Vectorscope &amp; Skin Tone Line">Vectorscope</button>
               </div>
             </div>
 
-            <div class="dv-card-body histo-body">
+            <div class="dv-card-body histo-body" id="bodyHistogram">
               <!-- Scope Canvas Container -->
               <div class="histo-canvas-wrap">
-                <canvas id="histoCanvas" width="340" height="110"></canvas>
+                <canvas id="histoCanvas" width="340" height="96"></canvas>
                 <!-- IRE Scale Grid Lines -->
                 <div class="histo-grid">
                   <span class="grid-line line-100"><label>100</label></span>
@@ -566,11 +566,11 @@
             </div>
           </div>
 
-          <!-- CARD 1: WHITE BALANCE & COLOR TEMPERATURE (ไวท์บาลานซ์และอุณหภูมิสี) -->
-          <div class="dv-card" id="cardWhiteBalance" style="margin-top: 8px;">
+          <!-- CARD 1: WHITE BALANCE & COLOR TEMPERATURE -->
+          <div class="dv-card" id="cardWhiteBalance">
             <div class="dv-card-header">
               <span class="pill-dot active" id="dotWhiteBalance" title="White Balance: Active">🔴</span>
-              <span class="card-title">White Balance &amp; Temperature (ไวท์บาลานซ์)</span>
+              <span class="card-title">White Balance &amp; Temp</span>
               <div class="card-tools">
                 <span class="wb-kelvin-badge" id="wbKelvinBadge">5200K Neutral</span>
                 <span class="tool-icon reset-btn" id="resetWhiteBalance" title="Reset White Balance to 0 (As Shot)">↺</span>
@@ -578,21 +578,18 @@
             </div>
 
             <div class="dv-card-body">
-              <!-- Quick 1-Click White Balance Presets -->
-              <div class="quick-wb-presets-row">
-                <button class="btn-wb-preset active" data-wb="shot" title="Original Camera White Balance (0 / 5200K)">⚪️ As Shot</button>
-                <button class="btn-wb-preset" data-wb="daylight" title="Daylight Outdoor (แสงแดดกลางแจ้ง 5600K / +12)">☀️ Daylight</button>
-                <button class="btn-wb-preset" data-wb="cloudy" title="Cloudy Overcast (เมฆครึ้ม / อุ่นขึ้น 6500K / +25)">☁️ Cloudy</button>
-                <button class="btn-wb-preset" data-wb="shade" title="Shade / Tree Shadows (แก้ฟ้าใต้ร่มไม้ 7500K / +38)">🌤 Shade</button>
-                <button class="btn-wb-preset" data-wb="tungsten" title="Tungsten / Indoor Incandescent (ไฟส้มในอาคาร 3200K / -30)">💡 Tungsten</button>
+              <!-- Segmented 1-Click White Balance Presets -->
+              <div class="dv-segmented-pills">
+                <button type="button" class="btn-wb-preset active" data-wb="shot" title="Original Camera White Balance (0 / 5200K)">⚪ As Shot</button>
+                <button type="button" class="btn-wb-preset" data-wb="daylight" title="Daylight Outdoor (แสงแดดกลางแจ้ง 5600K / +12)">☀️ Daylight</button>
+                <button type="button" class="btn-wb-preset" data-wb="cloudy" title="Cloudy Overcast (เมฆครึ้ม / อุ่นขึ้น 6500K / +25)">☁️ Cloudy</button>
+                <button type="button" class="btn-wb-preset" data-wb="shade" title="Shade / Tree Shadows (แก้ฟ้าใต้ร่มไม้ 7500K / +38)">🌤 Shade</button>
+                <button type="button" class="btn-wb-preset" data-wb="tungsten" title="Tungsten / Indoor Incandescent (ไฟส้มในอาคาร 3200K / -30)">💡 Tungsten</button>
               </div>
 
-              <!-- Color Temperature Slider (Cool Blue <-> Warm Amber) -->
+              <!-- Color Temperature Slider -->
               <div class="dv-row wb-slider-row">
-                <label class="row-label wb-row-label">
-                  <span>Temperature</span>
-                  <span class="wb-track-hint">🧊 Cool • Warm ☀️</span>
-                </label>
+                <label class="row-label">Temperature</label>
                 <div class="row-controls">
                   <input type="range" class="dv-slider wb-slider-temp" id="sliderTemp" min="-50" max="50" step="1" value="0">
                   <input type="text" class="dv-num-box wb-num-box" id="inpTemp" value="0">
@@ -600,12 +597,9 @@
                 </div>
               </div>
 
-              <!-- Tint Slider (Green <-> Magenta) -->
-              <div class="dv-row wb-slider-row" style="margin-top: 4px;">
-                <label class="row-label wb-row-label">
-                  <span>Tint</span>
-                  <span class="wb-track-hint">🍏 Green • Magenta 🍇</span>
-                </label>
+              <!-- Tint Slider -->
+              <div class="dv-row wb-slider-row" style="margin-top: 3px;">
+                <label class="row-label">Tint</label>
                 <div class="row-controls">
                   <input type="range" class="dv-slider wb-slider-tint" id="sliderTint" min="-50" max="50" step="1" value="0">
                   <input type="text" class="dv-num-box wb-num-box" id="inpTint" value="0">
@@ -615,11 +609,72 @@
             </div>
           </div>
 
-          <!-- CARD 2: COLOR PROFILE & TONE ENGINE -->
+          <!-- CARD 2: MASTER EXPOSURE & TONE (PRIMARIES) -->
+          <div class="dv-card" id="cardExposure">
+            <div class="dv-card-header">
+              <span class="pill-dot active">🔴</span>
+              <span class="card-title">Master Exposure &amp; Primaries</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetColor" title="Reset Exposure &amp; Sliders">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body">
+              <!-- Quick Master Tone Presets -->
+              <div class="dv-segmented-pills">
+                <button type="button" class="btn-color-preset active" data-preset="normal" title="Neutral natural camera balance">⚪ Natural</button>
+                <button type="button" class="btn-color-preset" data-preset="shadows" title="Brighten shadows and reveal shadow details">☀️ Lift Shadows</button>
+                <button type="button" class="btn-color-preset" data-preset="cinematic" title="Punchy contrast and rich tones">🎬 Cinematic</button>
+                <button type="button" class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">🌟 Vibrant</button>
+              </div>
+
+              <!-- Brightness (Exposure) -->
+              <div class="dv-row">
+                <label class="row-label">Exposure</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider slider-track-exposure" id="sliderBrightness" min="-0.3" max="0.3" step="0.01" value="0">
+                  <input type="text" class="dv-num-box" id="inpBrightness" value="0.000">
+                  <span class="tool-icon reset-single" data-key="brightness" title="Reset Exposure">↺</span>
+                </div>
+              </div>
+
+              <!-- Contrast -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Contrast</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider slider-track-contrast" id="sliderContrast" min="0.5" max="1.8" step="0.02" value="1.0">
+                  <input type="text" class="dv-num-box" id="inpContrast" value="1.000">
+                  <span class="tool-icon reset-single" data-key="contrast" title="Reset Contrast">↺</span>
+                </div>
+              </div>
+
+              <!-- Shadow Lift -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Shadows</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider slider-track-shadows" id="sliderShadows" min="-0.3" max="0.6" step="0.02" value="0">
+                  <input type="text" class="dv-num-box" id="inpShadows" value="0.000">
+                  <span class="tool-icon reset-single" data-key="shadows" title="Reset Shadows">↺</span>
+                </div>
+              </div>
+
+              <!-- Saturation -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Saturation</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider slider-track-saturation" id="sliderSaturation" min="0.0" max="2.0" step="0.02" value="1.0">
+                  <input type="text" class="dv-num-box" id="inpSaturation" value="1.000">
+                  <span class="tool-icon reset-single" data-key="saturation" title="Reset Saturation">↺</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3: NIKON COLOR PROFILE & SKIN TONE ENGINE -->
           <div class="dv-card" id="cardNikonColor">
             <div class="dv-card-header">
               <span class="pill-dot active" id="dotNikonColor" title="Color Profile Engine: Active">🟢</span>
-              <span class="card-title">Color Profile &amp; Tone Engine</span>
+              <span class="card-title">Nikon Picture Control &amp; Skin Engine</span>
               <div class="card-tools">
                 <span class="tool-icon reset-btn" id="resetNikonProfile" title="Reset to Default Rec.709">↺</span>
               </div>
@@ -666,7 +721,7 @@
               </div>
 
               <!-- Profile Description Pill -->
-              <div id="nikonProfileDesc" style="margin: 4px 0 8px 110px; padding: 4px 8px; background: rgba(0, 221, 255, 0.08); border-left: 2px solid #00ddff; border-radius: 4px; font-size: 10px; color: #8ecae6; line-height: 1.35;">
+              <div id="nikonProfileDesc" class="nikon-profile-desc">
                 Professional golden ratio curve: +18% Contrast, +22% Saturation &amp; shadow detail recovery for punchy, ready-to-share vertical reels.
               </div>
 
@@ -675,42 +730,41 @@
                 <label class="row-label">LUT File (.cube)</label>
                 <div class="row-controls" style="display: flex; gap: 6px;">
                   <input type="text" class="dv-deliver-input" id="inpCustomLutPath" placeholder="Select .cube LUT file..." readonly style="font-size: 10px; flex: 1;">
-                  <button class="btn-davinci-browse" id="btnBrowseLut" style="padding: 2px 8px; font-size: 10px;">Browse</button>
+                  <button type="button" class="btn-davinci-browse" id="btnBrowseLut" style="padding: 2px 8px; font-size: 10px;">Browse</button>
                   <input type="file" id="fileLutPicker" accept=".cube" style="display: none;">
                 </div>
               </div>
 
               <!-- Tone Strength Slider (0% - 100%) -->
-              <div class="dv-row" style="margin-top: 6px;">
+              <div class="dv-row" style="margin-top: 4px;">
                 <label class="row-label">Tone Strength</label>
                 <div class="row-controls">
                   <input type="range" class="dv-slider" id="sliderNikonStrength" min="0" max="100" step="1" value="100">
                   <input type="text" class="dv-num-box" id="inpNikonStrength" value="100%">
-                  <span class="tool-icon">◇</span>
                   <span class="tool-icon reset-single" data-key="nikonStrength">↺</span>
                 </div>
               </div>
 
-              <!-- Skin Softening Slider & Camera Preset Buttons (Nikon Z8 In-Camera Modes) -->
-              <div class="dv-row" style="margin-top: 6px;">
+              <!-- Skin Softening Slider & In-Camera Presets -->
+              <div class="dv-row" style="margin-top: 4px;">
                 <label class="row-label">Skin Softening</label>
                 <div class="row-controls">
                   <input type="range" class="dv-slider" id="sliderSkinSoft" min="0" max="100" step="5" value="0">
                   <input type="text" class="dv-num-box" id="inpSkinSoft" value="0%">
-                  <span class="tool-icon">◇</span>
                   <span class="tool-icon reset-single" data-key="skinSoftening">↺</span>
                 </div>
               </div>
-              <!-- In-Camera Skin Softening Presets -->
-              <div class="quick-preset-pills" style="display: flex; gap: 4px; margin: 4px 0 6px 110px;">
-                <button type="button" class="btn-soft-preset active" data-val="0" style="padding: 2px 7px; font-size: 9px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); background: #232534; color: #d1d4dc; cursor: pointer;">Off (ปิด)</button>
-                <button type="button" class="btn-soft-preset" data-val="35" style="padding: 2px 7px; font-size: 9px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); background: #232534; color: #d1d4dc; cursor: pointer;">Low (ต่ำ)</button>
-                <button type="button" class="btn-soft-preset" data-val="65" style="padding: 2px 7px; font-size: 9px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); background: #232534; color: #d1d4dc; cursor: pointer;">Normal (ปกติ)</button>
-                <button type="button" class="btn-soft-preset" data-val="95" style="padding: 2px 7px; font-size: 9px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); background: #232534; color: #d1d4dc; cursor: pointer;">High (สูง)</button>
+
+              <!-- In-Camera Skin Softening Segmented Pills -->
+              <div class="dv-segmented-pills" style="margin-top: 4px; margin-bottom: 4px;">
+                <button type="button" class="btn-soft-preset active" data-val="0">Off (ปิด)</button>
+                <button type="button" class="btn-soft-preset" data-val="35">Low (ต่ำ)</button>
+                <button type="button" class="btn-soft-preset" data-val="65">Normal (ปกติ)</button>
+                <button type="button" class="btn-soft-preset" data-val="95">High (สูง)</button>
               </div>
 
               <!-- Nikon Z8 Portrait Impression Balance (Hue: Amber ↔ Magenta) -->
-              <div class="dv-row" style="margin-top: 6px;">
+              <div class="dv-row" style="margin-top: 4px;">
                 <label class="row-label" title="Portrait Impression Balance (Hue: Amber ↔ Magenta)">Portrait Hue</label>
                 <div class="row-controls">
                   <input type="range" class="dv-slider" id="sliderPortraitHue" min="-10" max="10" step="1" value="0">
@@ -721,80 +775,11 @@
             </div>
           </div>
 
-          <!-- CARD 2: MASTER EXPOSURE & FINE TUNING -->
-          <div class="dv-card" style="margin-top: 8px;">
-            <div class="dv-card-header">
-              <span class="pill-dot active">🔴</span>
-              <span class="card-title">Exposure &amp; Fine Tuning</span>
-              <div class="card-tools">
-                <span class="tool-icon reset-btn" id="resetColor" title="Reset Exposure &amp; Sliders">↺</span>
-              </div>
-            </div>
-
-            <div class="dv-card-body">
-              <!-- Quick Color Presets -->
-              <div class="quick-color-row">
-                <button class="btn-color-preset active" data-preset="normal">⚪️ Normal</button>
-                <button class="btn-color-preset" data-preset="shadows" title="Brighten shadows and reveal shadow details">☀️ Lift Shadows</button>
-                <button class="btn-color-preset" data-preset="cinematic" title="Punchy contrast and rich tones">🎬 Cinematic</button>
-                <button class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">🌟 Vibrant</button>
-              </div>
-
-              <!-- Brightness -->
-              <div class="dv-row">
-                <label class="row-label">Brightness</label>
-                <div class="row-controls">
-                  <input type="range" class="dv-slider" id="sliderBrightness" min="-0.3" max="0.3" step="0.01" value="0">
-                  <input type="text" class="dv-num-box" id="inpBrightness" value="0.000">
-                  <span class="tool-icon">◇</span>
-                  <span class="tool-icon reset-single" data-key="brightness">↺</span>
-                </div>
-              </div>
-
-              <!-- Contrast -->
-              <div class="dv-row">
-                <label class="row-label">Contrast</label>
-                <div class="row-controls">
-                  <input type="range" class="dv-slider" id="sliderContrast" min="0.5" max="1.8" step="0.02" value="1.0">
-                  <input type="text" class="dv-num-box" id="inpContrast" value="1.000">
-                  <span class="tool-icon">◇</span>
-                  <span class="tool-icon reset-single" data-key="contrast">↺</span>
-                </div>
-              </div>
-
-              <!-- Shadow Lift -->
-              <div class="dv-row">
-                <label class="row-label">Shadow Lift</label>
-                <div class="row-controls">
-                  <input type="range" class="dv-slider" id="sliderShadows" min="-0.3" max="0.6" step="0.02" value="0">
-                  <input type="text" class="dv-num-box" id="inpShadows" value="0.000">
-                  <span class="tool-icon">◇</span>
-                  <span class="tool-icon reset-single" data-key="shadows">↺</span>
-                </div>
-              </div>
-
-              <!-- Saturation -->
-              <div class="dv-row">
-                <label class="row-label">Saturation</label>
-                <div class="row-controls">
-                  <input type="range" class="dv-slider" id="sliderSaturation" min="0.0" max="2.0" step="0.02" value="1.0">
-                  <input type="text" class="dv-num-box" id="inpSaturation" value="1.000">
-                  <span class="tool-icon">◇</span>
-                  <span class="tool-icon reset-single" data-key="saturation">↺</span>
-                </div>
-              </div>
-
-              <div class="color-hint-banner" style="margin-top: 8px; padding: 6px 8px; background: #151824; border-radius: 4px; border-left: 3px solid #00f0aa; font-size: 10px; color: #8c93a8; line-height: 1.4;">
-                ⚡️ <b>Hardware VideoToolbox Accelerated:</b> Real-time 9:16 preview &amp; batch export at 250+ FPS directly to Apple Silicon encoders.
-              </div>
-            </div>
-          </div>
-
-          <!-- CARD 3: VIDEO NOISE REDUCTION (ลดสัญญาณรบกวน / นอยส์ในวิดีโอ) -->
-          <div class="dv-card" id="cardDenoise" style="margin-top: 8px;">
+          <!-- CARD 4: VIDEO NOISE REDUCTION -->
+          <div class="dv-card" id="cardDenoise">
             <div class="dv-card-header">
               <span class="pill-dot" id="dotDenoise" title="Denoise Status: Off / Active">⚫</span>
-              <span class="card-title">Noise Reduction (ลดนอยส์ในวิดีโอ)</span>
+              <span class="card-title">Noise Reduction (ลดนอยส์)</span>
               <div class="card-tools">
                 <span class="tool-icon reset-btn" id="resetDenoise" title="Reset Noise Reduction">↺</span>
               </div>
@@ -803,7 +788,7 @@
             <div class="dv-card-body">
               <!-- Denoise Preset Selector -->
               <div class="dv-row">
-                <label class="row-label">Denoise Preset</label>
+                <label class="row-label">Denoise Mode</label>
                 <div class="row-controls">
                   <select class="dv-select" id="selDenoiseMode">
                     <option value="off" selected>⚪ Off (ปิดการลดนอยส์)</option>
@@ -816,8 +801,8 @@
               </div>
 
               <!-- Denoise Spatial Strength Slider (0 - 10) -->
-              <div class="dv-row" id="rowDenoiseSpatial" style="margin-top: 6px;">
-                <label class="row-label">Spatial (เม็ดนอยส์)</label>
+              <div class="dv-row" id="rowDenoiseSpatial" style="margin-top: 4px;">
+                <label class="row-label">Spatial</label>
                 <div class="row-controls">
                   <input type="range" class="dv-slider" id="sliderDenoiseSpatial" min="0" max="10" step="0.5" value="0">
                   <input type="text" class="dv-num-box" id="inpDenoiseSpatial" value="0.0">
@@ -826,8 +811,8 @@
               </div>
 
               <!-- Denoise Temporal Strength Slider (0 - 10) -->
-              <div class="dv-row" id="rowDenoiseTemporal" style="margin-top: 6px;">
-                <label class="row-label">Temporal (การเต้นของนอยส์)</label>
+              <div class="dv-row" id="rowDenoiseTemporal" style="margin-top: 4px;">
+                <label class="row-label">Temporal</label>
                 <div class="row-controls">
                   <input type="range" class="dv-slider" id="sliderDenoiseTemporal" min="0" max="10" step="0.5" value="0">
                   <input type="text" class="dv-num-box" id="inpDenoiseTemporal" value="0.0">
@@ -835,7 +820,7 @@
                 </div>
               </div>
 
-              <div id="denoiseDesc" style="margin: 6px 0 0 110px; padding: 4px 8px; background: rgba(0, 240, 170, 0.08); border-left: 2px solid #00f0aa; border-radius: 4px; font-size: 10px; color: #a7f3d0; line-height: 1.35;">
+              <div id="denoiseDesc" class="denoise-desc-pill">
                 ⚡️ ลดสัญญาณรบกวนเม็ดทรายด้วย High-Quality 3D Denoise (Spatial + Temporal) ลบเกรนโดยคงความคมชัดของขอบเส้นและตัวบุคคล
               </div>
             </div>
