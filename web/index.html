@@ -667,6 +667,563 @@
             </div>
           </div>
 
+          <!-- CARD 2.5: DAVINCI PRIMARIES - COLOR BARS (LIFT / GAMMA / GAIN / OFFSET) -->
+          <div class="dv-card pb-card" id="cardPrimariesBars">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotPrimariesBars" title="Primaries Color Bars: Active (Click to Bypass)">🟢</span>
+              <span class="card-title">Primaries - Color Bars</span>
+              <div class="cs-quick-pills">
+                <button type="button" class="btn-pb-preset" data-pbpreset="auto_balance" title="Auto White &amp; Contrast Balance (Ⓐ)">Ⓐ Auto</button>
+                <button type="button" class="btn-pb-preset" data-pbpreset="clean_skin" title="ดึง Gamma ช่วงผิวให้ใสอมชมพู + กด Lift เงาให้ลึก">✨ Clean Skin</button>
+                <button type="button" class="btn-pb-preset" data-pbpreset="teal_orange" title="โทนภาพยนตร์ Teal &amp; Orange">🎬 Cine</button>
+              </div>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetPrimariesBars" title="Reset All Primaries Color Bars">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body pb-card-body">
+              <!-- Top Master Row: Auto | Temp | Tint | Cont | Pivot | MD -->
+              <div class="pb-top-bar">
+                <button type="button" class="pb-auto-btn" id="btnPbAutoA" title="Auto Balance &amp; Neutralize Cast">Ⓐ</button>
+                <div class="pb-m-item" title="Color Temperature (-100 ถึง +100)">
+                  <span class="pb-m-lbl">Temp</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbTopTemp" data-top="temp" value="0.0">
+                    <div class="pb-m-bar pb-bar-temp"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Tint (-100 ถึง +100)">
+                  <span class="pb-m-lbl">Tint</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbTopTint" data-top="tint" value="0.00">
+                    <div class="pb-m-bar pb-bar-tint"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Contrast (0.200 ถึง 2.000)">
+                  <span class="pb-m-lbl">Cont</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbTopCont" data-top="cont" value="1.000">
+                    <div class="pb-m-bar pb-bar-cont"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Contrast Pivot Center (0.100 ถึง 0.900, ค่ามาตรฐาน 0.435)">
+                  <span class="pb-m-lbl">Pivot</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbTopPivot" data-top="pivot" value="0.435">
+                    <div class="pb-m-bar pb-bar-pivot"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Midtone Detail / Clarity (-50 ถึง +50)">
+                  <span class="pb-m-lbl">MD</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbTopMd" data-top="md" value="0.00">
+                    <div class="pb-m-bar pb-bar-md"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4 Tonal Zones Grid: Lift | Gamma | Gain | Offset -->
+              <div class="pb-grid-4" id="primariesBarsGrid">
+                <!-- 1. LIFT (Shadows) -->
+                <div class="pb-zone" data-zone="lift">
+                  <div class="pb-zone-head">
+                    <span class="pb-zone-ico">┼●</span>
+                    <span class="pb-zone-title">Lift</span>
+                    <span class="pb-zone-reset" data-zone="lift" title="Reset Lift (Shadows)">↺</span>
+                  </div>
+                  <div class="pb-bars-row">
+                    <div class="pb-bar-col" data-zone="lift" data-ch="y" data-min="-0.5" data-max="0.5" title="Lift Master Luma (Y)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-y" style="height:50%;"></div><div class="pb-vthumb pb-thumb-y" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-y" id="inpPb_lift_y" data-zone="lift" data-ch="y" value="0.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="lift" data-ch="r" data-min="-0.5" data-max="0.5" title="Lift Red (Shadows)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-r" style="height:50%;"></div><div class="pb-vthumb pb-thumb-r" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-r" id="inpPb_lift_r" data-zone="lift" data-ch="r" value="0.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="lift" data-ch="g" data-min="-0.5" data-max="0.5" title="Lift Green (Shadows)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-g" style="height:50%;"></div><div class="pb-vthumb pb-thumb-g" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-g" id="inpPb_lift_g" data-zone="lift" data-ch="g" value="0.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="lift" data-ch="b" data-min="-0.5" data-max="0.5" title="Lift Blue (Shadows)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-b" style="height:50%;"></div><div class="pb-vthumb pb-thumb-b" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-b" id="inpPb_lift_b" data-zone="lift" data-ch="b" value="0.00">
+                    </div>
+                  </div>
+                  <div class="pb-jog-wheel" data-zone="lift" title="Drag left/right to adjust Master Lift"></div>
+                </div>
+
+                <!-- 2. GAMMA (Midtones / Skin Zone) -->
+                <div class="pb-zone" data-zone="gamma">
+                  <div class="pb-zone-head">
+                    <span class="pb-zone-ico">◐</span>
+                    <span class="pb-zone-title">Gamma</span>
+                    <span class="pb-zone-reset" data-zone="gamma" title="Reset Gamma (Midtones / Skin)">↺</span>
+                  </div>
+                  <div class="pb-bars-row">
+                    <div class="pb-bar-col" data-zone="gamma" data-ch="y" data-min="-0.5" data-max="0.5" title="Gamma Master Luma (ความสว่างกลาง/ผิว)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-y" style="height:50%;"></div><div class="pb-vthumb pb-thumb-y" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-y" id="inpPb_gamma_y" data-zone="gamma" data-ch="y" value="0.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="gamma" data-ch="r" data-min="-0.5" data-max="0.5" title="Gamma Red (เพิ่มเลือดฝาด/โทนอุ่นช่วงผิว)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-r" style="height:50%;"></div><div class="pb-vthumb pb-thumb-r" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-r" id="inpPb_gamma_r" data-zone="gamma" data-ch="r" value="0.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="gamma" data-ch="g" data-min="-0.5" data-max="0.5" title="Gamma Green (ดึงลงเพื่อลดคราบเขียวบนผิว)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-g" style="height:50%;"></div><div class="pb-vthumb pb-thumb-g" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-g" id="inpPb_gamma_g" data-zone="gamma" data-ch="g" value="0.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="gamma" data-ch="b" data-min="-0.5" data-max="0.5" title="Gamma Blue (ดึงขึ้นเพื่อผิวขาวอมชมพู / ดึงลงเพื่อผิวเหลืองทอง)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-b" style="height:50%;"></div><div class="pb-vthumb pb-thumb-b" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-b" id="inpPb_gamma_b" data-zone="gamma" data-ch="b" value="0.00">
+                    </div>
+                  </div>
+                  <div class="pb-jog-wheel" data-zone="gamma" title="Drag left/right to adjust Master Gamma (Midtones)"></div>
+                </div>
+
+                <!-- 3. GAIN (Highlights) -->
+                <div class="pb-zone" data-zone="gain">
+                  <div class="pb-zone-head">
+                    <span class="pb-zone-ico">┼○</span>
+                    <span class="pb-zone-title">Gain</span>
+                    <span class="pb-zone-reset" data-zone="gain" title="Reset Gain (Highlights)">↺</span>
+                  </div>
+                  <div class="pb-bars-row">
+                    <div class="pb-bar-col" data-zone="gain" data-ch="y" data-min="0.5" data-max="1.5" title="Gain Master Luma (Highlights)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-y pb-gain-active" style="height:50%;"></div><div class="pb-vthumb pb-thumb-y" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-y" id="inpPb_gain_y" data-zone="gain" data-ch="y" value="1.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="gain" data-ch="r" data-min="0.5" data-max="1.5" title="Gain Red (Highlights)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-r pb-gain-active" style="height:50%;"></div><div class="pb-vthumb pb-thumb-r" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-r" id="inpPb_gain_r" data-zone="gain" data-ch="r" value="1.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="gain" data-ch="g" data-min="0.5" data-max="1.5" title="Gain Green (Highlights)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-g pb-gain-active" style="height:50%;"></div><div class="pb-vthumb pb-thumb-g" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-g" id="inpPb_gain_g" data-zone="gain" data-ch="g" value="1.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="gain" data-ch="b" data-min="0.5" data-max="1.5" title="Gain Blue (Highlights)">
+                      <div class="pb-vtrack"><div class="pb-vfill pb-fill-b pb-gain-active" style="height:50%;"></div><div class="pb-vthumb pb-thumb-b" style="bottom:50%;"></div></div>
+                      <input type="text" class="pb-v-num pb-ul-b" id="inpPb_gain_b" data-zone="gain" data-ch="b" value="1.00">
+                    </div>
+                  </div>
+                  <div class="pb-jog-wheel" data-zone="gain" title="Drag left/right to adjust Master Gain (Highlights)"></div>
+                </div>
+
+                <!-- 4. OFFSET (Master Printer Lights R/G/B) -->
+                <div class="pb-zone" data-zone="offset">
+                  <div class="pb-zone-head">
+                    <span class="pb-zone-ico">☼</span>
+                    <span class="pb-zone-title">Offset</span>
+                    <span class="pb-zone-reset" data-zone="offset" title="Reset Offset (Printer Lights)">↺</span>
+                  </div>
+                  <div class="pb-bars-row pb-bars-offset">
+                    <div class="pb-bar-col" data-zone="offset" data-ch="r" data-min="0" data-max="50" title="Offset Red (Printer Lights: 25.00 = Neutral)">
+                      <div class="pb-vtrack"><span class="pb-arr-up">︿</span><div class="pb-vfill pb-fill-r" style="height:50%;"></div><div class="pb-vthumb pb-thumb-r" style="bottom:50%;"></div><span class="pb-arr-dn">﹀</span></div>
+                      <input type="text" class="pb-v-num pb-ul-r" id="inpPb_offset_r" data-zone="offset" data-ch="r" value="25.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="offset" data-ch="g" data-min="0" data-max="50" title="Offset Green (Printer Lights: 25.00 = Neutral)">
+                      <div class="pb-vtrack"><span class="pb-arr-up">︿</span><div class="pb-vfill pb-fill-g" style="height:50%;"></div><div class="pb-vthumb pb-thumb-g" style="bottom:50%;"></div><span class="pb-arr-dn">﹀</span></div>
+                      <input type="text" class="pb-v-num pb-ul-g" id="inpPb_offset_g" data-zone="offset" data-ch="g" value="25.00">
+                    </div>
+                    <div class="pb-bar-col" data-zone="offset" data-ch="b" data-min="0" data-max="50" title="Offset Blue (Printer Lights: 25.00 = Neutral)">
+                      <div class="pb-vtrack"><span class="pb-arr-up">︿</span><div class="pb-vfill pb-fill-b" style="height:50%;"></div><div class="pb-vthumb pb-thumb-b" style="bottom:50%;"></div><span class="pb-arr-dn">﹀</span></div>
+                      <input type="text" class="pb-v-num pb-ul-b" id="inpPb_offset_b" data-zone="offset" data-ch="b" value="25.00">
+                    </div>
+                  </div>
+                  <div class="pb-jog-wheel" data-zone="offset" title="Drag left/right to adjust Master Offset"></div>
+                </div>
+              </div>
+
+              <!-- Bottom Master Row: Col Boost | Shad | Hi/Light | Sat | Hue | L. Mix -->
+              <div class="pb-bottom-bar">
+                <div class="pb-m-item" title="Color Boost / Vibrance (-50 ถึง +50: ดึงสีที่จืดให้สดโดยสีผิวไม่จัดเกิน)">
+                  <span class="pb-m-lbl">Col Boost</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbBotColBoost" data-bot="colBoost" value="0.00">
+                    <div class="pb-m-bar pb-bar-rainbow"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Shadows (-50 ถึง +50: เปิดรายละเอียดเงามืด)">
+                  <span class="pb-m-lbl">Shad</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbBotShad" data-bot="shad" value="0.00">
+                    <div class="pb-m-bar pb-bar-cont"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Highlights (-50 ถึง +50: ดึงรายละเอียดส่วนสว่าง/ท้องฟ้า)">
+                  <span class="pb-m-lbl">Hi/Light</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbBotHiLight" data-bot="hiLight" value="0.00">
+                    <div class="pb-m-bar pb-bar-hilight"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Saturation (0.00 ถึง 100.00, ค่าปกติ 50.00)">
+                  <span class="pb-m-lbl">Sat</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbBotSat" data-bot="sat" value="50.00">
+                    <div class="pb-m-bar pb-bar-rainbow"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Hue Rotation (0.00 ถึง 100.00, ค่าปกติ 50.00)">
+                  <span class="pb-m-lbl">Hue</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbBotHue" data-bot="hue" value="50.00">
+                    <div class="pb-m-bar pb-bar-rainbow"></div>
+                  </div>
+                </div>
+                <div class="pb-m-item" title="Lum Mix (0.00 ถึง 100.00, ค่าปกติ 100.00)">
+                  <span class="pb-m-lbl">L. Mix</span>
+                  <div class="pb-m-box-wrap">
+                    <input type="text" class="pb-m-input" id="pbBotLMix" data-bot="lMix" value="100.00">
+                    <div class="pb-m-bar pb-bar-cont"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2.8: DAVINCI COLORSLICE (7-VECTOR SUBTRACTIVE COLOR & SKIN ENGINE) -->
+          <div class="dv-card cs-card" id="cardColorSlice">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotColorSlice" title="ColorSlice 7-Vector Engine: Active (Click to Bypass)">🟢</span>
+              <span class="card-title">ColorSlice</span>
+              <div class="cs-quick-pills">
+                <button type="button" class="btn-cs-preset" data-preset="skin_pop" title="ดึงผิวอมชมพูสว่างใส + ลดความจัดสีเขียวใบไม้">🌸 Skin Pop</button>
+                <button type="button" class="btn-cs-preset" data-preset="outdoor" title="ลดคราบเหลือง-เขียวสนามวิ่ง + ดึงฟ้าและสีเสื้อให้เด่น">🌿 Outdoor</button>
+                <button type="button" class="btn-cs-preset" data-preset="film" title="เพิ่มความลึกสีแบบ Subtractive Film Density">🎬 Film</button>
+              </div>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetColorSlice" title="Reset All ColorSlice Channels">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body cs-card-body">
+              <!-- Global Master Bar: Den | Den.Depth | Sat | Sat.Balance | Sat.Depth | Hue -->
+              <div class="cs-master-bar">
+                <div class="cs-master-item" title="Global Density (ความแน่น/ความลึกแสงแบบฟิล์ม): ลากซ้าย-ขวา หรือพิมพ์ค่า (-1.00 ถึง 1.00)">
+                  <span class="cs-m-label">Den</span>
+                  <div class="cs-m-box-wrap">
+                    <input type="text" class="cs-m-input" id="csMasterDen" data-mparam="den" value="0.00">
+                    <div class="cs-m-bar cs-m-bar-den"></div>
+                  </div>
+                </div>
+                <div class="cs-master-item" title="Density Depth (ความลึกช่วงเงาของสี): -1.00 ถึง 1.00">
+                  <span class="cs-m-label">Den.Depth</span>
+                  <div class="cs-m-box-wrap">
+                    <input type="text" class="cs-m-input" id="csMasterDenDepth" data-mparam="denDepth" value="0.00">
+                    <div class="cs-m-bar cs-m-bar-depth"></div>
+                  </div>
+                </div>
+                <div class="cs-master-item" title="Global Saturation (ความอิ่มสีรวม): 0.00 ถึง 2.00">
+                  <span class="cs-m-label">Sat</span>
+                  <div class="cs-m-box-wrap">
+                    <input type="text" class="cs-m-input" id="csMasterSat" data-mparam="sat" value="1.00">
+                    <div class="cs-m-bar cs-m-bar-rainbow"></div>
+                  </div>
+                </div>
+                <div class="cs-master-item" title="Saturation Balance (สมดุลความอิ่มสีช่วงมืด-สว่าง): -1.00 ถึง 1.00">
+                  <span class="cs-m-label">Sat.Balance</span>
+                  <div class="cs-m-box-wrap">
+                    <input type="text" class="cs-m-input" id="csMasterSatBal" data-mparam="satBal" value="0.00">
+                    <div class="cs-m-bar cs-m-bar-depth"></div>
+                  </div>
+                </div>
+                <div class="cs-master-item" title="Saturation Depth: -1.00 ถึง 1.00">
+                  <span class="cs-m-label">Sat.Depth</span>
+                  <div class="cs-m-box-wrap">
+                    <input type="text" class="cs-m-input" id="csMasterSatDepth" data-mparam="satDepth" value="0.00">
+                    <div class="cs-m-bar cs-m-bar-depth"></div>
+                  </div>
+                </div>
+                <div class="cs-master-item" title="Global Hue Shift (หมุนเฉดสีรวม): -1.00 ถึง 1.00">
+                  <span class="cs-m-label">Hue</span>
+                  <div class="cs-m-box-wrap">
+                    <input type="text" class="cs-m-input" id="csMasterHue" data-mparam="hue" value="0.00">
+                    <div class="cs-m-bar cs-m-bar-rainbow"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 7-Vector ColorSlice Columns: Red | Skin | Yellow | Green | Cyan | Blue | Magenta -->
+              <div class="cs-grid-7" id="colorSliceGrid">
+                <!-- 1. RED -->
+                <div class="cs-col" data-slice="red">
+                  <div class="cs-col-head">
+                    <span class="cs-contrast-ico">◐</span>
+                    <span class="cs-col-name">Red</span>
+                    <span class="cs-col-reset" data-slice="red" title="Reset Red Slice">↺</span>
+                  </div>
+                  <div class="cs-wheel-wrap">
+                    <div class="cs-wheel cs-wheel-red"><div class="cs-wedge" style="--wedge-angle: -30deg;"></div></div>
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Center</span><span class="cs-val-lbl" id="lblCsCenter_red">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-center" data-slice="red" data-param="center" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Hue</span><span class="cs-val-lbl" id="lblCsHue_red">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-hue" data-slice="red" data-param="hue" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-faders-pair">
+                    <div class="cs-vfader-col" title="Red Density (ความแน่น/ความลึกสีแดง): ดึงขึ้น = สีแดงสว่างใส, ดึงลง = สีแดงเข้มลึก">
+                      <span class="cs-v-ico">▦</span>
+                      <div class="cs-vtrack" data-slice="red" data-param="den" data-min="-1" data-max="1" data-val="0">
+                        <div class="cs-vfill cs-fill-red" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsDen_red" data-slice="red" data-param="den" value="0.00">
+                    </div>
+                    <div class="cs-vfader-col" title="Red Saturation (ความอิ่มสีแดง): 0.00 - 2.00">
+                      <span class="cs-v-ico">💧</span>
+                      <div class="cs-vtrack" data-slice="red" data-param="sat" data-min="0" data-max="2" data-val="1">
+                        <div class="cs-vfill cs-fill-sat-red" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsSat_red" data-slice="red" data-param="sat" value="1.00">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. SKIN -->
+                <div class="cs-col cs-col-skin" data-slice="skin">
+                  <div class="cs-col-head">
+                    <span class="cs-contrast-ico">◐</span>
+                    <span class="cs-col-name">Skin</span>
+                    <span class="cs-col-reset" data-slice="skin" title="Reset Skin Slice">↺</span>
+                  </div>
+                  <div class="cs-wheel-wrap">
+                    <div class="cs-wheel cs-wheel-skin"><div class="cs-wedge" style="--wedge-angle: -5deg;"></div></div>
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Center</span><span class="cs-val-lbl" id="lblCsCenter_skin">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-center" data-slice="skin" data-param="center" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Hue</span><span class="cs-val-lbl" id="lblCsHue_skin">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-hue" data-slice="skin" data-param="hue" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-faders-pair">
+                    <div class="cs-vfader-col" title="Skin Density (ความสว่าง/ความลึกสีผิว): ดึงลง (-) = เปิดผิวสว่างออร่า, ดึงขึ้น (+) = ผิวแทนเข้มลึก">
+                      <span class="cs-v-ico">▦</span>
+                      <div class="cs-vtrack" data-slice="skin" data-param="den" data-min="-1" data-max="1" data-val="0">
+                        <div class="cs-vfill cs-fill-skin" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsDen_skin" data-slice="skin" data-param="den" value="0.00">
+                    </div>
+                    <div class="cs-vfader-col" title="Skin Saturation (ความอิ่มสีผิว): 0.00 - 2.00">
+                      <span class="cs-v-ico">💧</span>
+                      <div class="cs-vtrack" data-slice="skin" data-param="sat" data-min="0" data-max="2" data-val="1">
+                        <div class="cs-vfill cs-fill-sat-skin" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsSat_skin" data-slice="skin" data-param="sat" value="1.00">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. YELLOW -->
+                <div class="cs-col" data-slice="yellow">
+                  <div class="cs-col-head">
+                    <span class="cs-contrast-ico">◐</span>
+                    <span class="cs-col-name">Yellow</span>
+                    <span class="cs-col-reset" data-slice="yellow" title="Reset Yellow Slice">↺</span>
+                  </div>
+                  <div class="cs-wheel-wrap">
+                    <div class="cs-wheel cs-wheel-yellow"><div class="cs-wedge" style="--wedge-angle: 30deg;"></div></div>
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Center</span><span class="cs-val-lbl" id="lblCsCenter_yellow">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-center" data-slice="yellow" data-param="center" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Hue</span><span class="cs-val-lbl" id="lblCsHue_yellow">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-hue" data-slice="yellow" data-param="hue" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-faders-pair">
+                    <div class="cs-vfader-col" title="Yellow Density: -1.00 ถึง 1.00">
+                      <span class="cs-v-ico">▦</span>
+                      <div class="cs-vtrack" data-slice="yellow" data-param="den" data-min="-1" data-max="1" data-val="0">
+                        <div class="cs-vfill cs-fill-yellow" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsDen_yellow" data-slice="yellow" data-param="den" value="0.00">
+                    </div>
+                    <div class="cs-vfader-col" title="Yellow Saturation: 0.00 - 2.00">
+                      <span class="cs-v-ico">💧</span>
+                      <div class="cs-vtrack" data-slice="yellow" data-param="sat" data-min="0" data-max="2" data-val="1">
+                        <div class="cs-vfill cs-fill-sat-yellow" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsSat_yellow" data-slice="yellow" data-param="sat" value="1.00">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 4. GREEN -->
+                <div class="cs-col" data-slice="green">
+                  <div class="cs-col-head">
+                    <span class="cs-contrast-ico">◐</span>
+                    <span class="cs-col-name">Green</span>
+                    <span class="cs-col-reset" data-slice="green" title="Reset Green Slice">↺</span>
+                  </div>
+                  <div class="cs-wheel-wrap">
+                    <div class="cs-wheel cs-wheel-green"><div class="cs-wedge" style="--wedge-angle: 90deg;"></div></div>
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Center</span><span class="cs-val-lbl" id="lblCsCenter_green">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-center" data-slice="green" data-param="center" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Hue</span><span class="cs-val-lbl" id="lblCsHue_green">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-hue" data-slice="green" data-param="hue" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-faders-pair">
+                    <div class="cs-vfader-col" title="Green Density (ความเข้มใบไม้/สนามหญ้า): -1.00 ถึง 1.00">
+                      <span class="cs-v-ico">▦</span>
+                      <div class="cs-vtrack" data-slice="green" data-param="den" data-min="-1" data-max="1" data-val="0">
+                        <div class="cs-vfill cs-fill-green" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsDen_green" data-slice="green" data-param="den" value="0.00">
+                    </div>
+                    <div class="cs-vfader-col" title="Green Saturation (ความอิ่มสีเขียวใบไม้): 0.00 - 2.00">
+                      <span class="cs-v-ico">💧</span>
+                      <div class="cs-vtrack" data-slice="green" data-param="sat" data-min="0" data-max="2" data-val="1">
+                        <div class="cs-vfill cs-fill-sat-green" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsSat_green" data-slice="green" data-param="sat" value="1.00">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 5. CYAN -->
+                <div class="cs-col" data-slice="cyan">
+                  <div class="cs-col-head">
+                    <span class="cs-contrast-ico">◐</span>
+                    <span class="cs-col-name">Cyan</span>
+                    <span class="cs-col-reset" data-slice="cyan" title="Reset Cyan Slice">↺</span>
+                  </div>
+                  <div class="cs-wheel-wrap">
+                    <div class="cs-wheel cs-wheel-cyan"><div class="cs-wedge" style="--wedge-angle: 150deg;"></div></div>
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Center</span><span class="cs-val-lbl" id="lblCsCenter_cyan">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-center" data-slice="cyan" data-param="center" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Hue</span><span class="cs-val-lbl" id="lblCsHue_cyan">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-hue" data-slice="cyan" data-param="hue" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-faders-pair">
+                    <div class="cs-vfader-col" title="Cyan Density: -1.00 ถึง 1.00">
+                      <span class="cs-v-ico">▦</span>
+                      <div class="cs-vtrack" data-slice="cyan" data-param="den" data-min="-1" data-max="1" data-val="0">
+                        <div class="cs-vfill cs-fill-cyan" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsDen_cyan" data-slice="cyan" data-param="den" value="0.00">
+                    </div>
+                    <div class="cs-vfader-col" title="Cyan Saturation: 0.00 - 2.00">
+                      <span class="cs-v-ico">💧</span>
+                      <div class="cs-vtrack" data-slice="cyan" data-param="sat" data-min="0" data-max="2" data-val="1">
+                        <div class="cs-vfill cs-fill-sat-cyan" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsSat_cyan" data-slice="cyan" data-param="sat" value="1.00">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 6. BLUE -->
+                <div class="cs-col" data-slice="blue">
+                  <div class="cs-col-head">
+                    <span class="cs-contrast-ico">◐</span>
+                    <span class="cs-col-name">Blue</span>
+                    <span class="cs-col-reset" data-slice="blue" title="Reset Blue Slice">↺</span>
+                  </div>
+                  <div class="cs-wheel-wrap">
+                    <div class="cs-wheel cs-wheel-blue"><div class="cs-wedge" style="--wedge-angle: 210deg;"></div></div>
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Center</span><span class="cs-val-lbl" id="lblCsCenter_blue">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-center" data-slice="blue" data-param="center" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Hue</span><span class="cs-val-lbl" id="lblCsHue_blue">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-hue" data-slice="blue" data-param="hue" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-faders-pair">
+                    <div class="cs-vfader-col" title="Blue Density (ความแน่นสีฟ้าท้องฟ้า/เสื้อ): -1.00 ถึง 1.00">
+                      <span class="cs-v-ico">▦</span>
+                      <div class="cs-vtrack" data-slice="blue" data-param="den" data-min="-1" data-max="1" data-val="0">
+                        <div class="cs-vfill cs-fill-blue" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsDen_blue" data-slice="blue" data-param="den" value="0.00">
+                    </div>
+                    <div class="cs-vfader-col" title="Blue Saturation: 0.00 - 2.00">
+                      <span class="cs-v-ico">💧</span>
+                      <div class="cs-vtrack" data-slice="blue" data-param="sat" data-min="0" data-max="2" data-val="1">
+                        <div class="cs-vfill cs-fill-sat-blue" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsSat_blue" data-slice="blue" data-param="sat" value="1.00">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 7. MAGENTA -->
+                <div class="cs-col" data-slice="magenta">
+                  <div class="cs-col-head">
+                    <span class="cs-contrast-ico">◐</span>
+                    <span class="cs-col-name">Magenta</span>
+                    <span class="cs-col-reset" data-slice="magenta" title="Reset Magenta Slice">↺</span>
+                  </div>
+                  <div class="cs-wheel-wrap">
+                    <div class="cs-wheel cs-wheel-magenta"><div class="cs-wedge" style="--wedge-angle: 270deg;"></div></div>
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Center</span><span class="cs-val-lbl" id="lblCsCenter_magenta">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-center" data-slice="magenta" data-param="center" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-param-block">
+                    <div class="cs-param-top"><span>Hue</span><span class="cs-val-lbl" id="lblCsHue_magenta">0.00</span></div>
+                    <input type="range" class="cs-hslider cs-slider-hue" data-slice="magenta" data-param="hue" min="-1" max="1" step="0.02" value="0">
+                  </div>
+                  <div class="cs-faders-pair">
+                    <div class="cs-vfader-col" title="Magenta Density: -1.00 ถึง 1.00">
+                      <span class="cs-v-ico">▦</span>
+                      <div class="cs-vtrack" data-slice="magenta" data-param="den" data-min="-1" data-max="1" data-val="0">
+                        <div class="cs-vfill cs-fill-magenta" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsDen_magenta" data-slice="magenta" data-param="den" value="0.00">
+                    </div>
+                    <div class="cs-vfader-col" title="Magenta Saturation: 0.00 - 2.00">
+                      <span class="cs-v-ico">💧</span>
+                      <div class="cs-vtrack" data-slice="magenta" data-param="sat" data-min="0" data-max="2" data-val="1">
+                        <div class="cs-vfill cs-fill-sat-magenta" style="height: 50%;"></div>
+                        <div class="cs-vthumb" style="bottom: 50%;"></div>
+                      </div>
+                      <input type="text" class="cs-v-num" id="inpCsSat_magenta" data-slice="magenta" data-param="sat" value="1.00">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidden SVG Hardware ColorSlice Filter for 60 FPS Live Video/Image Preview -->
+          <svg width="0" height="0" style="position:absolute;pointer-events:none;opacity:0;">
+            <defs>
+              <filter id="zcutColorSliceFilter" color-interpolation-filters="sRGB">
+                <feColorMatrix id="csFeMatrix" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+              </filter>
+            </defs>
+          </svg>
+
           <!-- CARD 3: NIKON COLOR PROFILE & SKIN TONE ENGINE -->
           <div class="dv-card" id="cardNikonColor">
             <div class="dv-card-header">

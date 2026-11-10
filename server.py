@@ -11,6 +11,7 @@ import json
 import time
 import shutil
 import signal
+import hashlib
 import urllib.parse
 import threading
 import subprocess
@@ -790,6 +791,168 @@ class StudioHandler(SimpleHTTPRequestHandler):
                 bytes_left -= len(chunk)
 
 
+_BAKED_LUT_CACHE = {"hash": None, "path": None}
+
+COLORSLICE_VECTORS_PY = {
+    "red":     {"w": [ 0.70, -0.45, -0.25], "u": [0.85, 0.15, 0.15], "s": [ 0.65, -0.32, -0.33], "t": [ 0.05,  0.55, -0.60]},
+    "skin":    {"w": [ 0.55,  0.05, -0.60], "u": [0.80, 0.52, 0.35], "s": [ 0.48,  0.04, -0.52], "t": [ 0.38, -0.52,  0.14]},
+    "yellow":  {"w": [ 0.40,  0.45, -0.85], "u": [0.75, 0.75, 0.12], "s": [ 0.35,  0.38, -0.73], "t": [-0.52,  0.50,  0.02]},
+    "green":   {"w": [-0.45,  0.85, -0.40], "u": [0.18, 0.82, 0.22], "s": [-0.34,  0.68, -0.34], "t": [-0.45, -0.05,  0.50]},
+    "cyan":    {"w": [-0.85,  0.42,  0.43], "u": [0.12, 0.75, 0.78], "s": [-0.68,  0.34,  0.34], "t": [ 0.02, -0.52,  0.50]},
+    "blue":    {"w": [-0.35, -0.45,  0.80], "u": [0.18, 0.28, 0.88], "s": [-0.33, -0.35,  0.68], "t": [ 0.52, -0.04, -0.48]},
+    "magenta": {"w": [ 0.45, -0.85,  0.40], "u": [0.78, 0.16, 0.75], "s": [ 0.36, -0.70,  0.34], "t": [ 0.45,  0.08, -0.53]}
+}
+
+def bake_davinci_grade_lut(cs, pb):
+    """Bakes DaVinci ColorSlice (7-Vector) + Primaries Color Bars (Lift/Gamma/Gain/Offset) into a 17x17x17 .cube 3D LUT in ~2.5ms."""
+    if not cs and not pb:
+        return None
+
+    # Check if modified from defaults
+    cs_active = False
+    if isinstance(cs, dict):
+        m = cs.get("master") or {}
+        if (abs(float(m.get("den", 0))) > 0.005 or abs(float(m.get("denDepth", 0))) > 0.005 or
+            abs(float(m.get("sat", 1)) - 1.0) > 0.005 or abs(float(m.get("satBal", 0))) > 0.005 or
+            abs(float(m.get("satDepth", 0))) > 0.005 or abs(float(m.get("hue", 0))) > 0.005):
+            cs_active = True
+        for k in COLORSLICE_VECTORS_PY:
+            sl = cs.get(k) or {}
+            if (abs(float(sl.get("center", 0))) > 0.005 or abs(float(sl.get("hue", 0))) > 0.005 or
+                abs(float(sl.get("den", 0))) > 0.005 or abs(float(sl.get("sat", 1)) - 1.0) > 0.005):
+                cs_active = True
+                break
+
+    pb_active = False
+    if isinstance(pb, dict):
+        t = pb.get("top") or {}
+        b = pb.get("bot") or {}
+        lf = pb.get("lift") or {}
+        gm = pb.get("gamma") or {}
+        gn = pb.get("gain") or {}
+        of = pb.get("offset") or {}
+        if (abs(float(t.get("temp", 0))) > 0.05 or abs(float(t.get("tint", 0))) > 0.05 or
+            abs(float(t.get("cont", 1)) - 1.0) > 0.003 or abs(float(t.get("pivot", 0.435)) - 0.435) > 0.005 or
+            abs(float(t.get("md", 0))) > 0.05 or abs(float(b.get("colBoost", 0))) > 0.05 or
+            abs(float(b.get("shad", 0))) > 0.05 or abs(float(b.get("hiLight", 0))) > 0.05 or
+            abs(float(b.get("sat", 50)) - 50.0) > 0.1 or abs(float(b.get("hue", 50)) - 50.0) > 0.1 or
+            abs(float(lf.get("y", 0))) > 0.003 or abs(float(lf.get("r", 0))) > 0.003 or abs(float(lf.get("g", 0))) > 0.003 or abs(float(lf.get("b", 0))) > 0.003 or
+            abs(float(gm.get("y", 0))) > 0.003 or abs(float(gm.get("r", 0))) > 0.003 or abs(float(gm.get("g", 0))) > 0.003 or abs(float(gm.get("b", 0))) > 0.003 or
+            abs(float(gn.get("y", 1)) - 1.0) > 0.003 or abs(float(gn.get("r", 1)) - 1.0) > 0.003 or abs(float(gn.get("g", 1)) - 1.0) > 0.003 or abs(float(gn.get("b", 1)) - 1.0) > 0.003 or
+            abs(float(of.get("r", 25)) - 25.0) > 0.05 or abs(float(of.get("g", 25)) - 25.0) > 0.05 or abs(float(of.get("b", 25)) - 25.0) > 0.05):
+            pb_active = True
+
+    if not cs_active and not pb_active:
+        return None
+
+    state_key = json.dumps({"cs": cs if cs_active else None, "pb": pb if pb_active else None}, sort_keys=True)
+    h_val = hashlib.md5(state_key.encode("utf-8")).hexdigest()[:12]
+    if _BAKED_LUT_CACHE["hash"] == h_val and _BAKED_LUT_CACHE["path"] and os.path.exists(_BAKED_LUT_CACHE["path"]):
+        return _BAKED_LUT_CACHE["path"]
+
+    # Build 3x3 Matrix + 3x1 Offset matching updateColorSliceSvgFilter() 1:1
+    M = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    O = [0.0, 0.0, 0.0]
+    luma_w = [0.2126, 0.7152, 0.0722]
+
+    if pb_active and isinstance(pb, dict):
+        t = pb.get("top") or {}
+        b = pb.get("bot") or {}
+        lf = pb.get("lift") or {}
+        gm = pb.get("gamma") or {}
+        gn = pb.get("gain") or {}
+        of = pb.get("offset") or {}
+
+        cont = float(t.get("cont", 1.0))
+        pivot = float(t.get("pivot", 0.435))
+        pb_sat = (float(b.get("sat", 50.0)) / 50.0) + (float(b.get("colBoost", 0.0)) / 100.0) * 0.45
+        pb_hue = (float(b.get("hue", 50.0)) - 50.0) / 50.0
+        temp = float(t.get("temp", 0.0)) / 100.0
+        tint = float(t.get("tint", 0.0)) / 100.0
+        shad = float(b.get("shad", 0.0)) / 100.0
+        hi_light = float(b.get("hiLight", 0.0)) / 100.0
+
+        ch_gain = [
+            float(gn.get("y", 1.0)) * float(gn.get("r", 1.0)) * (1.0 + temp * 0.14 + tint * 0.06 + hi_light * 0.18),
+            float(gn.get("y", 1.0)) * float(gn.get("g", 1.0)) * (1.0 - tint * 0.08 + hi_light * 0.18),
+            float(gn.get("y", 1.0)) * float(gn.get("b", 1.0)) * (1.0 - temp * 0.14 + tint * 0.06 + hi_light * 0.18)
+        ]
+        ch_lift = [
+            float(lf.get("y", 0.0)) + float(lf.get("r", 0.0)) + (float(of.get("r", 25.0)) - 25.0) * 0.008 + (float(gm.get("y", 0.0)) + float(gm.get("r", 0.0))) * 0.42 + shad * 0.16,
+            float(lf.get("y", 0.0)) + float(lf.get("g", 0.0)) + (float(of.get("g", 25.0)) - 25.0) * 0.008 + (float(gm.get("y", 0.0)) + float(gm.get("g", 0.0))) * 0.42 + shad * 0.16,
+            float(lf.get("y", 0.0)) + float(lf.get("b", 0.0)) + (float(of.get("b", 25.0)) - 25.0) * 0.008 + (float(gm.get("y", 0.0)) + float(gm.get("b", 0.0))) * 0.42 + shad * 0.16
+        ]
+        ch_keys = ["r", "g", "b"]
+        for r_i in range(3):
+            slope = (ch_gain[r_i] - float(lf.get("y", 0.0)) - float(lf.get(ch_keys[r_i], 0.0))) * cont
+            for c_i in range(3):
+                base = 1.0 if r_i == c_i else 0.0
+                sat_mix = luma_w[c_i] + (base - luma_w[c_i]) * pb_sat
+                M[r_i][c_i] = sat_mix * slope
+            O[r_i] += ch_lift[r_i] + (1.0 - cont) * pivot
+
+        if abs(pb_hue) > 0.005:
+            hs = pb_hue * 0.35
+            M[0][1] -= hs * 0.5; M[0][2] += hs * 0.5
+            M[1][0] += hs * 0.5; M[1][2] -= hs * 0.5
+            M[2][0] -= hs * 0.5; M[2][1] += hs * 0.5
+
+    if cs_active and isinstance(cs, dict):
+        m = cs.get("master") or {}
+        g_den = float(m.get("den", 0.0)) + float(m.get("denDepth", 0.0)) * 0.35
+        g_sat = float(m.get("sat", 1.0)) + float(m.get("satBal", 0.0)) * 0.25 + float(m.get("satDepth", 0.0)) * 0.20
+        g_hue = float(m.get("hue", 0.0))
+
+        d_scale = max(0.4, 1.0 - g_den * 0.28)
+        for r_i in range(3):
+            for c_i in range(3):
+                M[r_i][c_i] *= d_scale * (g_sat if c_i == r_i else 1.0)
+
+        if abs(g_hue) > 0.005:
+            hs = g_hue * 0.32
+            M[0][1] -= hs * 0.5; M[0][2] += hs * 0.5
+            M[1][0] += hs * 0.5; M[1][2] -= hs * 0.5
+            M[2][0] -= hs * 0.5; M[2][1] += hs * 0.5
+
+        for k, vec in COLORSLICE_VECTORS_PY.items():
+            sl = cs.get(k) or {}
+            den = float(sl.get("den", 0.0))
+            sat_diff = float(sl.get("sat", 1.0)) - 1.0
+            hue = float(sl.get("hue", 0.0)) + float(sl.get("center", 0.0)) * 0.35
+            if abs(den) < 0.003 and abs(sat_diff) < 0.003 and abs(hue) < 0.003:
+                continue
+            d_rgb = [
+                (-den * 0.46) * vec["u"][i] + (sat_diff * 0.68) * vec["s"][i] + (hue * 0.48) * vec["t"][i]
+                for i in range(3)
+            ]
+            for r_i in range(3):
+                for c_i in range(3):
+                    M[r_i][c_i] += d_rgb[r_i] * vec["w"][c_i]
+
+    import tempfile
+    lut_path = os.path.join(tempfile.gettempdir(), f"zcut_grade_{h_val}.cube")
+    lines = ["TITLE \"ZCut_DaVinci_ColorSlice_Primaries\"", "LUT_3D_SIZE 17", "DOMAIN_MIN 0.0 0.0 0.0", "DOMAIN_MAX 1.0 1.0 1.0"]
+    size = 17
+    inv = 1.0 / (size - 1)
+    for bi in range(size):
+        b_in = bi * inv
+        for gi in range(size):
+            g_in = gi * inv
+            for ri in range(size):
+                r_in = ri * inv
+                r_out = max(0.0, min(1.0, M[0][0] * r_in + M[0][1] * g_in + M[0][2] * b_in + O[0]))
+                g_out = max(0.0, min(1.0, M[1][0] * r_in + M[1][1] * g_in + M[1][2] * b_in + O[1]))
+                b_out = max(0.0, min(1.0, M[2][0] * r_in + M[2][1] * g_in + M[2][2] * b_in + O[2]))
+                lines.append(f"{r_out:.5f} {g_out:.5f} {b_out:.5f}")
+
+    with open(lut_path, "w", encoding="utf-8") as f_lut:
+        f_lut.write("\n".join(lines) + "\n")
+
+    _BAKED_LUT_CACHE["hash"] = h_val
+    _BAKED_LUT_CACHE["path"] = lut_path
+    return lut_path
+
+
 def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start_time):
     if STATE["cancel_requested"]:
         return None
@@ -1156,6 +1319,15 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     b_mult = max(0.5, min(1.5, b_mult))
     if (abs(r_mult - 1.0) > 0.005 or abs(g_mult - 1.0) > 0.005 or abs(b_mult - 1.0) > 0.005):
         vf.append(f"colorchannelmixer=rr={r_mult:.3f}:gg={g_mult:.3f}:bb={b_mult:.3f}")
+
+    # DaVinci ColorSlice (7-Vector) + Primaries Color Bars (Lift/Gamma/Gain/Offset) -> 3D LUT (.cube) Hardware Acceleration
+    if render_timeline_effects:
+        cs_data = params.get("color_slice")
+        pb_data = params.get("primaries_bars")
+        baked_lut = bake_davinci_grade_lut(cs_data, pb_data)
+        if baked_lut and os.path.exists(baked_lut):
+            safe_baked = baked_lut.replace("\\", "/").replace(":", "\\:")
+            vf.append(f"lut3d=file='{safe_baked}':interp=tetrahedral")
 
     codec_req = (params.get("codec") or "h264").lower()
     is_prores = "prores" in codec_req

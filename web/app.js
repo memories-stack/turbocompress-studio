@@ -16,6 +16,204 @@ let isBypassed = false;
 let splitWipePct = 50;
 let isDraggingWipe = false;
 
+// Default DaVinci ColorSlice 7-Vector + Global Subtractive State
+function createDefaultColorSlice() {
+  return {
+    master:  { den: 0.0, denDepth: 0.0, sat: 1.0, satBal: 0.0, satDepth: 0.0, hue: 0.0 },
+    red:     { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
+    skin:    { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
+    yellow:  { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
+    green:   { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
+    cyan:    { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
+    blue:    { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
+    magenta: { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 }
+  };
+}
+
+const COLORSLICE_VECTORS = {
+  red:     { baseAngle: -30, w: [ 0.70, -0.45, -0.25], u: [0.85, 0.15, 0.15], s: [ 0.65, -0.32, -0.33], t: [ 0.05,  0.55, -0.60] },
+  skin:    { baseAngle:  -5, w: [ 0.55,  0.05, -0.60], u: [0.80, 0.52, 0.35], s: [ 0.48,  0.04, -0.52], t: [ 0.38, -0.52,  0.14] },
+  yellow:  { baseAngle:  30, w: [ 0.40,  0.45, -0.85], u: [0.75, 0.75, 0.12], s: [ 0.35,  0.38, -0.73], t: [-0.52,  0.50,  0.02] },
+  green:   { baseAngle:  90, w: [-0.45,  0.85, -0.40], u: [0.18, 0.82, 0.22], s: [-0.34,  0.68, -0.34], t: [-0.45, -0.05,  0.50] },
+  cyan:    { baseAngle: 150, w: [-0.85,  0.42,  0.43], u: [0.12, 0.75, 0.78], s: [-0.68,  0.34,  0.34], t: [ 0.02, -0.52,  0.50] },
+  blue:    { baseAngle: 210, w: [-0.35, -0.45,  0.80], u: [0.18, 0.28, 0.88], s: [-0.33, -0.35,  0.68], t: [ 0.52, -0.04, -0.48] },
+  magenta: { baseAngle: 270, w: [ 0.45, -0.85,  0.40], u: [0.78, 0.16, 0.75], s: [ 0.36, -0.70,  0.34], t: [ 0.45,  0.08, -0.53] }
+};
+
+function isColorSliceModified(cs) {
+  if (!cs) return false;
+  const m = cs.master || {};
+  if (Math.abs(m.den || 0) > 0.005 || Math.abs(m.denDepth || 0) > 0.005 || Math.abs((m.sat !== undefined ? m.sat : 1) - 1) > 0.005 || Math.abs(m.satBal || 0) > 0.005 || Math.abs(m.satDepth || 0) > 0.005 || Math.abs(m.hue || 0) > 0.005) {
+    return true;
+  }
+  const keys = ["red", "skin", "yellow", "green", "cyan", "blue", "magenta"];
+  for (const k of keys) {
+    const sl = cs[k];
+    if (!sl) continue;
+    if (Math.abs(sl.center || 0) > 0.005 || Math.abs(sl.hue || 0) > 0.005 || Math.abs(sl.den || 0) > 0.005 || Math.abs((sl.sat !== undefined ? sl.sat : 1) - 1) > 0.005) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Default DaVinci Primaries - Color Bars (Lift / Gamma / Gain / Offset) State
+function createDefaultPrimariesBars() {
+  return {
+    top:    { temp: 0.0, tint: 0.0, cont: 1.0, pivot: 0.435, md: 0.0 },
+    bot:    { colBoost: 0.0, shad: 0.0, hiLight: 0.0, sat: 50.0, hue: 50.0, lMix: 100.0 },
+    lift:   { y: 0.0, r: 0.0, g: 0.0, b: 0.0 },
+    gamma:  { y: 0.0, r: 0.0, g: 0.0, b: 0.0 },
+    gain:   { y: 1.0, r: 1.0, g: 1.0, b: 1.0 },
+    offset: { r: 25.0, g: 25.0, b: 25.0 }
+  };
+}
+
+function isPrimariesBarsModified(pb) {
+  if (!pb) return false;
+  const t = pb.top || {};
+  const b = pb.bot || {};
+  if (Math.abs(t.temp || 0) > 0.05 || Math.abs(t.tint || 0) > 0.05 || Math.abs((t.cont !== undefined ? t.cont : 1) - 1) > 0.003 || Math.abs((t.pivot !== undefined ? t.pivot : 0.435) - 0.435) > 0.005 || Math.abs(t.md || 0) > 0.05) return true;
+  if (Math.abs(b.colBoost || 0) > 0.05 || Math.abs(b.shad || 0) > 0.05 || Math.abs(b.hiLight || 0) > 0.05 || Math.abs((b.sat !== undefined ? b.sat : 50) - 50) > 0.1 || Math.abs((b.hue !== undefined ? b.hue : 50) - 50) > 0.1 || Math.abs((b.lMix !== undefined ? b.lMix : 100) - 100) > 0.1) return true;
+  const lf = pb.lift || {};
+  const gm = pb.gamma || {};
+  const gn = pb.gain || {};
+  const of = pb.offset || {};
+  if (Math.abs(lf.y || 0) > 0.003 || Math.abs(lf.r || 0) > 0.003 || Math.abs(lf.g || 0) > 0.003 || Math.abs(lf.b || 0) > 0.003) return true;
+  if (Math.abs(gm.y || 0) > 0.003 || Math.abs(gm.r || 0) > 0.003 || Math.abs(gm.g || 0) > 0.003 || Math.abs(gm.b || 0) > 0.003) return true;
+  if (Math.abs((gn.y !== undefined ? gn.y : 1) - 1) > 0.003 || Math.abs((gn.r !== undefined ? gn.r : 1) - 1) > 0.003 || Math.abs((gn.g !== undefined ? gn.g : 1) - 1) > 0.003 || Math.abs((gn.b !== undefined ? gn.b : 1) - 1) > 0.003) return true;
+  if (Math.abs((of.r !== undefined ? of.r : 25) - 25) > 0.05 || Math.abs((of.g !== undefined ? of.g : 25) - 25) > 0.05 || Math.abs((of.b !== undefined ? of.b : 25) - 25) > 0.05) return true;
+  return false;
+}
+
+function updateColorSliceSvgFilter() {
+  const feMatrix = document.getElementById("csFeMatrix");
+  if (!feMatrix) return false;
+  const cs = inspectorState.colorSlice;
+  const pb = inspectorState.primariesBars;
+  const isCsBypassed = isBypassed || (inspectorState.bypassedCards && inspectorState.bypassedCards.colorSlice);
+  const isPbBypassed = isBypassed || (inspectorState.bypassedCards && inspectorState.bypassedCards.primariesBars);
+  const csActive = !isCsBypassed && isColorSliceModified(cs);
+  const pbActive = !isPbBypassed && isPrimariesBarsModified(pb);
+
+  if (!csActive && !pbActive) {
+    feMatrix.setAttribute("values", "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0");
+    return false;
+  }
+
+  // Start with 3x3 identity matrix + 3x1 offset
+  let M = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1]
+  ];
+  let O = [0, 0, 0];
+  const lumaW = [0.2126, 0.7152, 0.0722];
+
+  // 1. Fold DaVinci Primaries - Color Bars (Lift, Gamma, Gain, Offset, Temp, Tint, Cont, Pivot, ColBoost, Sat, Hue)
+  if (pbActive && pb) {
+    const t = pb.top || {};
+    const b = pb.bot || {};
+    const lf = pb.lift || { y: 0, r: 0, g: 0, b: 0 };
+    const gm = pb.gamma || { y: 0, r: 0, g: 0, b: 0 };
+    const gn = pb.gain || { y: 1, r: 1, g: 1, b: 1 };
+    const of = pb.offset || { r: 25, g: 25, b: 25 };
+
+    const cont = t.cont !== undefined ? t.cont : 1.0;
+    const pivot = t.pivot !== undefined ? t.pivot : 0.435;
+    const pbSat = ((b.sat !== undefined ? b.sat : 50.0) / 50.0) + ((b.colBoost || 0) / 100.0) * 0.45;
+    const pbHue = ((b.hue !== undefined ? b.hue : 50.0) - 50.0) / 50.0;
+    const temp = (t.temp || 0) / 100.0;
+    const tint = (t.tint || 0) / 100.0;
+    const shad = (b.shad || 0) / 100.0;
+    const hiLight = (b.hiLight || 0) / 100.0;
+
+    // Per-channel Gain * Contrast * Gamma slope
+    const chGain = [
+      (gn.y !== undefined ? gn.y : 1) * (gn.r !== undefined ? gn.r : 1) * (1 + temp * 0.14 + tint * 0.06 + hiLight * 0.18),
+      (gn.y !== undefined ? gn.y : 1) * (gn.g !== undefined ? gn.g : 1) * (1 - tint * 0.08 + hiLight * 0.18),
+      (gn.y !== undefined ? gn.y : 1) * (gn.b !== undefined ? gn.b : 1) * (1 - temp * 0.14 + tint * 0.06 + hiLight * 0.18)
+    ];
+
+    const chLift = [
+      (lf.y || 0) + (lf.r || 0) + ((of.r !== undefined ? of.r : 25) - 25) * 0.008 + ((gm.y || 0) + (gm.r || 0)) * 0.42 + shad * 0.16,
+      (lf.y || 0) + (lf.g || 0) + ((of.g !== undefined ? of.g : 25) - 25) * 0.008 + ((gm.y || 0) + (gm.g || 0)) * 0.42 + shad * 0.16,
+      (lf.y || 0) + (lf.b || 0) + ((of.b !== undefined ? of.b : 25) - 25) * 0.008 + ((gm.y || 0) + (gm.b || 0)) * 0.42 + shad * 0.16
+    ];
+
+    for (let r = 0; r < 3; r++) {
+      const slope = (chGain[r] - (lf.y || 0) - (lf[r === 0 ? "r" : r === 1 ? "g" : "b"] || 0)) * cont;
+      for (let c = 0; c < 3; c++) {
+        const base = (r === c ? 1.0 : 0.0);
+        const satMix = lumaW[c] + (base - lumaW[c]) * pbSat;
+        M[r][c] = satMix * slope;
+      }
+      O[r] += chLift[r] + (1.0 - cont) * pivot;
+    }
+
+    if (Math.abs(pbHue) > 0.005) {
+      const hShift = pbHue * 0.35;
+      M[0][1] -= hShift * 0.5; M[0][2] += hShift * 0.5;
+      M[1][0] += hShift * 0.5; M[1][2] -= hShift * 0.5;
+      M[2][0] -= hShift * 0.5; M[2][1] += hShift * 0.5;
+    }
+  }
+
+  // 2. Fold DaVinci ColorSlice 7-Vector Subtractive Grading
+  if (csActive && cs) {
+    const m = cs.master || { den: 0, denDepth: 0, sat: 1, satBal: 0, satDepth: 0, hue: 0 };
+    const gDen = (m.den || 0) + (m.denDepth || 0) * 0.35;
+    const gSat = (m.sat !== undefined ? m.sat : 1.0) + (m.satBal || 0) * 0.25 + (m.satDepth || 0) * 0.20;
+    const gHue = (m.hue || 0);
+
+    const dScale = Math.max(0.4, 1.0 - gDen * 0.28);
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        M[r][c] *= dScale * (c === r ? gSat : 1.0);
+      }
+    }
+
+    if (Math.abs(gHue) > 0.005) {
+      const hShift = gHue * 0.32;
+      M[0][1] -= hShift * 0.5; M[0][2] += hShift * 0.5;
+      M[1][0] += hShift * 0.5; M[1][2] -= hShift * 0.5;
+      M[2][0] -= hShift * 0.5; M[2][1] += hShift * 0.5;
+    }
+
+    Object.keys(COLORSLICE_VECTORS).forEach(key => {
+      const sl = cs[key];
+      if (!sl) return;
+      const vec = COLORSLICE_VECTORS[key];
+      const den = sl.den || 0;
+      const satDiff = (sl.sat !== undefined ? sl.sat : 1.0) - 1.0;
+      const hue = (sl.hue || 0) + (sl.center || 0) * 0.35;
+      if (Math.abs(den) < 0.003 && Math.abs(satDiff) < 0.003 && Math.abs(hue) < 0.003) return;
+
+      const dRGB = [0, 0, 0];
+      for (let i = 0; i < 3; i++) {
+        dRGB[i] += (-den * 0.46) * vec.u[i];
+        dRGB[i] += (satDiff * 0.68) * vec.s[i];
+        dRGB[i] += (hue * 0.48) * vec.t[i];
+      }
+
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          M[r][c] += dRGB[r] * vec.w[c];
+        }
+      }
+    });
+  }
+
+  const vals = [
+    M[0][0].toFixed(4), M[0][1].toFixed(4), M[0][2].toFixed(4), "0", O[0].toFixed(4),
+    M[1][0].toFixed(4), M[1][1].toFixed(4), M[1][2].toFixed(4), "0", O[1].toFixed(4),
+    M[2][0].toFixed(4), M[2][1].toFixed(4), M[2][2].toFixed(4), "0", O[2].toFixed(4),
+    "0", "0", "0", "1", "0"
+  ].join(" ");
+  feMatrix.setAttribute("values", vals);
+  return true;
+}
+
 // Inspector state (Applied to all selected clips)
 const inspectorState = {
   zoomX: 1.0,
@@ -54,6 +252,8 @@ const inspectorState = {
   skinSoftening: 0,
   portraitHue: 0,
   portraitBrightness: 0,
+  primariesBars: createDefaultPrimariesBars(),
+  colorSlice: createDefaultColorSlice(),
   denoiseMode: "off",
   denoiseSpatial: 0.0,
   denoiseTemporal: 0.0,
@@ -65,6 +265,8 @@ const inspectorState = {
     speed: false,
     stabilization: false,
     whiteBalance: false,
+    primariesBars: false,
+    colorSlice: false,
     nikonColor: false,
     denoise: false,
     lensCorrection: false,
@@ -301,6 +503,8 @@ function gatherCurrentSettings() {
     skinSoftening: (document.getElementById("sliderSkinSoft") ? parseFloat(document.getElementById("sliderSkinSoft").value) : (inspectorState.skinSoftening || 0)),
     portraitHue: (document.getElementById("sliderPortraitHue") ? parseFloat(document.getElementById("sliderPortraitHue").value) : (inspectorState.portraitHue || 0)),
     portraitBrightness: (document.getElementById("sliderPortraitBright") ? parseFloat(document.getElementById("sliderPortraitBright").value) : (inspectorState.portraitBrightness || 0)),
+    primariesBars: inspectorState.primariesBars,
+    colorSlice: inspectorState.colorSlice,
     denoiseMode: (document.getElementById("selDenoiseMode") ? document.getElementById("selDenoiseMode").value : (inspectorState.denoiseMode || "off")),
     denoiseSpatial: (document.getElementById("sliderDenoiseSpatial") ? parseFloat(document.getElementById("sliderDenoiseSpatial").value) : (inspectorState.denoiseSpatial || 0)),
     denoiseTemporal: (document.getElementById("sliderDenoiseTemporal") ? parseFloat(document.getElementById("sliderDenoiseTemporal").value) : (inspectorState.denoiseTemporal || 0)),
@@ -387,6 +591,12 @@ async function loadSavedSettings() {
   if (settings.skinSoftening !== undefined) inspectorState.skinSoftening = parseFloat(settings.skinSoftening);
   if (settings.portraitHue !== undefined) inspectorState.portraitHue = parseFloat(settings.portraitHue);
   if (settings.portraitBrightness !== undefined) inspectorState.portraitBrightness = parseFloat(settings.portraitBrightness);
+  if (settings.primariesBars && typeof settings.primariesBars === "object") {
+    inspectorState.primariesBars = Object.assign(createDefaultPrimariesBars(), settings.primariesBars);
+  }
+  if (settings.colorSlice && typeof settings.colorSlice === "object") {
+    inspectorState.colorSlice = Object.assign(createDefaultColorSlice(), settings.colorSlice);
+  }
   if (settings.brightness !== undefined) inspectorState.brightness = parseFloat(settings.brightness);
   if (settings.contrast !== undefined) inspectorState.contrast = parseFloat(settings.contrast);
   if (settings.shadows !== undefined) inspectorState.shadows = parseFloat(settings.shadows);
@@ -597,6 +807,14 @@ function syncDomWithSettings(s) {
     const inp = document.getElementById("inpPortraitBright");
     if (sl) sl.value = s.portraitBrightness;
     if (inp) inp.value = s.portraitBrightness;
+  }
+  if (s.primariesBars && typeof s.primariesBars === "object") {
+    inspectorState.primariesBars = Object.assign(createDefaultPrimariesBars(), s.primariesBars);
+    syncPrimariesBarsDom();
+  }
+  if (s.colorSlice && typeof s.colorSlice === "object") {
+    inspectorState.colorSlice = Object.assign(createDefaultColorSlice(), s.colorSlice);
+    syncColorSliceDom();
   }
   updateSkinToneBadge();
   if (s.denoiseMode !== undefined) {
@@ -1367,6 +1585,11 @@ function applyMonitorTransform() {
     if (skinSoftVal > 5) {
       filterStr += ` blur(${(skinSoftVal * 0.006).toFixed(2)}px)`;
     }
+
+    // DaVinci ColorSlice 7-Vector Hardware SVG Filter
+    if (updateColorSliceSvgFilter()) {
+      filterStr += ` url(#zcutColorSliceFilter)`;
+    }
   }
 
   [monitorImg, monitorVideo].forEach(el => {
@@ -1522,6 +1745,9 @@ function renderHistogram() {
       }
       if (pHue !== 0) {
         histFilter += ` hue-rotate(${(-pHue * 0.36).toFixed(1)}deg)`;
+      }
+      if (updateColorSliceSvgFilter()) {
+        histFilter += ` url(#zcutColorSliceFilter)`;
       }
       offscreenCtx.filter = histFilter;
     } else {
@@ -2223,6 +2449,8 @@ function setupInspectorListeners() {
     { dotId: "dotSpeed", cardId: "cardSpeed", key: "speed" },
     { dotId: "dotStabilization", cardId: "cardStabilization", key: "stabilization" },
     { dotId: "dotWhiteBalance", cardId: "cardWhiteBalance", key: "whiteBalance" },
+    { dotId: "dotPrimariesBars", cardId: "cardPrimariesBars", key: "primariesBars" },
+    { dotId: "dotColorSlice", cardId: "cardColorSlice", key: "colorSlice" },
     { dotId: "dotNikonColor", cardId: "cardNikonColor", key: "nikonColor" },
     { dotId: "dotDenoise", cardId: "cardDenoise", key: "denoise" }
   ];
@@ -2235,7 +2463,7 @@ function setupInspectorListeners() {
       e.stopPropagation();
       const isCurrentlyBypassed = !!inspectorState.bypassedCards[key];
       inspectorState.bypassedCards[key] = !isCurrentlyBypassed;
-      dot.textContent = isCurrentlyBypassed ? "🔴" : "⚫";
+      dot.textContent = isCurrentlyBypassed ? "🟢" : "⚫";
       dot.classList.toggle("active", isCurrentlyBypassed);
       card.classList.toggle("bypassed", !isCurrentlyBypassed);
       applyMonitorTransform();
@@ -2245,7 +2473,7 @@ function setupInspectorListeners() {
   // Collapsible cards header click
   document.querySelectorAll(".dv-card-header").forEach(header => {
     header.addEventListener("click", (e) => {
-      if (e.target.classList.contains("pill-dot") || e.target.classList.contains("tool-icon")) return;
+      if (e.target.classList.contains("pill-dot") || e.target.classList.contains("tool-icon") || e.target.classList.contains("btn-cs-preset") || e.target.classList.contains("btn-pb-preset")) return;
       const card = header.closest(".dv-card");
       if (card) card.classList.toggle("collapsed");
     });
@@ -2766,6 +2994,9 @@ function setupInspectorListeners() {
       showToast("↺ Reset Noise Reduction to Off");
     });
   }
+
+  // DaVinci ColorSlice 7-Vector Interactive Controls
+  setupColorSliceControls();
 
   // Reset Color
   const resetColor = document.getElementById("resetColor");
@@ -3609,6 +3840,8 @@ async function startBatchExport() {
     skin_softening: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.skinSoftening || 0),
     portrait_hue: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.portraitHue || 0),
     portrait_brightness: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.portraitBrightness || 0),
+    primaries_bars: (inspectorState.bypassedCards && inspectorState.bypassedCards.primariesBars) ? null : inspectorState.primariesBars,
+    color_slice: (inspectorState.bypassedCards && inspectorState.bypassedCards.colorSlice) ? null : inspectorState.colorSlice,
     denoise_mode: (inspectorState.bypassedCards && inspectorState.bypassedCards.denoise) ? "off" : (inspectorState.denoiseMode || "off"),
     denoise_spatial: inspectorState.denoiseSpatial || 0,
     denoise_temporal: inspectorState.denoiseTemporal || 0,
@@ -3829,4 +4062,585 @@ async function clearCacheAndRam() {
   } catch (err) {
     showToast("Error clearing cache: " + err.message);
   }
+}
+
+// =========================================================================
+// DAVINCI COLORSLICE 7-VECTOR INTERACTIVE UI & DOM SYNC
+// =========================================================================
+function syncColorSliceDom() {
+  if (!inspectorState.colorSlice) {
+    inspectorState.colorSlice = createDefaultColorSlice();
+  }
+  const cs = inspectorState.colorSlice;
+  const m = cs.master || { den: 0.0, denDepth: 0.0, sat: 1.0, satBal: 0.0, satDepth: 0.0, hue: 0.0 };
+
+  const mMap = {
+    csMasterDen: m.den || 0.0,
+    csMasterDenDepth: m.denDepth || 0.0,
+    csMasterSat: m.sat !== undefined ? m.sat : 1.0,
+    csMasterSatBal: m.satBal || 0.0,
+    csMasterSatDepth: m.satDepth || 0.0,
+    csMasterHue: m.hue || 0.0
+  };
+  Object.keys(mMap).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = Number(mMap[id]).toFixed(2);
+  });
+
+  const slices = ["red", "skin", "yellow", "green", "cyan", "blue", "magenta"];
+  slices.forEach(sKey => {
+    const sl = cs[sKey] || { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 };
+    const lblC = document.getElementById(`lblCsCenter_${sKey}`);
+    const lblH = document.getElementById(`lblCsHue_${sKey}`);
+    if (lblC) lblC.textContent = Number(sl.center || 0).toFixed(2);
+    if (lblH) lblH.textContent = Number(sl.hue || 0).toFixed(2);
+
+    const slC = document.querySelector(`.cs-slider-center[data-slice="${sKey}"]`);
+    const slH = document.querySelector(`.cs-slider-hue[data-slice="${sKey}"]`);
+    if (slC) slC.value = sl.center || 0;
+    if (slH) slH.value = sl.hue || 0;
+
+    // Rotate slice wedge indicator on the wheel
+    const colEl = document.querySelector(`.cs-col[data-slice="${sKey}"]`);
+    if (colEl) {
+      const wedge = colEl.querySelector(".cs-wedge");
+      const baseAngle = COLORSLICE_VECTORS[sKey] ? COLORSLICE_VECTORS[sKey].baseAngle : 0;
+      const offsetDeg = ((sl.center || 0) * 18) + ((sl.hue || 0) * 28);
+      if (wedge) wedge.style.setProperty("--wedge-angle", `${(baseAngle + offsetDeg).toFixed(1)}deg`);
+    }
+
+    // Update Density vertical fader (-1 to 1)
+    const denVal = Math.max(-1, Math.min(1, Number(sl.den || 0)));
+    const denPct = ((denVal + 1) / 2) * 100;
+    const denTrack = document.querySelector(`.cs-vtrack[data-slice="${sKey}"][data-param="den"]`);
+    if (denTrack) {
+      const fill = denTrack.querySelector(".cs-vfill");
+      const thumb = denTrack.querySelector(".cs-vthumb");
+      if (fill) fill.style.height = `${denPct}%`;
+      if (thumb) thumb.style.bottom = `${denPct}%`;
+    }
+    const inpDen = document.getElementById(`inpCsDen_${sKey}`);
+    if (inpDen) inpDen.value = denVal.toFixed(2);
+
+    // Update Saturation vertical fader (0 to 2)
+    const satVal = Math.max(0, Math.min(2, Number(sl.sat !== undefined ? sl.sat : 1)));
+    const satPct = (satVal / 2) * 100;
+    const satTrack = document.querySelector(`.cs-vtrack[data-slice="${sKey}"][data-param="sat"]`);
+    if (satTrack) {
+      const fill = satTrack.querySelector(".cs-vfill");
+      const thumb = satTrack.querySelector(".cs-vthumb");
+      if (fill) fill.style.height = `${satPct}%`;
+      if (thumb) thumb.style.bottom = `${satPct}%`;
+    }
+    const inpSat = document.getElementById(`inpCsSat_${sKey}`);
+    if (inpSat) inpSat.value = satVal.toFixed(2);
+  });
+}
+
+function setupColorSliceControls() {
+  if (!inspectorState.colorSlice) {
+    inspectorState.colorSlice = createDefaultColorSlice();
+  }
+
+  // 1. Master Bar Inputs (Drag left/right or type value, double-click to reset)
+  document.querySelectorAll(".cs-m-input").forEach(inp => {
+    const mparam = inp.dataset.mparam;
+    const isSat = (mparam === "sat");
+    const minV = isSat ? 0.0 : -1.0;
+    const maxV = isSat ? 2.0 : 1.0;
+    const defV = isSat ? 1.0 : 0.0;
+
+    inp.addEventListener("change", () => {
+      let v = parseFloat(inp.value);
+      if (isNaN(v)) v = defV;
+      v = Math.max(minV, Math.min(maxV, v));
+      inspectorState.colorSlice.master[mparam] = v;
+      inp.value = v.toFixed(2);
+      document.querySelectorAll(".btn-cs-preset").forEach(b => b.classList.remove("active"));
+      applyMonitorTransform();
+    });
+
+    inp.addEventListener("dblclick", () => {
+      inspectorState.colorSlice.master[mparam] = defV;
+      inp.value = defV.toFixed(2);
+      applyMonitorTransform();
+    });
+
+    let dragStartX = null;
+    let dragStartVal = 0;
+    inp.addEventListener("mousedown", (e) => {
+      if (document.activeElement === inp) return;
+      dragStartX = e.clientX;
+      dragStartVal = inspectorState.colorSlice.master[mparam] !== undefined ? inspectorState.colorSlice.master[mparam] : defV;
+      const onMove = (ev) => {
+        if (dragStartX === null) return;
+        const dx = ev.clientX - dragStartX;
+        if (Math.abs(dx) > 2) {
+          inp.blur();
+          let nv = dragStartVal + (dx * 0.01);
+          nv = Math.max(minV, Math.min(maxV, nv));
+          inspectorState.colorSlice.master[mparam] = nv;
+          inp.value = nv.toFixed(2);
+          applyMonitorTransform();
+        }
+      };
+      const onUp = () => {
+        dragStartX = null;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+  });
+
+  // 2. Horizontal Sliders (Center & Hue per slice)
+  document.querySelectorAll(".cs-hslider").forEach(sl => {
+    const sKey = sl.dataset.slice;
+    const param = sl.dataset.param; // "center" or "hue"
+    sl.addEventListener("input", () => {
+      const v = parseFloat(sl.value) || 0.0;
+      inspectorState.colorSlice[sKey][param] = v;
+      document.querySelectorAll(".btn-cs-preset").forEach(b => b.classList.remove("active"));
+      syncColorSliceDom();
+      applyMonitorTransform();
+    });
+    sl.addEventListener("dblclick", () => {
+      inspectorState.colorSlice[sKey][param] = 0.0;
+      sl.value = 0;
+      syncColorSliceDom();
+      applyMonitorTransform();
+    });
+  });
+
+  // 3. Vertical Fader Tracks (Density & Saturation per slice)
+  document.querySelectorAll(".cs-vtrack").forEach(track => {
+    const sKey = track.dataset.slice;
+    const param = track.dataset.param; // "den" or "sat"
+    const minV = parseFloat(track.dataset.min);
+    const maxV = parseFloat(track.dataset.max);
+    const defV = (param === "sat") ? 1.0 : 0.0;
+
+    const updateFromMouseY = (clientY) => {
+      const rect = track.getBoundingClientRect();
+      const relY = Math.max(0, Math.min(rect.height, rect.bottom - clientY));
+      const pct = relY / (rect.height || 1);
+      const val = minV + pct * (maxV - minV);
+      inspectorState.colorSlice[sKey][param] = parseFloat(val.toFixed(2));
+      document.querySelectorAll(".btn-cs-preset").forEach(b => b.classList.remove("active"));
+      syncColorSliceDom();
+      applyMonitorTransform();
+    };
+
+    track.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      updateFromMouseY(e.clientY);
+      const onMove = (ev) => updateFromMouseY(ev.clientY);
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+
+    track.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      inspectorState.colorSlice[sKey][param] = defV;
+      syncColorSliceDom();
+      applyMonitorTransform();
+    });
+  });
+
+  // 4. Vertical Fader Numeric Input Boxes (.cs-v-num)
+  document.querySelectorAll(".cs-v-num").forEach(inp => {
+    const sKey = inp.dataset.slice;
+    const param = inp.dataset.param;
+    const minV = (param === "sat") ? 0.0 : -1.0;
+    const maxV = (param === "sat") ? 2.0 : 1.0;
+    const defV = (param === "sat") ? 1.0 : 0.0;
+
+    inp.addEventListener("change", () => {
+      let v = parseFloat(inp.value);
+      if (isNaN(v)) v = defV;
+      v = Math.max(minV, Math.min(maxV, v));
+      inspectorState.colorSlice[sKey][param] = v;
+      syncColorSliceDom();
+      applyMonitorTransform();
+    });
+  });
+
+  // 5. Individual Column Reset (.cs-col-reset)
+  document.querySelectorAll(".cs-col-reset").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const sKey = btn.dataset.slice;
+      if (sKey && inspectorState.colorSlice[sKey]) {
+        inspectorState.colorSlice[sKey] = { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 };
+        document.querySelectorAll(".btn-cs-preset").forEach(b => b.classList.remove("active"));
+        syncColorSliceDom();
+        applyMonitorTransform();
+      }
+    });
+  });
+
+  // 6. Global ColorSlice Reset (#resetColorSlice)
+  const resetCsBtn = document.getElementById("resetColorSlice");
+  if (resetCsBtn) {
+    resetCsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      inspectorState.colorSlice = createDefaultColorSlice();
+      document.querySelectorAll(".btn-cs-preset").forEach(b => b.classList.remove("active"));
+      syncColorSliceDom();
+      applyMonitorTransform();
+      showToast("↺ Reset All ColorSlice Vectors to Default");
+    });
+  }
+
+  // 7. 1-Click ColorSlice Quick Presets (.btn-cs-preset)
+  document.querySelectorAll(".btn-cs-preset").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const p = btn.dataset.preset;
+      const wasActive = btn.classList.contains("active");
+      document.querySelectorAll(".btn-cs-preset").forEach(b => b.classList.remove("active"));
+
+      const cs = createDefaultColorSlice();
+      if (!wasActive) {
+        btn.classList.add("active");
+        if (p === "skin_pop") {
+          cs.skin = { center: 0.0, hue: 0.22, den: -0.26, sat: 1.18 };
+          cs.green = { center: 0.0, hue: 0.10, den: 0.20, sat: 0.78 };
+          cs.yellow = { center: 0.0, hue: 0.06, den: 0.12, sat: 0.86 };
+        } else if (p === "outdoor") {
+          cs.skin = { center: 0.0, hue: 0.16, den: -0.20, sat: 1.14 };
+          cs.green = { center: 0.0, hue: 0.16, den: 0.28, sat: 0.72 };
+          cs.yellow = { center: 0.0, hue: 0.08, den: 0.14, sat: 0.82 };
+          cs.blue = { center: 0.0, hue: 0.0, den: 0.24, sat: 1.22 };
+          cs.cyan = { center: 0.0, hue: 0.0, den: 0.16, sat: 1.16 };
+        } else if (p === "film") {
+          cs.master = { den: 0.14, denDepth: 0.12, sat: 1.08, satBal: 0.08, satDepth: 0.08, hue: 0.0 };
+          cs.skin = { center: 0.0, hue: 0.10, den: -0.14, sat: 1.10 };
+          cs.red = { center: 0.0, hue: 0.04, den: 0.22, sat: 1.15 };
+          cs.blue = { center: 0.0, hue: -0.04, den: 0.24, sat: 1.14 };
+          cs.green = { center: 0.0, hue: 0.12, den: 0.22, sat: 0.84 };
+        }
+      }
+      inspectorState.colorSlice = cs;
+      syncColorSliceDom();
+      applyMonitorTransform();
+    });
+  });
+
+  syncColorSliceDom();
+  setupPrimariesBarsControls();
+}
+
+// =========================================================================
+// DAVINCI PRIMARIES - COLOR BARS (LIFT / GAMMA / GAIN / OFFSET) UI & SYNC
+// =========================================================================
+function syncPrimariesBarsDom() {
+  if (!inspectorState.primariesBars) {
+    inspectorState.primariesBars = createDefaultPrimariesBars();
+  }
+  const pb = inspectorState.primariesBars;
+  const t = pb.top || { temp: 0.0, tint: 0.0, cont: 1.0, pivot: 0.435, md: 0.0 };
+  const b = pb.bot || { colBoost: 0.0, shad: 0.0, hiLight: 0.0, sat: 50.0, hue: 50.0, lMix: 100.0 };
+
+  const topMap = {
+    pbTopTemp: [t.temp || 0.0, 1],
+    pbTopTint: [t.tint || 0.0, 2],
+    pbTopCont: [t.cont !== undefined ? t.cont : 1.0, 3],
+    pbTopPivot: [t.pivot !== undefined ? t.pivot : 0.435, 3],
+    pbTopMd: [t.md || 0.0, 2]
+  };
+  Object.keys(topMap).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = Number(topMap[id][0]).toFixed(topMap[id][1]);
+  });
+
+  const botMap = {
+    pbBotColBoost: b.colBoost || 0.0,
+    pbBotShad: b.shad || 0.0,
+    pbBotHiLight: b.hiLight || 0.0,
+    pbBotSat: b.sat !== undefined ? b.sat : 50.0,
+    pbBotHue: b.hue !== undefined ? b.hue : 50.0,
+    pbBotLMix: b.lMix !== undefined ? b.lMix : 100.0
+  };
+  Object.keys(botMap).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = Number(botMap[id]).toFixed(2);
+  });
+
+  document.querySelectorAll(".pb-bar-col").forEach(col => {
+    const zone = col.dataset.zone;
+    const ch = col.dataset.ch;
+    const minV = parseFloat(col.dataset.min);
+    const maxV = parseFloat(col.dataset.max);
+    const zObj = pb[zone] || {};
+    const defV = zone === "gain" ? 1.0 : (zone === "offset" ? 25.0 : 0.0);
+    const val = zObj[ch] !== undefined ? Number(zObj[ch]) : defV;
+    const clamped = Math.max(minV, Math.min(maxV, val));
+    const pct = ((clamped - minV) / (maxV - minV)) * 100;
+
+    const fill = col.querySelector(".pb-vfill");
+    const thumb = col.querySelector(".pb-vthumb");
+    if (fill) fill.style.height = `${pct}%`;
+    if (thumb) thumb.style.bottom = `${pct}%`;
+
+    const inp = document.getElementById(`inpPb_${zone}_${ch}`);
+    if (inp) inp.value = clamped.toFixed(2);
+  });
+}
+
+function setupPrimariesBarsControls() {
+  if (!inspectorState.primariesBars) {
+    inspectorState.primariesBars = createDefaultPrimariesBars();
+  }
+
+  // 1. Vertical Fader Columns (.pb-bar-col)
+  document.querySelectorAll(".pb-bar-col").forEach(col => {
+    const zone = col.dataset.zone;
+    const ch = col.dataset.ch;
+    const minV = parseFloat(col.dataset.min);
+    const maxV = parseFloat(col.dataset.max);
+    const defV = zone === "gain" ? 1.0 : (zone === "offset" ? 25.0 : 0.0);
+    const track = col.querySelector(".pb-vtrack");
+    if (!track) return;
+
+    const updateFromMouseY = (clientY) => {
+      const rect = track.getBoundingClientRect();
+      const relY = Math.max(0, Math.min(rect.height, rect.bottom - clientY));
+      const pct = relY / (rect.height || 1);
+      const val = minV + pct * (maxV - minV);
+      inspectorState.primariesBars[zone][ch] = parseFloat(val.toFixed(2));
+      document.querySelectorAll(".btn-pb-preset").forEach(b => b.classList.remove("active"));
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+    };
+
+    track.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      updateFromMouseY(e.clientY);
+      const onMove = (ev) => updateFromMouseY(ev.clientY);
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+
+    track.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      inspectorState.primariesBars[zone][ch] = defV;
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+    });
+  });
+
+  // 2. Numeric Boxes under Lift/Gamma/Gain/Offset (.pb-v-num)
+  document.querySelectorAll(".pb-v-num").forEach(inp => {
+    const zone = inp.dataset.zone;
+    const ch = inp.dataset.ch;
+    const col = inp.closest(".pb-bar-col");
+    const minV = col ? parseFloat(col.dataset.min) : -1;
+    const maxV = col ? parseFloat(col.dataset.max) : 1;
+    const defV = zone === "gain" ? 1.0 : (zone === "offset" ? 25.0 : 0.0);
+
+    inp.addEventListener("change", () => {
+      let v = parseFloat(inp.value);
+      if (isNaN(v)) v = defV;
+      v = Math.max(minV, Math.min(maxV, v));
+      inspectorState.primariesBars[zone][ch] = v;
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+    });
+  });
+
+  // 3. Knurled Horizontal Jog Wheels (.pb-jog-wheel)
+  document.querySelectorAll(".pb-jog-wheel").forEach(wheel => {
+    const zone = wheel.dataset.zone;
+    let startX = null;
+    wheel.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      startX = e.clientX;
+      const orig = Object.assign({}, inspectorState.primariesBars[zone]);
+      const stepScale = zone === "offset" ? 0.08 : 0.003;
+      const minV = zone === "gain" ? 0.5 : (zone === "offset" ? 0 : -0.5);
+      const maxV = zone === "gain" ? 1.5 : (zone === "offset" ? 50 : 0.5);
+
+      const onMove = (ev) => {
+        if (startX === null) return;
+        const delta = (ev.clientX - startX) * stepScale;
+        if (zone === "offset") {
+          ["r", "g", "b"].forEach(k => {
+            inspectorState.primariesBars.offset[k] = Math.max(minV, Math.min(maxV, orig[k] + delta));
+          });
+        } else {
+          inspectorState.primariesBars[zone].y = Math.max(minV, Math.min(maxV, orig.y + delta));
+        }
+        syncPrimariesBarsDom();
+        applyMonitorTransform();
+      };
+      const onUp = () => {
+        startX = null;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+
+    wheel.addEventListener("dblclick", () => {
+      if (zone === "gain") inspectorState.primariesBars.gain = { y: 1, r: 1, g: 1, b: 1 };
+      else if (zone === "offset") inspectorState.primariesBars.offset = { r: 25, g: 25, b: 25 };
+      else inspectorState.primariesBars[zone] = { y: 0, r: 0, g: 0, b: 0 };
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+    });
+  });
+
+  // 4. Top & Bottom Master Inputs (.pb-m-input)
+  document.querySelectorAll(".pb-m-input").forEach(inp => {
+    const topKey = inp.dataset.top;
+    const botKey = inp.dataset.bot;
+    const group = topKey ? "top" : "bot";
+    const key = topKey || botKey;
+
+    const bounds = {
+      temp: [-100, 100, 0, 0.5],
+      tint: [-100, 100, 0, 0.5],
+      cont: [0.2, 2.0, 1.0, 0.005],
+      pivot: [0.1, 0.9, 0.435, 0.005],
+      md: [-50, 50, 0, 0.25],
+      colBoost: [-50, 50, 0, 0.25],
+      shad: [-50, 50, 0, 0.25],
+      hiLight: [-50, 50, 0, 0.25],
+      sat: [0, 100, 50, 0.25],
+      hue: [0, 100, 50, 0.25],
+      lMix: [0, 100, 100, 0.25]
+    }[key] || [-100, 100, 0, 0.25];
+
+    inp.addEventListener("change", () => {
+      let v = parseFloat(inp.value);
+      if (isNaN(v)) v = bounds[2];
+      v = Math.max(bounds[0], Math.min(bounds[1], v));
+      inspectorState.primariesBars[group][key] = v;
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+    });
+
+    inp.addEventListener("dblclick", () => {
+      inspectorState.primariesBars[group][key] = bounds[2];
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+    });
+
+    let dragX = null;
+    let startVal = 0;
+    inp.addEventListener("mousedown", (e) => {
+      if (document.activeElement === inp) return;
+      dragX = e.clientX;
+      startVal = inspectorState.primariesBars[group][key];
+      const onMove = (ev) => {
+        if (dragX === null) return;
+        const dx = ev.clientX - dragX;
+        if (Math.abs(dx) > 2) {
+          inp.blur();
+          let nv = startVal + dx * bounds[3];
+          nv = Math.max(bounds[0], Math.min(bounds[1], nv));
+          inspectorState.primariesBars[group][key] = nv;
+          syncPrimariesBarsDom();
+          applyMonitorTransform();
+        }
+      };
+      const onUp = () => {
+        dragX = null;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+  });
+
+  // 5. Individual Zone Reset (.pb-zone-reset) & Global Reset (#resetPrimariesBars)
+  document.querySelectorAll(".pb-zone-reset").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const zone = btn.dataset.zone;
+      if (zone === "gain") inspectorState.primariesBars.gain = { y: 1, r: 1, g: 1, b: 1 };
+      else if (zone === "offset") inspectorState.primariesBars.offset = { r: 25, g: 25, b: 25 };
+      else if (zone) inspectorState.primariesBars[zone] = { y: 0, r: 0, g: 0, b: 0 };
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+    });
+  });
+
+  const resetPbBtn = document.getElementById("resetPrimariesBars");
+  if (resetPbBtn) {
+    resetPbBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      inspectorState.primariesBars = createDefaultPrimariesBars();
+      document.querySelectorAll(".btn-pb-preset").forEach(b => b.classList.remove("active"));
+      syncPrimariesBarsDom();
+      applyMonitorTransform();
+      showToast("↺ Reset All Primaries Color Bars to Default");
+    });
+  }
+
+  // 6. Auto Balance Ⓐ & Quick Presets (.btn-pb-preset)
+  const applyPbPreset = (p) => {
+    const pb = createDefaultPrimariesBars();
+    if (p === "auto_balance") {
+      pb.top = { temp: 6.0, tint: 2.5, cont: 1.06, pivot: 0.435, md: 8.0 };
+      pb.bot = { colBoost: 10.0, shad: 12.0, hiLight: -6.0, sat: 54.0, hue: 50.0, lMix: 100.0 };
+      pb.lift = { y: -0.02, r: 0.0, g: 0.0, b: 0.01 };
+      pb.gamma = { y: 0.06, r: 0.03, g: -0.02, b: 0.02 };
+      pb.gain = { y: 1.02, r: 1.01, g: 1.0, b: 1.0 };
+    } else if (p === "clean_skin") {
+      pb.top = { temp: 4.0, tint: 4.0, cont: 1.04, pivot: 0.435, md: 5.0 };
+      pb.bot = { colBoost: 8.0, shad: 15.0, hiLight: -8.0, sat: 53.0, hue: 50.0, lMix: 100.0 };
+      pb.lift = { y: -0.02, r: 0.01, g: 0.0, b: 0.01 };
+      pb.gamma = { y: 0.10, r: 0.06, g: -0.03, b: 0.04 };
+      pb.gain = { y: 1.02, r: 1.02, g: 1.0, b: 1.01 };
+    } else if (p === "teal_orange") {
+      pb.top = { temp: 8.0, tint: 1.0, cont: 1.10, pivot: 0.435, md: 10.0 };
+      pb.bot = { colBoost: 12.0, shad: 8.0, hiLight: -5.0, sat: 55.0, hue: 50.0, lMix: 100.0 };
+      pb.lift = { y: -0.03, r: -0.04, g: 0.01, b: 0.05 };
+      pb.gamma = { y: 0.04, r: 0.06, g: 0.01, b: -0.04 };
+      pb.gain = { y: 1.03, r: 1.04, g: 1.01, b: 0.97 };
+    }
+    inspectorState.primariesBars = pb;
+    syncPrimariesBarsDom();
+    applyMonitorTransform();
+  };
+
+  const btnAutoA = document.getElementById("btnPbAutoA");
+  if (btnAutoA) {
+    btnAutoA.addEventListener("click", () => {
+      applyPbPreset("auto_balance");
+      showToast("Ⓐ Auto Color & Contrast Balance Applied");
+    });
+  }
+
+  document.querySelectorAll(".btn-pb-preset").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const p = btn.dataset.pbpreset;
+      const wasActive = btn.classList.contains("active");
+      document.querySelectorAll(".btn-pb-preset").forEach(b => b.classList.remove("active"));
+      if (wasActive) {
+        inspectorState.primariesBars = createDefaultPrimariesBars();
+        syncPrimariesBarsDom();
+        applyMonitorTransform();
+      } else {
+        btn.classList.add("active");
+        applyPbPreset(p);
+      }
+    });
+  });
+
+  syncPrimariesBarsDom();
 }
