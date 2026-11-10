@@ -194,7 +194,12 @@ function applyTheme(mode, persist = true) {
   const btnAuto = document.getElementById("btnThemeAuto");
   if (btnDark) btnDark.classList.toggle("active", mode === "dark");
   if (btnLight) btnLight.classList.toggle("active", mode === "light");
-  if (btnAuto) btnAuto.classList.toggle("active", mode === "auto");
+  if (btnAuto) {
+    btnAuto.classList.toggle("active", mode === "auto");
+    btnAuto.textContent = mode === "auto"
+      ? `🖥 Auto • ${shouldBeDark ? "Dark" : "Light"}`
+      : "🖥 Auto";
+  }
 
   scheduleHistogram();
 
