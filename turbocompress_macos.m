@@ -44,7 +44,7 @@ static int is_port_open(int port) {
                                               styleMask:style
                                                 backing:NSBackingStoreBuffered
                                                   defer:NO];
-    [self.window setTitle:@"TurboCompress Studio — Fast Batch Vertical Recoder (Nikon Z8)"];
+    [self.window setTitle:@"ZCut PRO — Fast Batch Vertical Studio"];
     [self.window center];
     [self.window setMinSize:NSMakeSize(1100, 700)];
     [self.window setAppearance:nil];
@@ -105,7 +105,7 @@ runJavaScriptAlertPanelWithMessage:(NSString *)message
 initiatedByFrame:(WKFrameInfo *)frame
 completionHandler:(void (^)(void))completionHandler {
     NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:@"TurboCompress Studio"];
+    [alert setMessageText:@"ZCut"];
     [alert setInformativeText:message];
     [alert addButtonWithTitle:@"OK"];
     [alert runModal];
@@ -117,7 +117,7 @@ runJavaScriptConfirmPanelWithMessage:(NSString *)message
 initiatedByFrame:(WKFrameInfo *)frame
 completionHandler:(void (^)(BOOL result))completionHandler {
     NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:@"TurboCompress Studio"];
+    [alert setMessageText:@"ZCut"];
     [alert setInformativeText:message];
     [alert addButtonWithTitle:@"OK"];
     [alert addButtonWithTitle:@"Cancel"];
@@ -156,14 +156,14 @@ static void setup_menu(StudioAppDelegate *delegate) {
     NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];
     [menubar addItem:appMenuItem];
     NSMenu *appMenu = [[NSMenu alloc] init];
-    [appMenu addItemWithTitle:@"About TurboCompress Studio" action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
+    [appMenu addItemWithTitle:@"About ZCut" action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
     [appMenu addItem:[NSMenuItem separatorItem]];
     NSMenuItem *reloadItem = [[NSMenuItem alloc] initWithTitle:@"Reload UI" action:@selector(reloadPage:) keyEquivalent:@"r"];
     [reloadItem setTarget:delegate];
     [appMenu addItem:reloadItem];
     [appMenu addItem:[NSMenuItem separatorItem]];
-    [appMenu addItemWithTitle:@"Hide TurboCompress" action:@selector(hide:) keyEquivalent:@"h"];
-    [appMenu addItemWithTitle:@"Quit TurboCompress Studio" action:@selector(terminate:) keyEquivalent:@"q"];
+    [appMenu addItemWithTitle:@"Hide ZCut" action:@selector(hide:) keyEquivalent:@"h"];
+    [appMenu addItemWithTitle:@"Quit ZCut" action:@selector(terminate:) keyEquivalent:@"q"];
     [appMenuItem setSubmenu:appMenu];
 
     // Edit Menu (Cmd+A Select All, Cmd+C, Cmd+V, Cmd+Z)

@@ -1343,7 +1343,7 @@ def run_batch_export(params):
         notify_msg = f"Finished exporting {completed_count} vertical clips to destination folder!"
         subprocess.run([
             "osascript", "-e",
-            f'display notification "{notify_msg}" with title "TurboCompress Studio" subtitle "Batch Export Completed"'
+            f'display notification "{notify_msg}" with title "ZCut PRO" subtitle "Batch Export Completed"'
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 

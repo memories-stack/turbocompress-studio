@@ -207,7 +207,7 @@ except:
     except:
         font = ImageFont.load_default()
 
-badge_text = "9:16 TURBO STUDIO"
+badge_text = "ZCUT PRO 9:16"
 bbox = bg_badge.textbbox((0, 0), badge_text, font=font)
 tw = bbox[2] - bbox[0]
 th = bbox[3] - bbox[1]
