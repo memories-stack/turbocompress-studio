@@ -620,10 +620,28 @@ function syncDomWithSettings(s) {
   if (s.workers !== undefined) {
     const el = document.getElementById("selWorkers");
     if (el) el.value = s.workers;
+    const elF = document.getElementById("selWorkersFileTab");
+    if (elF) elF.value = s.workers;
+    updatePinnedSpeedDisplay(s.workers);
   }
   if (s.renderSpeed !== undefined) {
     const el = document.getElementById("selRenderSpeed");
     if (el) el.value = s.renderSpeed;
+    const elF = document.getElementById("selRenderSpeedFileTab");
+    if (elF) elF.value = s.renderSpeed;
+  }
+}
+
+function updatePinnedSpeedDisplay(val) {
+  const badge = document.getElementById("pinnedSpeedValue");
+  if (!badge) return;
+  const num = parseInt(val) || 2;
+  if (num === 1) {
+    badge.textContent = "1 Worker Sequential (1.0x Standard)";
+  } else if (num === 3) {
+    badge.textContent = "3 Workers Parallel (3.5x - 4.0x Max Boost)";
+  } else {
+    badge.textContent = "2 Workers Parallel (2.5x - 3.2x Turbo)";
   }
 }
 
@@ -653,6 +671,49 @@ function setupAutoSettingsSync() {
     });
     selConflict2.addEventListener("change", () => {
       selConflict1.value = selConflict2.value;
+      triggerSaveSettings();
+    });
+  }
+
+  const selWrk1 = document.getElementById("selWorkers");
+  const selWrk2 = document.getElementById("selWorkersFileTab");
+  if (selWrk1) {
+    selWrk1.addEventListener("change", () => {
+      if (selWrk2) selWrk2.value = selWrk1.value;
+      updatePinnedSpeedDisplay(selWrk1.value);
+      triggerSaveSettings();
+    });
+  }
+  if (selWrk2) {
+    selWrk2.addEventListener("change", () => {
+      if (selWrk1) selWrk1.value = selWrk2.value;
+      updatePinnedSpeedDisplay(selWrk2.value);
+      triggerSaveSettings();
+    });
+  }
+
+  const selSpd1 = document.getElementById("selRenderSpeed");
+  const selSpd2 = document.getElementById("selRenderSpeedFileTab");
+  if (selSpd1 && selSpd2) {
+    selSpd1.addEventListener("change", () => {
+      selSpd2.value = selSpd1.value;
+      triggerSaveSettings();
+    });
+    selSpd2.addEventListener("change", () => {
+      selSpd1.value = selSpd2.value;
+      triggerSaveSettings();
+    });
+  }
+
+  const pinnedSpeedRow = document.getElementById("pinnedSpeedRow");
+  if (pinnedSpeedRow && selWrk1) {
+    pinnedSpeedRow.style.cursor = "pointer";
+    pinnedSpeedRow.addEventListener("click", () => {
+      const current = parseInt(selWrk1.value) || 2;
+      const next = current === 2 ? 3 : (current === 3 ? 1 : 2);
+      selWrk1.value = next;
+      if (selWrk2) selWrk2.value = next;
+      updatePinnedSpeedDisplay(next);
       triggerSaveSettings();
     });
   }

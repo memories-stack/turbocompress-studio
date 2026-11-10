@@ -919,6 +919,41 @@
 
                 <div class="deliver-divider"></div>
 
+                <!-- EXPORT SPEED & MULTI-CORE ACCELERATION (กล่องเพิ่มความเร็วการ Export) -->
+                <div class="speed-boost-panel" id="speedBoostPanel">
+                  <div class="speed-boost-header">
+                    <div class="speed-boost-title-wrap">
+                      <span class="speed-boost-icon">⚡️</span>
+                      <span class="speed-boost-title">Export Speed &amp; Parallel Boost (กล่องเพิ่มความเร็วการ Export)</span>
+                    </div>
+                    <span class="speed-boost-badge">Apple M-Series GPU</span>
+                  </div>
+                  <div class="speed-boost-content">
+                    <div class="dv-row deliver-row">
+                      <label class="deliver-label">Parallel Engine</label>
+                      <div class="deliver-controls">
+                        <select class="dv-select deliver-select" id="selWorkers" title="จำนวนคลิปที่ประมวลผลพร้อมกันด้วยชิป M-Series">
+                          <option value="2" selected>⚡️ 2 Workers (Recommended - เร็ว 2.5x-3.2x เสถียร)</option>
+                          <option value="3">⚡️⚡️ 3 Workers (Max Turbo Boost - เร่งสปีดสูงสุด 3.8x)</option>
+                          <option value="1">1 Worker (Sequential - ทีละคลิป มาตรฐาน)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="dv-row deliver-row" style="margin-top: 6px;">
+                      <label class="deliver-label">Render Speed</label>
+                      <div class="deliver-controls">
+                        <select class="dv-select deliver-select" id="selRenderSpeed" title="ความเร็วในการเข้ารหัสของ GPU">
+                          <option value="max" selected>Maximum (เร่งสปีด 100% เต็มกำลังฮาร์ดแวร์)</option>
+                          <option value="75">75% (โหมดประหยัดพลังงาน)</option>
+                          <option value="50">50% (โหมดทำงานเบื้องหลัง)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="deliver-divider"></div>
+
                 <!-- Resolution Section -->
                 <div class="dv-chk-row sub-chk">
                   <input type="checkbox" id="chkTimelineEffects" checked>
@@ -1219,7 +1254,7 @@
                 <div class="dv-row deliver-row">
                   <label class="deliver-label">Render speed</label>
                   <div class="deliver-controls">
-                    <select class="dv-select deliver-select" id="selRenderSpeed">
+                    <select class="dv-select deliver-select" id="selRenderSpeedFileTab">
                       <option value="max" selected>Maximum</option>
                       <option value="75">75</option>
                       <option value="50">50</option>
@@ -1246,7 +1281,7 @@
                 <div class="dv-row deliver-row" style="margin-top: 6px;">
                   <label class="deliver-label">Parallel Engine</label>
                   <div class="deliver-controls">
-                    <select class="dv-select deliver-select" id="selWorkers">
+                    <select class="dv-select deliver-select" id="selWorkersFileTab">
                       <option value="2" selected>⚡️ 2 Workers (Recommended for M-Series)</option>
                       <option value="1">1 Worker (Sequential Standard)</option>
                       <option value="3">⚡️⚡️ 3 Workers (Max Turbo Boost)</option>
@@ -1261,6 +1296,16 @@
 
       <!-- BIG QUICK EXPORT ACTION BUTTON (PINNED AT BOTTOM) -->
       <div class="quick-export-action-box pinned-export">
+        <!-- Persistent Speed Summary Pill -->
+        <div class="pinned-speed-pill-row" id="pinnedSpeedRow" title="คลิกเพื่อสลับความเร็ว / ขนาน 2-3 Workers">
+          <div class="pinned-speed-badge">
+            <span class="ps-bolt">⚡️</span>
+            <span class="ps-label">Speed Engine:</span>
+            <span class="ps-value" id="pinnedSpeedValue">2 Workers Parallel (3.2x Turbo)</span>
+          </div>
+          <span class="ps-engine">Apple VideoToolbox</span>
+        </div>
+
         <button class="btn-big-export" id="btnBigExport">
           🚀 1-Click Fast Vertical Export (All Clips)
         </button>
