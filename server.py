@@ -111,22 +111,41 @@ def get_ffmpeg_bin():
             return which_path
     return "ffmpeg"
 
-def get_best_encoder(ffmpeg_bin):
+def get_best_encoder(ffmpeg_bin, codec_type="h264"):
+    c = (codec_type or "h264").lower()
     if sys.platform == "darwin":
+        if "prores" in c:
+            return "prores_videotoolbox"
+        elif c in ["hevc", "h265"]:
+            return "hevc_videotoolbox"
+        elif c in ["vp9"]:
+            return "libvpx-vp9"
         return "h264_videotoolbox"
     elif sys.platform == "win32":
         try:
             res = subprocess.run([ffmpeg_bin, "-encoders"], capture_output=True, text=True, errors="ignore")
             out = res.stdout or ""
-            if "h264_nvenc" in out:
-                return "h264_nvenc"
-            elif "h264_qsv" in out:
-                return "h264_qsv"
-            elif "h264_amf" in out:
-                return "h264_amf"
+            if "prores" in c:
+                return "prores_ks"
+            elif c in ["hevc", "h265"]:
+                if "hevc_nvenc" in out: return "hevc_nvenc"
+                elif "hevc_qsv" in out: return "hevc_qsv"
+                elif "hevc_amf" in out: return "hevc_amf"
+                return "libx265"
+            elif c in ["vp9"]:
+                return "libvpx-vp9"
+            else:
+                if "h264_nvenc" in out: return "h264_nvenc"
+                elif "h264_qsv" in out: return "h264_qsv"
+                elif "h264_amf" in out: return "h264_amf"
+                return "libx264"
         except:
             pass
         return "libx264"
+    if "prores" in c:
+        return "prores_ks"
+    elif c in ["hevc", "h265"]:
+        return "libx265"
     return "libx264"
 
 FFMPEG_BIN = get_ffmpeg_bin()
@@ -624,15 +643,21 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         p["current_idx"] = idx + 1
         p["current_name"] = clip_info["name"]
 
-    # File Naming Pattern
+    # File Naming Pattern & Extension
+    ext = (params.get("format") or "mp4").lower().strip()
+    if ext == "quicktime":
+        ext = "mov"
+    if ext not in ["mp4", "mov", "mkv", "webm", "m4v"]:
+        ext = "mp4"
+
     naming = params.get("naming_pattern", "suffix_vertical")
     stem = Path(clip_info['name']).stem
     if naming == "prefix_reel":
-        out_name = f"Reel_{idx+1:03d}_{stem}.mp4"
+        out_name = f"Reel_{idx+1:03d}_{stem}.{ext}"
     elif naming == "original_same":
-        out_name = f"{stem}.mp4"
+        out_name = f"{stem}.{ext}"
     else:
-        out_name = f"{stem}_vertical.mp4"
+        out_name = f"{stem}_vertical.{ext}"
 
     out_dir = params.get("output_dir") or STATE.get("output_dir") or os.path.join(os.path.dirname(src), "_vertical_export")
     if params.get("subfolder"):
@@ -726,29 +751,63 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         g_scale = max(0.5, min(1.5, 1.0 - (tint * 0.006)))
         vf.append(f"colorchannelmixer=rr={r_scale:.3f}:gg={g_scale:.3f}:bb={b_scale:.3f}")
 
+    codec_req = (params.get("codec") or "h264").lower()
+    is_prores = "prores" in codec_req
+    is_hevc = codec_req in ["hevc", "h265"]
+    is_webm = (ext == "webm" or codec_req == "vp9")
+
     def execute_ffmpeg(enc_codec):
-        cmd = [
-            FFMPEG_BIN, "-y", "-i", src,
-            "-c:v", enc_codec, "-b:v", bitrate,
-            "-pix_fmt", "yuv420p",
-            "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
-            "-movflags", "+faststart", "-progress", "pipe:1", "-nostats"
-        ]
-        if enc_codec == "libx264":
-            cmd.extend(["-preset", "ultrafast"])
+        cmd = [FFMPEG_BIN, "-y", "-i", src]
+        if is_prores:
+            prof = 2  # Standard ProRes 422
+            if "hq" in codec_req: prof = 3
+            elif "lt" in codec_req: prof = 1
+            cmd.extend(["-c:v", enc_codec, "-profile:v", str(prof)])
+            if enc_codec == "prores_ks":
+                cmd.extend(["-vendor", "apl0", "-pix_fmt", "yuv422p10le"])
+        elif is_hevc:
+            cmd.extend([
+                "-c:v", enc_codec, "-b:v", bitrate,
+                "-pix_fmt", "yuv420p", "-tag:v", "hvc1",
+                "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"
+            ])
+            if enc_codec == "libx265":
+                cmd.extend(["-preset", "ultrafast"])
+        elif is_webm:
+            cmd.extend([
+                "-c:v", enc_codec, "-b:v", bitrate,
+                "-pix_fmt", "yuv420p"
+            ])
+        else:
+            cmd.extend([
+                "-c:v", enc_codec, "-b:v", bitrate,
+                "-pix_fmt", "yuv420p",
+                "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"
+            ])
+            if enc_codec == "libx264":
+                cmd.extend(["-preset", "ultrafast"])
+
+        if ext in ["mp4", "mov", "m4v"]:
+            cmd.extend(["-movflags", "+faststart"])
+
+        cmd.extend(["-progress", "pipe:1", "-nostats"])
+
         if vf:
             cmd.extend(["-vf", ",".join(vf)])
 
         export_audio = params.get("export_audio", True)
         if has_audio and export_audio:
-            acodec = params.get("audio_codec", "aac")
-            if acodec == "copy":
-                cmd.extend(["-c:a", "copy"])
-            elif acodec == "pcm":
-                cmd.extend(["-c:a", "pcm_s16le"])
+            if is_webm:
+                cmd.extend(["-c:a", "libopus", "-b:a", "128k"])
             else:
-                abitrate = params.get("audio_bitrate", "320k")
-                cmd.extend(["-c:a", "aac", "-b:a", abitrate])
+                acodec = params.get("audio_codec", "aac")
+                if acodec == "copy":
+                    cmd.extend(["-c:a", "copy"])
+                elif acodec == "pcm":
+                    cmd.extend(["-c:a", "pcm_s16le"])
+                else:
+                    abitrate = params.get("audio_bitrate", "320k")
+                    cmd.extend(["-c:a", "aac", "-b:a", abitrate])
         else:
             cmd.append("-an")
 
@@ -801,7 +860,14 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             try: os.remove(out_file)
             except: pass
         time.sleep(0.2)
-        execute_ffmpeg("libx264")
+        fallback_codec = "libx264"
+        if is_prores:
+            fallback_codec = "prores_ks"
+        elif is_hevc:
+            fallback_codec = "libx265"
+        elif is_webm:
+            fallback_codec = "libvpx-vp9"
+        execute_ffmpeg(fallback_codec)
 
     if not STATE["cancel_requested"] and os.path.exists(out_file) and os.path.getsize(out_file) > 1000:
         with proc_lock:
@@ -856,7 +922,7 @@ def run_batch_export(params):
     ct = float(params.get("crop_top", 0.0))
     cb = float(params.get("crop_bottom", 0.0))
     bitrate = params.get("bitrate", "8000k")
-    codec = get_best_encoder(FFMPEG_BIN)
+    codec = get_best_encoder(FFMPEG_BIN, params.get("codec", "h264"))
 
     vf_base = []
     if cl > 0 or cr > 0 or ct > 0 or cb > 0:

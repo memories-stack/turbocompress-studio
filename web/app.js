@@ -495,6 +495,38 @@ function setupAutoSettingsSync() {
     }
   });
 
+  const selFormat = document.getElementById("selFormat");
+  const selCodec = document.getElementById("selCodec");
+  if (selFormat && selCodec) {
+    selFormat.addEventListener("change", () => {
+      const fmt = selFormat.value;
+      if (fmt === "webm") {
+        selCodec.value = "vp9";
+      } else if (fmt === "mp4" || fmt === "m4v") {
+        if (selCodec.value === "vp9" || selCodec.value.startsWith("prores")) {
+          selCodec.value = "h264";
+        }
+      } else if (fmt === "mov") {
+        if (selCodec.value === "vp9") {
+          selCodec.value = "prores";
+        }
+      }
+      triggerSaveSettings();
+    });
+
+    selCodec.addEventListener("change", () => {
+      const cdc = selCodec.value;
+      if (cdc === "vp9") {
+        selFormat.value = "webm";
+      } else if (cdc.startsWith("prores")) {
+        if (selFormat.value !== "mov" && selFormat.value !== "mkv") {
+          selFormat.value = "mov";
+        }
+      }
+      triggerSaveSettings();
+    });
+  }
+
   window.addEventListener("beforeunload", () => {
     const data = gatherCurrentSettings();
     try {
@@ -2697,6 +2729,9 @@ async function startBatchExport() {
   const inpFileSubfolder = document.getElementById("inpFileSubfolder");
   const chkSmartResume = document.getElementById("chkSmartResume");
 
+  const selFormat = document.getElementById("selFormat");
+  const selCodec = document.getElementById("selCodec");
+
   const isCropBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.crop;
 
   const params = {
@@ -2707,6 +2742,8 @@ async function startBatchExport() {
     crop_right: isCropBypassed ? 0.0 : (inspectorState.cropR / 500),
     crop_top: isCropBypassed ? 0.0 : (inspectorState.cropT / 500),
     crop_bottom: isCropBypassed ? 0.0 : (inspectorState.cropB / 500),
+    format: selFormat ? selFormat.value : "mp4",
+    codec: selCodec ? selCodec.value : "h264",
     bitrate: (sliderBitrate ? sliderBitrate.value : 8000) + "k",
     resolution: selResolution ? selResolution.value : "1080x1920",
     workers: selWorkers ? parseInt(selWorkers.value) : 2,
