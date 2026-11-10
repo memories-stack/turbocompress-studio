@@ -49,6 +49,23 @@ def purge_system_and_process_ram(filepath=None):
     except Exception:
         pass
 
+    # Auto-prune thumbnail cache if it exceeds 150 thumbnails to keep disk & RAM minimal
+    try:
+        thumb_cache_dir = "/tmp/tc_thumbs"
+        if os.path.exists(thumb_cache_dir):
+            entries = sorted(
+                (e for e in os.scandir(thumb_cache_dir) if e.is_file()),
+                key=lambda x: x.stat().st_mtime
+            )
+            if len(entries) > 150:
+                for old_entry in entries[:-100]:
+                    try:
+                        os.remove(old_entry.path)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
     if sys.platform == "win32":
         try:
             import ctypes
@@ -88,6 +105,14 @@ DEFAULT_SETTINGS = {
     "contrast": 1.0,
     "shadows": 0.0,
     "saturation": 1.0,
+    "temperature": 0,
+    "tint": 0,
+    "skinSoftening": 0,
+    "portraitHue": 0,
+    "denoiseMode": "off",
+    "denoiseSpatial": 0.0,
+    "denoiseTemporal": 0.0,
+    "conflictAction": "skip",
     "outputPath": "/Users/siamratchongtong/Desktop/STD_VT/test_Exp",
     "fileNamePattern": "SourceName",
     "renderMode": "individual",
@@ -516,6 +541,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
                     "speed": "0.0x", "remaining_str": "00m 00s", "status": "Ready",
                     "eta_str": "--:--", "completed_paths": []
                 }
+            purge_system_and_process_ram()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -590,14 +616,6 @@ class StudioHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"added": added, "total": len(STATE["clips"])}).encode())
-            return
-
-        elif url.path == "/api/clear":
-            STATE["clips"].clear()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"success": True}).encode())
             return
 
         elif url.path == "/api/export":
@@ -858,14 +876,38 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         pass
 
     vf = list(vf_base)
-    # Resolution Scaling
-    res_param = params.get("resolution", "1080x1920")
-    if res_param == "2160x3840":
-        vf.append("scale=2160:3840")
-    elif res_param == "720x1280":
-        vf.append("scale=720:1280")
-    elif res_param == "1080x1920":
-        vf.append("scale=1080:1920")
+    # Zoom & Resolution Scaling (Supports Preset & Custom WxH + Fit / Crop / Stretch)
+    zx = max(0.5, min(4.0, float(params.get("zoom_x", 1.0))))
+    zy = max(0.5, min(4.0, float(params.get("zoom_y", 1.0))))
+    if zx > 1.01 or zy > 1.01:
+        vf.append(f"crop=iw/{zx:.3f}:ih/{zy:.3f}:(iw-ow)/2:(ih-oh)/2")
+
+    res_param = str(params.get("resolution", "1080x1920")).lower().strip()
+    scaling_mode = str(params.get("scaling_mode", "fit")).lower().strip()
+    target_w, target_h = 1080, 1920
+    if "x" in res_param:
+        parts = res_param.split("x")
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            target_w = max(256, int(parts[0]))
+            target_h = max(256, int(parts[1]))
+            # Ensure even dimensions for hardware encoders
+            target_w = (target_w // 2) * 2
+            target_h = (target_h // 2) * 2
+
+    if scaling_mode == "crop":
+        vf.append(f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase,crop={target_w}:{target_h}")
+    elif scaling_mode == "stretch":
+        vf.append(f"scale={target_w}:{target_h}")
+    else:
+        vf.append(f"scale={target_w}:{target_h}:force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2")
+
+    # Speed Change (Retime)
+    spd = max(25.0, min(400.0, float(params.get("speed", 100.0))))
+    spd_dir = str(params.get("speed_direction", "forward")).lower()
+    if abs(spd - 100.0) > 0.5:
+        vf.append(f"setpts={100.0 / spd:.4f}*PTS")
+    if spd_dir == "reverse":
+        vf.append("reverse")
 
     # Nikon Picture Control, Tone Profiles & Color Grading (Unified High-Precision Pipeline)
     render_timeline_effects = params.get("render_timeline_effects", True)
@@ -1254,9 +1296,10 @@ def run_batch_export(params):
     STATE["cancel_requested"] = False
     STATE["is_paused"] = False
     p = STATE["progress"]
-    selected_paths = set(params.get("paths", []))
+    raw_paths = params.get("paths", [])
+    selected_paths = set(raw_paths) | {str(Path(sp).resolve()) for sp in raw_paths if sp}
     if selected_paths:
-        clips_to_process = [c for c in STATE["clips"] if c["path"] in selected_paths]
+        clips_to_process = [c for c in STATE["clips"] if c["path"] in selected_paths or str(Path(c["path"]).resolve()) in selected_paths]
     else:
         clips_to_process = STATE["clips"]
 

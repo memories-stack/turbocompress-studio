@@ -63,6 +63,7 @@ const inspectorState = {
     composite: false,
     speed: false,
     stabilization: false,
+    whiteBalance: false,
     nikonColor: false,
     denoise: false,
     lensCorrection: false,
@@ -1285,8 +1286,9 @@ function applyMonitorTransform() {
     if (grayscaleVal > 0) filterStr += ` grayscale(${grayscaleVal.toFixed(1)}%)`;
 
     // White Balance: Temperature & Tint
-    const tempVal = inspectorState.temperature || 0;
-    const tintVal = inspectorState.tint || 0;
+    const isWbBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.whiteBalance;
+    const tempVal = isWbBypassed ? 0 : (inspectorState.temperature || 0);
+    const tintVal = isWbBypassed ? 0 : (inspectorState.tint || 0);
     if (tempVal > 0) {
       filterStr += ` sepia(${(tempVal * 0.45).toFixed(1)}%)`;
     } else if (tempVal < 0) {
@@ -2136,6 +2138,7 @@ function setupInspectorListeners() {
     { dotId: "dotCrop", cardId: "cardCrop", key: "crop" },
     { dotId: "dotSpeed", cardId: "cardSpeed", key: "speed" },
     { dotId: "dotStabilization", cardId: "cardStabilization", key: "stabilization" },
+    { dotId: "dotWhiteBalance", cardId: "cardWhiteBalance", key: "whiteBalance" },
     { dotId: "dotNikonColor", cardId: "cardNikonColor", key: "nikonColor" },
     { dotId: "dotDenoise", cardId: "cardDenoise", key: "denoise" }
   ];
@@ -3401,14 +3404,35 @@ async function startBatchExport() {
   const selConflict = document.getElementById("selConflictAction") || document.getElementById("selConflictActionFileTab");
   const conflictAction = selConflict ? selConflict.value : "skip";
 
+  const isTrBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.transform;
   const isCropBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.crop;
+  const isSpdBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.speed;
+  const isWbBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.whiteBalance;
   const chkTimelineEffects = document.getElementById("chkTimelineEffects");
   const renderTimelineEffects = chkTimelineEffects ? chkTimelineEffects.checked : true;
 
+  const inpBps = document.getElementById("inpBitrateKbps");
+  const qModeEl = document.querySelector('input[name="qualityMode"]:checked');
+  const qMode = qModeEl ? qModeEl.value : "auto";
+  const targetBpsK = (qMode === "restrict" && inpBps && parseInt(inpBps.value) > 500)
+    ? parseInt(inpBps.value)
+    : (sliderBitrate ? parseInt(sliderBitrate.value) : 20000);
+
+  const inpW = document.getElementById("inpResW");
+  const inpH = document.getElementById("inpResH");
+  const rawRes = selResolution ? selResolution.value : "1080x1920";
+  const finalRes = (rawRes === "custom" && inpW && inpH)
+    ? `${parseInt(inpW.value) || 1080}x${parseInt(inpH.value) || 1920}`
+    : rawRes;
+
   const params = {
-    rotation: inspectorState.rotation,
-    flip_h: !!inspectorState.flipH,
-    flip_v: !!inspectorState.flipV,
+    rotation: isTrBypassed ? 0.0 : inspectorState.rotation,
+    zoom_x: isTrBypassed ? 1.0 : (inspectorState.zoomX || 1.0),
+    zoom_y: isTrBypassed ? 1.0 : (inspectorState.zoomY || 1.0),
+    flip_h: isTrBypassed ? false : !!inspectorState.flipH,
+    flip_v: isTrBypassed ? false : !!inspectorState.flipV,
+    speed: isSpdBypassed ? 100.0 : (inspectorState.speed || 100.0),
+    speed_direction: isSpdBypassed ? "forward" : (inspectorState.speedDirection || "forward"),
     render_timeline_effects: renderTimelineEffects,
     crop_left: isCropBypassed ? 0.0 : (inspectorState.cropL / 500),
     crop_right: isCropBypassed ? 0.0 : (inspectorState.cropR / 500),
@@ -3418,8 +3442,8 @@ async function startBatchExport() {
     codec: selCodec ? selCodec.value : "h264",
     conflict_action: conflictAction,
     smart_resume: (conflictAction === "skip"),
-    bitrate: (sliderBitrate ? sliderBitrate.value : 8000) + "k",
-    resolution: selResolution ? selResolution.value : "1080x1920",
+    bitrate: targetBpsK + "k",
+    resolution: finalRes,
     workers: selWorkers ? parseInt(selWorkers.value) : 2,
     scaling_mode: inspectorState.scaling || "fit",
     nikon_profile: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? "none" : (inspectorState.nikonProfile || "nlog_rec709"),
@@ -3436,13 +3460,12 @@ async function startBatchExport() {
     contrast: inspectorState.contrast,
     shadows: inspectorState.shadows,
     saturation: inspectorState.saturation,
-    temperature: inspectorState.temperature || 0,
-    tint: inspectorState.tint || 0,
+    temperature: isWbBypassed ? 0 : (inspectorState.temperature || 0),
+    tint: isWbBypassed ? 0 : (inspectorState.tint || 0),
     export_audio: chkExportAudio ? chkExportAudio.checked : true,
     audio_codec: selAudioCodec ? selAudioCodec.value : "aac",
     audio_bitrate: (inpAudioBitrate ? inpAudioBitrate.value : "320") + "k",
     subfolder: inpFileSubfolder ? inpFileSubfolder.value.trim() : "",
-    smart_resume: chkSmartResume ? chkSmartResume.checked : true,
     output_dir: outDir,
     paths: selectedPaths
   };

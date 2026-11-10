@@ -28,6 +28,39 @@ static int is_port_open(int port) {
     return (res == 0);
 }
 
+static void ensure_server_running(void) {
+    if (is_port_open(SERVER_PORT)) return;
+    char exe_path[2048];
+    uint32_t size = sizeof(exe_path);
+    _NSGetExecutablePath(exe_path, &size);
+    char real_exe[2048];
+    if (!realpath(exe_path, real_exe)) strncpy(real_exe, exe_path, sizeof(real_exe));
+    char *dir = dirname(real_exe);
+
+    char server_script[2048];
+    snprintf(server_script, sizeof(server_script), "%s/../Resources/server.py", dir);
+    if (access(server_script, F_OK) != 0) {
+        snprintf(server_script, sizeof(server_script), "%s/../../TurboCompress/server.py", dir);
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        char *s_dir = dirname(strdup(server_script));
+        chdir(s_dir);
+        execl("/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+              "python3", server_script, NULL);
+        execlp("python3", "python3", server_script, NULL);
+        _exit(1);
+    } else if (pid > 0) {
+        g_server_pid = pid;
+    }
+
+    for (int i = 0; i < 40; i++) {
+        if (is_port_open(SERVER_PORT)) break;
+        usleep(100000);
+    }
+}
+
 @interface StudioAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate>
 @property (strong) NSWindow *window;
 @property (strong) WKWebView *webView;
@@ -70,8 +103,9 @@ static int is_port_open(int port) {
 }
 
 - (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation withError:(NSError *)error {
-    // If backend server is still spinning up, retry automatically
+    // If backend server is still spinning up or crashed, auto-heal and retry
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(250 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
+        ensure_server_running();
         NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"http://127.0.0.1:%d", SERVER_PORT]];
         [self.webView loadRequest:[NSURLRequest requestWithURL:url]];
     });
@@ -96,6 +130,7 @@ static int is_port_open(int port) {
 
 // Support Cmd+R reload
 - (void)reloadPage:(id)sender {
+    ensure_server_running();
     [self.webView reload];
 }
 
@@ -193,40 +228,7 @@ static void setup_menu(StudioAppDelegate *delegate) {
 int main(int argc, const char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
     @autoreleasepool {
-        // Start background python server if port not open
-        if (!is_port_open(SERVER_PORT)) {
-            char exe_path[2048];
-            uint32_t size = sizeof(exe_path);
-            _NSGetExecutablePath(exe_path, &size);
-            char real_exe[2048];
-            if (!realpath(exe_path, real_exe)) strncpy(real_exe, exe_path, sizeof(real_exe));
-            char *dir = dirname(real_exe);
-
-            char server_script[2048];
-            snprintf(server_script, sizeof(server_script), "%s/../Resources/server.py", dir);
-            if (access(server_script, F_OK) != 0) {
-                snprintf(server_script, sizeof(server_script), "%s/../../TurboCompress/server.py", dir);
-            }
-
-            pid_t pid = fork();
-            if (pid == 0) {
-                // Child: run python server
-                char *s_dir = dirname(strdup(server_script));
-                chdir(s_dir);
-                execl("/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
-                      "python3", server_script, NULL);
-                execlp("python3", "python3", server_script, NULL);
-                _exit(1);
-            } else if (pid > 0) {
-                g_server_pid = pid;
-            }
-
-            // Wait up to 5s for server to start
-            for (int i = 0; i < 50; i++) {
-                if (is_port_open(SERVER_PORT)) break;
-                usleep(100000);
-            }
-        }
+        ensure_server_running();
 
         NSApplication *app = [NSApplication sharedApplication];
         [app setActivationPolicy:NSApplicationActivationPolicyRegular];
