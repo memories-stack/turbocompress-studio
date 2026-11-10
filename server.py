@@ -367,8 +367,11 @@ def scan_files(paths):
         if not obj.exists(): continue
         if obj.is_dir():
             for root, dirs, files in os.walk(p):
+                # Never descend into exported output folders or hidden directories
+                dirs[:] = [d for d in dirs if not d.startswith("_vertical") and not d.startswith(".")]
                 for f in files:
-                    if not f.startswith("._") and Path(f).suffix.lower() in SUPPORTED_EXT:
+                    stem_low = Path(f).stem.lower()
+                    if not f.startswith("._") and not stem_low.endswith("_vertical") and not re.search(r"_vertical_\d+$", stem_low) and Path(f).suffix.lower() in SUPPORTED_EXT:
                         found.append(os.path.join(root, f))
         elif obj.is_file():
             if not obj.name.startswith("._") and obj.suffix.lower() in SUPPORTED_EXT:
