@@ -109,6 +109,7 @@ DEFAULT_SETTINGS = {
     "tint": 0,
     "skinSoftening": 0,
     "portraitHue": 0,
+    "portraitBrightness": 0,
     "denoiseMode": "off",
     "denoiseSpatial": 0.0,
     "denoiseTemporal": 0.0,
@@ -1083,16 +1084,28 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         tot_brightness += 0.02
 
     if render_timeline_effects:
-        # Nikon Z8 Portrait Impression Balance (Hue & Brightness)
-        p_hue = float(params.get("portrait_hue", 0.0))  # -10 to +10 (Amber to Magenta)
-        p_bright = float(params.get("portrait_brightness", 0.0))  # -10 to +10
+        # Skin Tone & Aura Engine (Hue: -50 Golden Amber ↔ +50 Rosy Pink | Radiance: -50 ↔ +50 Midtone Lift)
+        p_hue = float(params.get("portrait_hue", 0.0))
+        p_bright = float(params.get("portrait_brightness", 0.0))
         if abs(p_hue) > 0.1:
-            # positive = magenta/pink, negative = amber/yellow
-            r_mult *= (1.0 + p_hue * 0.015)
-            b_mult *= (1.0 + p_hue * 0.010)
+            if p_hue > 0:
+                # Positive = Rosy Pink (cuts yellow/green cast on skin, adds healthy rosy blush)
+                r_mult *= (1.0 + p_hue * 0.0042)
+                g_mult *= (1.0 - p_hue * 0.0022)
+                b_mult *= (1.0 + p_hue * 0.0028)
+                tot_saturation *= (1.0 + (p_hue / 100.0) * 0.14)
+            else:
+                # Negative = Warm Golden / Honey Glow
+                ah = abs(p_hue)
+                r_mult *= (1.0 + ah * 0.0040)
+                g_mult *= (1.0 + ah * 0.0014)
+                b_mult *= (1.0 - ah * 0.0035)
+                tot_saturation *= (1.0 + (ah / 100.0) * 0.12)
         if abs(p_bright) > 0.1:
-            tot_brightness += p_bright * 0.015
-            tot_gamma *= (1.0 + p_bright * 0.02)
+            # Midtone Gamma & Radiance lift (targets 35-70 IRE skin zone without clipping highlights)
+            tot_brightness += (p_bright / 100.0) * 0.14
+            tot_gamma *= (1.0 + (p_bright / 100.0) * 0.65)
+            tot_contrast *= (1.0 - (p_bright / 100.0) * 0.05)
 
         # Skin Softening (Smart Surface Smoothing)
         skin_raw = params.get("skin_softening", 0.0)

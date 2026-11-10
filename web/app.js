@@ -53,6 +53,7 @@ const inspectorState = {
   customLutPath: "",
   skinSoftening: 0,
   portraitHue: 0,
+  portraitBrightness: 0,
   denoiseMode: "off",
   denoiseSpatial: 0.0,
   denoiseTemporal: 0.0,
@@ -299,6 +300,7 @@ function gatherCurrentSettings() {
     customLutPath: inspectorState.customLutPath,
     skinSoftening: (document.getElementById("sliderSkinSoft") ? parseFloat(document.getElementById("sliderSkinSoft").value) : (inspectorState.skinSoftening || 0)),
     portraitHue: (document.getElementById("sliderPortraitHue") ? parseFloat(document.getElementById("sliderPortraitHue").value) : (inspectorState.portraitHue || 0)),
+    portraitBrightness: (document.getElementById("sliderPortraitBright") ? parseFloat(document.getElementById("sliderPortraitBright").value) : (inspectorState.portraitBrightness || 0)),
     denoiseMode: (document.getElementById("selDenoiseMode") ? document.getElementById("selDenoiseMode").value : (inspectorState.denoiseMode || "off")),
     denoiseSpatial: (document.getElementById("sliderDenoiseSpatial") ? parseFloat(document.getElementById("sliderDenoiseSpatial").value) : (inspectorState.denoiseSpatial || 0)),
     denoiseTemporal: (document.getElementById("sliderDenoiseTemporal") ? parseFloat(document.getElementById("sliderDenoiseTemporal").value) : (inspectorState.denoiseTemporal || 0)),
@@ -382,6 +384,9 @@ async function loadSavedSettings() {
   if (settings.nikonProfile !== undefined) inspectorState.nikonProfile = settings.nikonProfile;
   if (settings.nikonStrength !== undefined) inspectorState.nikonStrength = parseInt(settings.nikonStrength);
   if (settings.customLutPath !== undefined) inspectorState.customLutPath = settings.customLutPath;
+  if (settings.skinSoftening !== undefined) inspectorState.skinSoftening = parseFloat(settings.skinSoftening);
+  if (settings.portraitHue !== undefined) inspectorState.portraitHue = parseFloat(settings.portraitHue);
+  if (settings.portraitBrightness !== undefined) inspectorState.portraitBrightness = parseFloat(settings.portraitBrightness);
   if (settings.brightness !== undefined) inspectorState.brightness = parseFloat(settings.brightness);
   if (settings.contrast !== undefined) inspectorState.contrast = parseFloat(settings.contrast);
   if (settings.shadows !== undefined) inspectorState.shadows = parseFloat(settings.shadows);
@@ -416,6 +421,32 @@ function updateWhitebalanceBadge() {
     else if (wb === "cloudy" && temp === 25) match = true;
     else if (wb === "shade" && temp === 38) match = true;
     else if (wb === "tungsten" && temp === -30) match = true;
+    btn.classList.toggle("active", match);
+  });
+}
+
+function updateSkinToneBadge() {
+  const badge = document.getElementById("skinToneStatusBadge");
+  const hue = inspectorState.portraitHue || 0;
+  const brt = inspectorState.portraitBrightness || 0;
+  const sft = inspectorState.skinSoftening || 0;
+  if (badge) {
+    let label = "Natural Skin";
+    if (hue >= 15 && brt >= 8) label = "🌸 Rosy Pink";
+    else if (brt >= 20) label = "✨ Aura Bright";
+    else if (hue <= -10) label = "🍯 Warm Glow";
+    else if (hue > 4) label = `Rosy +${hue}`;
+    else if (hue < -4) label = `Amber ${hue}`;
+    else if (brt !== 0) label = `Aura ${brt > 0 ? "+" + brt : brt}`;
+    badge.textContent = label;
+  }
+  document.querySelectorAll(".btn-skin-preset").forEach(btn => {
+    const sk = btn.dataset.skin;
+    let match = false;
+    if (sk === "natural" && hue === 0 && brt === 0 && sft === 0) match = true;
+    else if (sk === "rosy" && hue === 18 && brt === 12) match = true;
+    else if (sk === "aura" && hue === 10 && brt === 28) match = true;
+    else if (sk === "glow" && hue === -16 && brt === 15) match = true;
     btn.classList.toggle("active", match);
   });
 }
@@ -560,6 +591,14 @@ function syncDomWithSettings(s) {
     if (sl) sl.value = s.portraitHue;
     if (inp) inp.value = s.portraitHue;
   }
+  if (s.portraitBrightness !== undefined) {
+    inspectorState.portraitBrightness = parseFloat(s.portraitBrightness);
+    const sl = document.getElementById("sliderPortraitBright");
+    const inp = document.getElementById("inpPortraitBright");
+    if (sl) sl.value = s.portraitBrightness;
+    if (inp) inp.value = s.portraitBrightness;
+  }
+  updateSkinToneBadge();
   if (s.denoiseMode !== undefined) {
     inspectorState.denoiseMode = s.denoiseMode;
     const sel = document.getElementById("selDenoiseMode");
@@ -1285,6 +1324,20 @@ function applyMonitorTransform() {
     transformStr += ` scale(${1 + inspectorState.distortion * 0.12})`;
   }
 
+  // Skin Radiance (Midtone Aura Lift) & Skin Tone adjustments before building filterStr
+  const portHue = isNikonBypassed ? 0 : (inspectorState.portraitHue || 0);
+  const portBright = isNikonBypassed ? 0 : (inspectorState.portraitBrightness || 0);
+  if (portBright !== 0) {
+    br += (portBright / 100) * 0.28;
+    ct *= 1.0 - (portBright / 100) * 0.06;
+  }
+  if (portHue > 0) {
+    sat *= 1.0 + (portHue / 100) * 0.14;
+  } else if (portHue < 0) {
+    sepiaVal += Math.abs(portHue) * 0.28;
+    sat *= 1.0 + (Math.abs(portHue) / 100) * 0.12;
+  }
+
   let filterStr = isBypassed ? "none" : `brightness(${br.toFixed(3)}) contrast(${ct.toFixed(3)}) saturate(${sat.toFixed(3)})`;
   if (!isBypassed) {
     if (sepiaVal > 0) filterStr += ` sepia(${sepiaVal.toFixed(1)}%)`;
@@ -1304,14 +1357,13 @@ function applyMonitorTransform() {
       filterStr += ` hue-rotate(${(tintVal * 0.25).toFixed(1)}deg)`;
     }
 
-    // Nikon Z8 Portrait Impression Balance (Hue)
-    const portHue = inspectorState.portraitHue || 0;
+    // Skin Tone Hue (Amber -50 ↔ Rosy Pink +50; positive shifts skin counter-clockwise toward Rosy Pink)
     if (portHue !== 0) {
-      filterStr += ` hue-rotate(${(portHue * 0.8).toFixed(1)}deg)`;
+      filterStr += ` hue-rotate(${(-portHue * 0.36).toFixed(1)}deg)`;
     }
 
     // Skin Softening preview
-    const skinSoftVal = inspectorState.skinSoftening || 0;
+    const skinSoftVal = isNikonBypassed ? 0 : (inspectorState.skinSoftening || 0);
     if (skinSoftVal > 5) {
       filterStr += ` blur(${(skinSoftVal * 0.006).toFixed(2)}px)`;
     }
@@ -1458,7 +1510,20 @@ function renderHistogram() {
           br -= 0.02 * nikonFactor;
         }
       }
-      offscreenCtx.filter = `brightness(${br.toFixed(3)}) contrast(${ct.toFixed(3)}) saturate(${sat.toFixed(3)})`;
+      const pHue = isNikonBypassed ? 0 : (inspectorState.portraitHue || 0);
+      const pBright = isNikonBypassed ? 0 : (inspectorState.portraitBrightness || 0);
+      if (pBright !== 0) {
+        br += (pBright / 100) * 0.28;
+        ct *= 1.0 - (pBright / 100) * 0.06;
+      }
+      let histFilter = `brightness(${br.toFixed(3)}) contrast(${ct.toFixed(3)}) saturate(${sat.toFixed(3)})`;
+      if (pHue < 0) {
+        histFilter += ` sepia(${(Math.abs(pHue) * 0.28).toFixed(1)}%)`;
+      }
+      if (pHue !== 0) {
+        histFilter += ` hue-rotate(${(-pHue * 0.36).toFixed(1)}deg)`;
+      }
+      offscreenCtx.filter = histFilter;
     } else {
       offscreenCtx.filter = "none";
     }
@@ -2543,7 +2608,7 @@ function setupInspectorListeners() {
     });
   });
 
-  // Nikon Z8 Portrait Impression Balance (Hue)
+  // Skin Tone (Hue: Amber -50 ↔ Rosy Pink +50) & Skin Radiance (Midtone Aura -50 ↔ +50)
   const sliderPortraitHue = document.getElementById("sliderPortraitHue");
   const inpPortraitHue = document.getElementById("inpPortraitHue");
   if (sliderPortraitHue) {
@@ -2551,19 +2616,66 @@ function setupInspectorListeners() {
       const v = parseFloat(e.target.value);
       inspectorState.portraitHue = v;
       if (inpPortraitHue) inpPortraitHue.value = v;
+      updateSkinToneBadge();
       applyMonitorTransform();
     });
   }
   if (inpPortraitHue) {
     inpPortraitHue.addEventListener("change", (e) => {
       let v = parseFloat(e.target.value) || 0;
-      v = Math.max(-10, Math.min(10, v));
+      v = Math.max(-50, Math.min(50, v));
       inspectorState.portraitHue = v;
       inpPortraitHue.value = v;
       if (sliderPortraitHue) sliderPortraitHue.value = v;
+      updateSkinToneBadge();
       applyMonitorTransform();
     });
   }
+
+  const sliderPortraitBright = document.getElementById("sliderPortraitBright");
+  const inpPortraitBright = document.getElementById("inpPortraitBright");
+  if (sliderPortraitBright) {
+    sliderPortraitBright.addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      inspectorState.portraitBrightness = v;
+      if (inpPortraitBright) inpPortraitBright.value = v;
+      updateSkinToneBadge();
+      applyMonitorTransform();
+    });
+  }
+  if (inpPortraitBright) {
+    inpPortraitBright.addEventListener("change", (e) => {
+      let v = parseFloat(e.target.value) || 0;
+      v = Math.max(-50, Math.min(50, v));
+      inspectorState.portraitBrightness = v;
+      inpPortraitBright.value = v;
+      if (sliderPortraitBright) sliderPortraitBright.value = v;
+      updateSkinToneBadge();
+      applyMonitorTransform();
+    });
+  }
+
+  // 1-Click Skin Tone Presets (Natural, Rosy Pink, Aura Bright, Warm Glow)
+  document.querySelectorAll(".btn-skin-preset").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sk = btn.dataset.skin;
+      let hue = 0, brt = 0, sft = 0;
+      if (sk === "rosy") { hue = 18; brt = 12; sft = 25; }
+      else if (sk === "aura") { hue = 10; brt = 28; sft = 35; }
+      else if (sk === "glow") { hue = -16; brt = 15; sft = 20; }
+      inspectorState.portraitHue = hue;
+      inspectorState.portraitBrightness = brt;
+      inspectorState.skinSoftening = sft;
+      if (sliderPortraitHue) sliderPortraitHue.value = hue;
+      if (inpPortraitHue) inpPortraitHue.value = hue;
+      if (sliderPortraitBright) sliderPortraitBright.value = brt;
+      if (inpPortraitBright) inpPortraitBright.value = brt;
+      if (sliderSkinSoft) sliderSkinSoft.value = sft;
+      if (inpSkinSoft) inpSkinSoft.value = `${sft}%`;
+      updateSkinToneBadge();
+      applyMonitorTransform();
+    });
+  });
 
   // Noise Reduction Controls
   const selDenoiseMode = document.getElementById("selDenoiseMode");
@@ -2723,6 +2835,14 @@ function setupInspectorListeners() {
         const inp = document.getElementById("inpPortraitHue");
         if (sl) sl.value = 0;
         if (inp) inp.value = "0";
+        updateSkinToneBadge();
+      } else if (key === "portraitBrightness") {
+        inspectorState.portraitBrightness = 0;
+        const sl = document.getElementById("sliderPortraitBright");
+        const inp = document.getElementById("inpPortraitBright");
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0";
+        updateSkinToneBadge();
       } else if (key === "temperature") {
         inspectorState.temperature = 0;
         const sl = document.getElementById("sliderTemp");
@@ -3432,6 +3552,9 @@ async function startBatchExport() {
   const slTnt = document.getElementById("sliderTint");
   const selNik = document.getElementById("selNikonProfile");
   const slNikStr = document.getElementById("sliderNikonStrength");
+  const slPortHue = document.getElementById("sliderPortraitHue");
+  const slPortBrt = document.getElementById("sliderPortraitBright");
+  const slSkinSft = document.getElementById("sliderSkinSoft");
 
   if (slBr) inspectorState.brightness = parseFloat(slBr.value);
   if (slCt) inspectorState.contrast = parseFloat(slCt.value);
@@ -3441,6 +3564,9 @@ async function startBatchExport() {
   if (slTnt) inspectorState.tint = parseFloat(slTnt.value);
   if (selNik && selNik.value) inspectorState.nikonProfile = selNik.value;
   if (slNikStr) inspectorState.nikonStrength = parseFloat(slNikStr.value);
+  if (slPortHue) inspectorState.portraitHue = parseFloat(slPortHue.value);
+  if (slPortBrt) inspectorState.portraitBrightness = parseFloat(slPortBrt.value);
+  if (slSkinSft) inspectorState.skinSoftening = parseFloat(slSkinSft.value);
 
   const inpBps = document.getElementById("inpBitrateKbps");
   const qModeEl = document.querySelector('input[name="qualityMode"]:checked');
@@ -3480,8 +3606,9 @@ async function startBatchExport() {
     nikon_profile: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? "none" : (inspectorState.nikonProfile || "nlog_rec709"),
     nikon_strength: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : inspectorState.nikonStrength,
     custom_lut_path: inspectorState.customLutPath || "",
-    skin_softening: inspectorState.skinSoftening || 0,
-    portrait_hue: inspectorState.portraitHue || 0,
+    skin_softening: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.skinSoftening || 0),
+    portrait_hue: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.portraitHue || 0),
+    portrait_brightness: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.portraitBrightness || 0),
     denoise_mode: (inspectorState.bypassedCards && inspectorState.bypassedCards.denoise) ? "off" : (inspectorState.denoiseMode || "off"),
     denoise_spatial: inspectorState.denoiseSpatial || 0,
     denoise_temporal: inspectorState.denoiseTemporal || 0,
