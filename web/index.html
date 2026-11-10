@@ -739,6 +739,19 @@
                   </label>
                 </div>
               </div>
+
+              <!-- Scope / Filter Clips -->
+              <div class="dv-row deliver-row">
+                <label class="deliver-label">Scope</label>
+                <div class="deliver-controls">
+                  <select class="dv-select deliver-select" id="selExportScope">
+                    <option value="all" selected>All Clips (ส่งออกทั้งหมด)</option>
+                    <option value="clean">Skip Rejected (ข้ามคลิป ❌)</option>
+                    <option value="star1">Rated Only (เฉพาะคลิป ★ 1+)</option>
+                    <option value="star3">Top Rated (เฉพาะคลิป ★ 3+)</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <!-- Subtabs: Video | Audio | File -->
@@ -1133,27 +1146,6 @@
 
       <!-- BIG QUICK EXPORT ACTION BUTTON (PINNED AT BOTTOM) -->
       <div class="quick-export-action-box pinned-export">
-        <!-- DESTINATION OUTPUT FOLDER SELECTOR (ALWAYS VISIBLE) -->
-        <div class="dest-folder-card" id="destFolderCard">
-          <div class="dfc-header">
-            <span class="dfc-title"><span class="dfc-icon">📁</span> Output Destination / โฟลเดอร์ปลายทาง</span>
-            <button class="btn-dfc-browse" id="btnBrowseOutputPinned" title="Select or Change Destination Folder">Change Folder...</button>
-          </div>
-          <div class="dfc-path-row">
-            <input type="text" class="dfc-path-input" id="inpOutputPathPinned" readonly value="/Users/siamratchongtong/Desktop/STD_VT/test_Exp" title="Click Change Folder to select destination">
-            <button class="btn-dfc-open" id="btnOpenDestinationPinned" title="Open Destination Folder in macOS Finder">📂 Open</button>
-          </div>
-          <div class="dfc-scope-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 10px;">
-            <span style="color: #8c93a8;">Scope / คัดคลิป:</span>
-            <select class="dv-select" id="selExportScope" style="width: 175px; height: 22px; font-size: 10px; padding: 1px 6px;">
-              <option value="all" selected>All Clips (ส่งออกทั้งหมด)</option>
-              <option value="clean">Skip Rejected (ข้ามคลิป ❌)</option>
-              <option value="star1">Rated Only (เฉพาะคลิป ★ 1+)</option>
-              <option value="star3">Top Rated (เฉพาะคลิป ★ 3+)</option>
-            </select>
-          </div>
-        </div>
-
         <button class="btn-big-export" id="btnBigExport">
           🚀 1-Click Fast Vertical Export (All Clips)
         </button>

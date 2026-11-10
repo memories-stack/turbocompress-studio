@@ -204,7 +204,7 @@ function gatherCurrentSettings() {
     temperature: inspectorState.temperature || 0,
     tint: inspectorState.tint || 0,
     exportScope: (document.getElementById("selExportScope") ? document.getElementById("selExportScope").value : "all"),
-    outputPath: (document.getElementById("inpOutputPathPinned") ? document.getElementById("inpOutputPathPinned").value.trim() : (inpOut ? inpOut.value.trim() : "")),
+    outputPath: inpOut ? inpOut.value.trim() : "",
     fileNamePattern: inpFn ? inpFn.value.trim() : "SourceName",
     format: selFmt ? selFmt.value : "mp4",
     codec: selCdc ? selCdc.value : "h264",
@@ -2719,9 +2719,8 @@ async function startBatchExport() {
   }
 
   const selectedPaths = targetIndices.map(i => allClips[i].path);
-  const inpPinned = document.getElementById("inpOutputPathPinned");
   const inpOut = document.getElementById("inpOutputPath");
-  const outDir = (inpPinned && inpPinned.value.trim()) ? inpPinned.value.trim() : (inpOut ? inpOut.value.trim() : "");
+  const outDir = inpOut ? inpOut.value.trim() : "";
   const sliderBitrate = document.getElementById("sliderBitrate");
   const chkExportAudio = document.getElementById("chkExportAudio");
   const selAudioCodec = document.getElementById("selAudioCodec");
