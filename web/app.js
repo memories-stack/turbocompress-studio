@@ -196,6 +196,8 @@ function applyTheme(mode, persist = true) {
   if (btnLight) btnLight.classList.toggle("active", mode === "light");
   if (btnAuto) btnAuto.classList.toggle("active", mode === "auto");
 
+  scheduleHistogram();
+
   if (persist) {
     try {
       localStorage.setItem("tc_studio_theme", mode);
@@ -1399,7 +1401,8 @@ function renderHistogram() {
   ctx.clearRect(0, 0, W, H);
 
   if (!sourceEl) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+    const isLight = document.body.classList.contains("theme-light");
+    ctx.fillStyle = isLight ? "#64748b" : "rgba(255, 255, 255, 0.15)";
     ctx.font = "10px -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Select a clip to view live histogram", W / 2, H / 2 + 3);
