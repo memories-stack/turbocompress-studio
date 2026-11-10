@@ -3016,9 +3016,9 @@ function setupInspectorListeners() {
       fetch("/api/open-folder", { method: "POST" });
     });
   }
-  const topSourceFolder = document.getElementById("topSourceFolder");
-  if (topSourceFolder) {
-    topSourceFolder.addEventListener("click", () => {
+  const topOutPill = document.getElementById("topSourceFolder");
+  if (topOutPill) {
+    topOutPill.addEventListener("click", () => {
       fetch("/api/open-folder", { method: "POST" });
       showToast("📂 Opening Export Destination Folder in Finder...");
     });
