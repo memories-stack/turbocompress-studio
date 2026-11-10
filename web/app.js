@@ -51,6 +51,10 @@ const inspectorState = {
   nikonProfile: "nlog_rec709",
   nikonStrength: 100,
   customLutPath: "",
+  skinSoftening: 0,
+  denoiseMode: "off",
+  denoiseSpatial: 0.0,
+  denoiseTemporal: 0.0,
   bypassedCards: {
     transform: false,
     crop: false,
@@ -59,17 +63,25 @@ const inspectorState = {
     speed: false,
     stabilization: false,
     nikonColor: false,
+    denoise: false,
     lensCorrection: false,
     retimeScaling: false
   }
 };
 
 const NIKON_PROFILES_INFO = {
-  nlog_rec709: "Nikon Z8 golden ratio curve: +18% Contrast, +22% Saturation & shadow detail recovery for punchy, ready-to-share vertical reels.",
+  nlog_rec709: "Nikon Z8 golden ratio curve: +35% Contrast, +40% Saturation & shadow detail recovery for punchy, ready-to-share vertical reels.",
   rich_portrait: "Nikon Z8 Rich Tone Portrait: soft flattering skin tone, natural rosy blush warmth, gentle highlight rolloff.",
-  portrait: "Standard Nikon Portrait: natural skin rendition with balanced contrast.",
+  portrait: "Standard Nikon Portrait: natural skin rendition with balanced contrast and warm healthy tones.",
+  skin_soft: "Nikon Skin Softening: smart surface smoothing that refines skin texture while keeping eyes and hair razor-sharp.",
+  neutral: "Nikon Neutral: clean, honest, unhyped camera rendition with balanced dynamic range.",
   vivid: "Nikon Vivid Landscape: deep sky blue, lush greens, punchy contrast for outdoor/nature shoots.",
   flat: "Nikon Flat: maximum dynamic range preservation, soft film roll-off, ideal for subtle grading.",
+  dream: "Nikon Dream: ethereal warm pastel glow with gentle highlight compression for romantic/moody scenes.",
+  morning: "Nikon Morning: crisp, fresh morning light with clean sun-drenched clarity and vibrant greens.",
+  pop: "Nikon Pop: vibrant, high-energy primary colors and punchy contrast for lively action.",
+  bleach_bypass: "Nikon Bleach Bypass: high-contrast silver-halide film look with desaturated cinematic tones.",
+  denim: "Nikon Denim: deep indigo blue and cool shadow tones for modern stylish streetwear.",
   monochrome: "Nikon Deep Tone B&W: rich deep blacks, fine tonal gradation inspired by classic film.",
   custom: "Custom 3D LUT (.cube): apply exact external LUT profiles at VideoToolbox hardware speed.",
   none: "Source Original: straight passthrough from camera without tone modifications."
@@ -197,6 +209,10 @@ function gatherCurrentSettings() {
     nikonProfile: inspectorState.nikonProfile,
     nikonStrength: inspectorState.nikonStrength,
     customLutPath: inspectorState.customLutPath,
+    skinSoftening: (document.getElementById("sliderSkinSoft") ? parseFloat(document.getElementById("sliderSkinSoft").value) : (inspectorState.skinSoftening || 0)),
+    denoiseMode: (document.getElementById("selDenoiseMode") ? document.getElementById("selDenoiseMode").value : (inspectorState.denoiseMode || "off")),
+    denoiseSpatial: (document.getElementById("sliderDenoiseSpatial") ? parseFloat(document.getElementById("sliderDenoiseSpatial").value) : (inspectorState.denoiseSpatial || 0)),
+    denoiseTemporal: (document.getElementById("sliderDenoiseTemporal") ? parseFloat(document.getElementById("sliderDenoiseTemporal").value) : (inspectorState.denoiseTemporal || 0)),
     brightness: inspectorState.brightness,
     contrast: inspectorState.contrast,
     shadows: inspectorState.shadows,
@@ -409,6 +425,38 @@ function syncDomWithSettings(s) {
     if (sl) sl.value = s.tint;
     if (inp) inp.value = s.tint;
   }
+  if (s.skinSoftening !== undefined) {
+    inspectorState.skinSoftening = parseFloat(s.skinSoftening);
+    const sl = document.getElementById("sliderSkinSoft");
+    const inp = document.getElementById("inpSkinSoft");
+    if (sl) sl.value = s.skinSoftening;
+    if (inp) inp.value = s.skinSoftening + "%";
+  }
+  if (s.denoiseMode !== undefined) {
+    inspectorState.denoiseMode = s.denoiseMode;
+    const sel = document.getElementById("selDenoiseMode");
+    if (sel) sel.value = s.denoiseMode;
+    const rowSp = document.getElementById("rowDenoiseSpatial");
+    const rowTp = document.getElementById("rowDenoiseTemporal");
+    if (rowSp && rowTp) {
+      rowSp.style.display = (s.denoiseMode === "custom") ? "flex" : "none";
+      rowTp.style.display = (s.denoiseMode === "custom") ? "flex" : "none";
+    }
+  }
+  if (s.denoiseSpatial !== undefined) {
+    inspectorState.denoiseSpatial = parseFloat(s.denoiseSpatial);
+    const sl = document.getElementById("sliderDenoiseSpatial");
+    const inp = document.getElementById("inpDenoiseSpatial");
+    if (sl) sl.value = s.denoiseSpatial;
+    if (inp) inp.value = parseFloat(s.denoiseSpatial).toFixed(1);
+  }
+  if (s.denoiseTemporal !== undefined) {
+    inspectorState.denoiseTemporal = parseFloat(s.denoiseTemporal);
+    const sl = document.getElementById("sliderDenoiseTemporal");
+    const inp = document.getElementById("inpDenoiseTemporal");
+    if (sl) sl.value = s.denoiseTemporal;
+    if (inp) inp.value = parseFloat(s.denoiseTemporal).toFixed(1);
+  }
   // Deliver Page Settings
   if (s.outputPath !== undefined) {
     const el = document.getElementById("inpOutputPath");
@@ -492,7 +540,8 @@ function setupAutoSettingsSync() {
     "selConflictAction", "selConflictActionFileTab",
     "selResolution", "inpResW", "inpResH", "chkVerticalRes", "inpBitrateKbps",
     "chkExportAudio", "selAudioCodec", "inpAudioBitrate", "selAudioChannels",
-    "inpFileSubfolder", "chkSmartResume", "selWorkers", "selRenderSpeed"
+    "inpFileSubfolder", "chkSmartResume", "selWorkers", "selRenderSpeed",
+    "sliderSkinSoft", "selDenoiseMode", "sliderDenoiseSpatial", "sliderDenoiseTemporal"
   ];
   deliverInputIds.forEach(id => {
     const el = document.getElementById(id);
@@ -958,6 +1007,14 @@ function applyMonitorTransform() {
       sat *= 1.0 + (0.22 * nikonFactor);
       br += 0.02 * nikonFactor;
       sepiaVal = 10.0 * nikonFactor;
+    } else if (nikonProfile === "skin_soft" || nikonProfile === "skin") {
+      ct *= 1.0 + (0.10 * nikonFactor);
+      sat *= 1.0 + (0.18 * nikonFactor);
+      br += 0.03 * nikonFactor;
+      sepiaVal = 8.0 * nikonFactor;
+    } else if (nikonProfile === "neutral") {
+      ct *= 1.0 + (0.04 * nikonFactor);
+      sat *= 1.0 + (0.06 * nikonFactor);
     } else if (nikonProfile === "vivid") {
       ct *= 1.0 + (0.35 * nikonFactor);
       sat *= 1.0 + (0.50 * nikonFactor);
@@ -966,6 +1023,26 @@ function applyMonitorTransform() {
       ct *= 1.0 - (0.12 * nikonFactor);
       sat *= 1.0 - (0.08 * nikonFactor);
       br += 0.04 * nikonFactor;
+    } else if (nikonProfile === "dream") {
+      ct *= 1.0 - (0.06 * nikonFactor);
+      sat *= 1.0 + (0.15 * nikonFactor);
+      br += 0.04 * nikonFactor;
+      sepiaVal = 12.0 * nikonFactor;
+    } else if (nikonProfile === "morning") {
+      ct *= 1.0 + (0.16 * nikonFactor);
+      sat *= 1.0 + (0.22 * nikonFactor);
+      br += 0.03 * nikonFactor;
+    } else if (nikonProfile === "pop") {
+      ct *= 1.0 + (0.28 * nikonFactor);
+      sat *= 1.0 + (0.55 * nikonFactor);
+      br += 0.02 * nikonFactor;
+    } else if (nikonProfile === "bleach_bypass" || nikonProfile === "bleach") {
+      ct *= 1.0 + (0.45 * nikonFactor);
+      sat *= 1.0 - (0.45 * nikonFactor);
+      br -= 0.01 * nikonFactor;
+    } else if (nikonProfile === "denim") {
+      ct *= 1.0 + (0.22 * nikonFactor);
+      sat *= 1.0 + (0.15 * nikonFactor);
     } else if (nikonProfile === "monochrome") {
       grayscaleVal = 100.0 * nikonFactor;
       ct *= 1.0 + (0.38 * nikonFactor);
@@ -993,6 +1070,12 @@ function applyMonitorTransform() {
     }
     if (tintVal !== 0) {
       filterStr += ` hue-rotate(${(tintVal * 0.25).toFixed(1)}deg)`;
+    }
+
+    // Skin Softening preview
+    const skinSoftVal = inspectorState.skinSoftening || 0;
+    if (skinSoftVal > 5) {
+      filterStr += ` blur(${(skinSoftVal * 0.006).toFixed(2)}px)`;
     }
   }
 
@@ -1809,7 +1892,8 @@ function setupInspectorListeners() {
     { dotId: "dotCrop", cardId: "cardCrop", key: "crop" },
     { dotId: "dotSpeed", cardId: "cardSpeed", key: "speed" },
     { dotId: "dotStabilization", cardId: "cardStabilization", key: "stabilization" },
-    { dotId: "dotNikonColor", cardId: "cardNikonColor", key: "nikonColor" }
+    { dotId: "dotNikonColor", cardId: "cardNikonColor", key: "nikonColor" },
+    { dotId: "dotDenoise", cardId: "cardDenoise", key: "denoise" }
   ];
 
   dotConfigs.forEach(({ dotId, cardId, key }) => {
@@ -2111,6 +2195,115 @@ function setupInspectorListeners() {
     });
   }
 
+  // Skin Softening Controls
+  const sliderSkinSoft = document.getElementById("sliderSkinSoft");
+  const inpSkinSoft = document.getElementById("inpSkinSoft");
+  if (sliderSkinSoft) {
+    sliderSkinSoft.addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      inspectorState.skinSoftening = v;
+      if (inpSkinSoft) inpSkinSoft.value = `${v}%`;
+      applyMonitorTransform();
+    });
+  }
+  if (inpSkinSoft) {
+    inpSkinSoft.addEventListener("change", (e) => {
+      let v = parseFloat(e.target.value.replace(/[^0-9.]/g, "")) || 0;
+      v = Math.max(0, Math.min(100, v));
+      inspectorState.skinSoftening = v;
+      inpSkinSoft.value = `${v}%`;
+      if (sliderSkinSoft) sliderSkinSoft.value = v;
+      applyMonitorTransform();
+    });
+  }
+
+  // Noise Reduction Controls
+  const selDenoiseMode = document.getElementById("selDenoiseMode");
+  const rowDenoiseSpatial = document.getElementById("rowDenoiseSpatial");
+  const rowDenoiseTemporal = document.getElementById("rowDenoiseTemporal");
+  const sliderDenoiseSpatial = document.getElementById("sliderDenoiseSpatial");
+  const inpDenoiseSpatial = document.getElementById("inpDenoiseSpatial");
+  const sliderDenoiseTemporal = document.getElementById("sliderDenoiseTemporal");
+  const inpDenoiseTemporal = document.getElementById("inpDenoiseTemporal");
+  const resetDenoise = document.getElementById("resetDenoise");
+  const dotDenoise = document.getElementById("dotDenoise");
+
+  const DENOISE_DESC_MAP = {
+    off: "⚪ Denoise ปิดอยู่: ไม่มีการประมวลผลลดนอยส์ เหมาะสำหรับวิดีโอที่เนียนดีอยู่แล้วหรือต้องการความเร็วสูงสุด",
+    light: "🍃 Light: ลดนอยส์บางเบา hqdn3d (2.0/1.5/2.5/2.0) รักษาเนื้อฟิล์มและเท็กซ์เจอร์เดิม 100%",
+    medium: "💧 Medium: ลดนอยส์สมดุล hqdn3d (4.0/3.0/4.5/3.5) แนะนำสำหรับ ISO 1600-6400 เนียนตาเป็นธรรมชาติ",
+    strong: "🛡️ Strong: ลดนอยส์ระดับสูง hqdn3d (7.0/5.0/7.0/5.0) สำหรับงานกลางคืน แสงน้อย หรือ ISO สูงจัด",
+    custom: "⚙️ Custom: กำหนดความแรง Spatial (เม็ดนอยส์ภาพนิ่ง) และ Temporal (การเต้นของนอยส์ข้ามเฟรม) อิสระ"
+  };
+
+  if (selDenoiseMode) {
+    selDenoiseMode.addEventListener("change", (e) => {
+      const mode = e.target.value;
+      inspectorState.denoiseMode = mode;
+      const isCustom = (mode === "custom");
+      if (rowDenoiseSpatial) rowDenoiseSpatial.style.display = isCustom ? "flex" : "none";
+      if (rowDenoiseTemporal) rowDenoiseTemporal.style.display = isCustom ? "flex" : "none";
+      const descEl = document.getElementById("denoiseDesc");
+      if (descEl && DENOISE_DESC_MAP[mode]) descEl.textContent = DENOISE_DESC_MAP[mode];
+      if (dotDenoise) {
+        dotDenoise.textContent = (mode === "off") ? "⚫" : "🔴";
+      }
+    });
+  }
+
+  if (sliderDenoiseSpatial) {
+    sliderDenoiseSpatial.addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      inspectorState.denoiseSpatial = v;
+      if (inpDenoiseSpatial) inpDenoiseSpatial.value = v.toFixed(1);
+    });
+  }
+  if (inpDenoiseSpatial) {
+    inpDenoiseSpatial.addEventListener("change", (e) => {
+      let v = parseFloat(e.target.value) || 0;
+      v = Math.max(0, Math.min(10, v));
+      inspectorState.denoiseSpatial = v;
+      inpDenoiseSpatial.value = v.toFixed(1);
+      if (sliderDenoiseSpatial) sliderDenoiseSpatial.value = v;
+    });
+  }
+
+  if (sliderDenoiseTemporal) {
+    sliderDenoiseTemporal.addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      inspectorState.denoiseTemporal = v;
+      if (inpDenoiseTemporal) inpDenoiseTemporal.value = v.toFixed(1);
+    });
+  }
+  if (inpDenoiseTemporal) {
+    inpDenoiseTemporal.addEventListener("change", (e) => {
+      let v = parseFloat(e.target.value) || 0;
+      v = Math.max(0, Math.min(10, v));
+      inspectorState.denoiseTemporal = v;
+      inpDenoiseTemporal.value = v.toFixed(1);
+      if (sliderDenoiseTemporal) sliderDenoiseTemporal.value = v;
+    });
+  }
+
+  if (resetDenoise) {
+    resetDenoise.addEventListener("click", () => {
+      inspectorState.denoiseMode = "off";
+      inspectorState.denoiseSpatial = 0.0;
+      inspectorState.denoiseTemporal = 0.0;
+      if (selDenoiseMode) selDenoiseMode.value = "off";
+      if (sliderDenoiseSpatial) sliderDenoiseSpatial.value = 0;
+      if (inpDenoiseSpatial) inpDenoiseSpatial.value = "0.0";
+      if (sliderDenoiseTemporal) sliderDenoiseTemporal.value = 0;
+      if (inpDenoiseTemporal) inpDenoiseTemporal.value = "0.0";
+      if (rowDenoiseSpatial) rowDenoiseSpatial.style.display = "none";
+      if (rowDenoiseTemporal) rowDenoiseTemporal.style.display = "none";
+      if (dotDenoise) dotDenoise.textContent = "⚫";
+      const descEl = document.getElementById("denoiseDesc");
+      if (descEl) descEl.textContent = DENOISE_DESC_MAP["off"];
+      showToast("↺ Reset Noise Reduction to Off");
+    });
+  }
+
   // Reset Color
   const resetColor = document.getElementById("resetColor");
   if (resetColor) {
@@ -2151,6 +2344,36 @@ function setupInspectorListeners() {
         inspectorState.saturation = 1.0;
         if (sliderSaturation) sliderSaturation.value = 1.0;
         if (inpSaturation) inpSaturation.value = "1.000";
+      } else if (key === "skinSoftening") {
+        inspectorState.skinSoftening = 0;
+        const sl = document.getElementById("sliderSkinSoft");
+        const inp = document.getElementById("inpSkinSoft");
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0%";
+      } else if (key === "denoiseSpatial") {
+        inspectorState.denoiseSpatial = 0.0;
+        const sl = document.getElementById("sliderDenoiseSpatial");
+        const inp = document.getElementById("inpDenoiseSpatial");
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0.0";
+      } else if (key === "denoiseTemporal") {
+        inspectorState.denoiseTemporal = 0.0;
+        const sl = document.getElementById("sliderDenoiseTemporal");
+        const inp = document.getElementById("inpDenoiseTemporal");
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0.0";
+      } else if (key === "temperature") {
+        inspectorState.temperature = 0;
+        const sl = document.getElementById("sliderTemp");
+        const inp = document.getElementById("inpTemp");
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0";
+      } else if (key === "tint") {
+        inspectorState.tint = 0;
+        const sl = document.getElementById("sliderTint");
+        const inp = document.getElementById("inpTint");
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0";
       }
       applyMonitorTransform();
     });
@@ -2840,6 +3063,10 @@ async function startBatchExport() {
     nikon_profile: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? "none" : (inspectorState.nikonProfile || "nlog_rec709"),
     nikon_strength: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : inspectorState.nikonStrength,
     custom_lut_path: inspectorState.customLutPath || "",
+    skin_softening: inspectorState.skinSoftening || 0,
+    denoise_mode: (inspectorState.bypassedCards && inspectorState.bypassedCards.denoise) ? "off" : (inspectorState.denoiseMode || "off"),
+    denoise_spatial: inspectorState.denoiseSpatial || 0,
+    denoise_temporal: inspectorState.denoiseTemporal || 0,
     nlog_normalize: (inspectorState.nikonProfile === "nlog_rec709"),
     naming_pattern: selNamingPattern ? selNamingPattern.value : "suffix_vertical",
     brightness: inspectorState.brightness,

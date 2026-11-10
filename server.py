@@ -780,6 +780,16 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             tot_gamma *= (1.0 + 0.08 * f)
             r_mult *= (1.0 + 0.05 * f)
             b_mult *= (1.0 - 0.04 * f)
+        elif nikon_profile in ["skin_soft", "skin"]:
+            tot_contrast *= (1.0 + 0.10 * f)
+            tot_saturation *= (1.0 + 0.18 * f)
+            tot_brightness += 0.03 * f
+            tot_gamma *= (1.0 + 0.10 * f)
+            r_mult *= (1.0 + 0.06 * f)
+            b_mult *= (1.0 - 0.04 * f)
+        elif nikon_profile == "neutral":
+            tot_contrast *= (1.0 + 0.04 * f)
+            tot_saturation *= (1.0 + 0.06 * f)
         elif nikon_profile == "vivid":
             tot_contrast *= (1.0 + 0.35 * f)
             tot_saturation *= (1.0 + 0.50 * f)
@@ -790,6 +800,32 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             tot_saturation *= (1.0 - 0.08 * f)
             tot_brightness += 0.04 * f
             tot_gamma *= (1.0 + 0.22 * f)
+        elif nikon_profile == "dream":
+            tot_contrast *= (1.0 - 0.06 * f)
+            tot_saturation *= (1.0 + 0.15 * f)
+            tot_brightness += 0.04 * f
+            tot_gamma *= (1.0 + 0.16 * f)
+            r_mult *= (1.0 + 0.05 * f)
+            b_mult *= (1.0 - 0.03 * f)
+        elif nikon_profile == "morning":
+            tot_contrast *= (1.0 + 0.16 * f)
+            tot_saturation *= (1.0 + 0.22 * f)
+            tot_brightness += 0.03 * f
+            r_mult *= (1.0 + 0.02 * f)
+            b_mult *= (1.0 + 0.04 * f)
+        elif nikon_profile == "pop":
+            tot_contrast *= (1.0 + 0.28 * f)
+            tot_saturation *= (1.0 + 0.55 * f)
+            tot_brightness += 0.02 * f
+        elif nikon_profile in ["bleach_bypass", "bleach"]:
+            tot_contrast *= (1.0 + 0.45 * f)
+            tot_saturation *= (1.0 - 0.45 * f)
+            tot_brightness -= 0.01 * f
+        elif nikon_profile == "denim":
+            tot_contrast *= (1.0 + 0.22 * f)
+            tot_saturation *= (1.0 + 0.15 * f)
+            b_mult *= (1.0 + 0.12 * f)
+            r_mult *= (1.0 - 0.06 * f)
         elif nikon_profile == "monochrome":
             is_mono = True
             tot_contrast *= (1.0 + 0.38 * f)
@@ -798,6 +834,30 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         tot_contrast *= 1.35
         tot_saturation *= 1.40
         tot_brightness += 0.02
+
+    # Skin Softening (Smart Surface Smoothing)
+    skin_soft = float(params.get("skin_softening", 0.0)) / 100.0
+    if (nikon_profile in ["skin_soft", "skin"] or skin_soft > 0.05):
+        eff_soft = skin_soft if skin_soft > 0.05 else (0.6 * nikon_strength)
+        r = 1.0 + (eff_soft * 0.8)
+        s = -0.3 - (eff_soft * 0.5)
+        vf.append(f"smartblur=lr={r:.2f}:ls={s:.2f}")
+
+    # Video Noise Reduction (High-Quality 3D Denoise)
+    denoise_mode = (params.get("denoise_mode") or "off").lower()
+    denoise_spatial = float(params.get("denoise_spatial", 0.0))
+    denoise_temporal = float(params.get("denoise_temporal", 0.0))
+
+    if denoise_mode == "light":
+        vf.append("hqdn3d=2.0:1.5:2.5:2.0")
+    elif denoise_mode == "medium":
+        vf.append("hqdn3d=4.0:3.0:4.5:3.5")
+    elif denoise_mode == "strong":
+        vf.append("hqdn3d=7.0:5.0:7.0:5.0")
+    elif denoise_mode == "custom" and (denoise_spatial > 0.1 or denoise_temporal > 0.1):
+        sp = max(0.5, min(10.0, denoise_spatial))
+        tp = max(0.5, min(10.0, denoise_temporal))
+        vf.append(f"hqdn3d={sp:.1f}:{sp*0.75:.1f}:{tp:.1f}:{tp*0.75:.1f}")
 
     tot_contrast = max(0.2, min(2.5, tot_contrast))
     tot_saturation = max(0.0, min(3.0, tot_saturation))

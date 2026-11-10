@@ -572,12 +572,19 @@
                 <label class="row-label">Tone Profile</label>
                 <div class="row-controls">
                   <select class="dv-select" id="selNikonProfile">
-                    <option value="nlog_rec709" selected>🎨 Nikon N-Log ➔ Rec.709 (Auto-Contrast)</option>
-                    <option value="rich_portrait">🌸 Nikon Rich Tone Portrait (Skin Glow)</option>
-                    <option value="portrait">🌺 Nikon Standard Portrait (Natural)</option>
-                    <option value="vivid">🌿 Nikon Landscape &amp; Vivid (Punchy)</option>
-                    <option value="flat">🎬 Nikon Flat / Film Soft (Cine DR)</option>
-                    <option value="monochrome">🎞️ Nikon Deep Tone Monochrome (B&amp;W)</option>
+                    <option value="nlog_rec709" selected>🎨 Nikon N-Log ➔ Rec.709 (Auto-Contrast Expansion)</option>
+                    <option value="rich_portrait">🌸 Nikon Rich Tone Portrait (Skin Glow &amp; Shadow Detail)</option>
+                    <option value="portrait">🌺 Nikon Standard Portrait (Natural Skin Tones)</option>
+                    <option value="skin_soft">🧴 Nikon Skin Softening (เนียนใส ออร่าผิวธรรมชาติ)</option>
+                    <option value="neutral">⚖️ Nikon Neutral (สีธรรมชาติ คุมโทนง่าย)</option>
+                    <option value="vivid">🌿 Nikon Landscape &amp; Vivid (Punchy &amp; Deep Sky)</option>
+                    <option value="flat">🎬 Nikon Flat / Film Soft (Cine Dynamic Range)</option>
+                    <option value="dream">☁️ Nikon Dream (โทนฟุ้งละมุน พาสเทลอบอุ่น)</option>
+                    <option value="morning">🌅 Nikon Morning (โทนแสงเช้า สดชื่น คมสะอาดตา)</option>
+                    <option value="pop">🎈 Nikon Pop (สีสันจัดจ้าน สนุกสนาน มีพลัง)</option>
+                    <option value="bleach_bypass">🎞️ Nikon Bleach Bypass (โทนภาพยนตร์ฟิล์มเงิน)</option>
+                    <option value="denim">👖 Nikon Denim (โทนน้ำเงินยีนส์ คมเข้มเท่ห์)</option>
+                    <option value="monochrome">🖤 Nikon Deep Tone Monochrome (B&amp;W มิติฟิล์มลึก)</option>
                     <option value="custom">📁 Custom 3D LUT (.cube)...</option>
                     <option value="none">⚪️ None (Source Original)</option>
                   </select>
@@ -608,6 +615,17 @@
                   <input type="text" class="dv-num-box" id="inpNikonStrength" value="100%">
                   <span class="tool-icon">◇</span>
                   <span class="tool-icon reset-single" data-key="nikonStrength">↺</span>
+                </div>
+              </div>
+
+              <!-- Skin Softening Slider (0% - 100%) -->
+              <div class="dv-row" style="margin-top: 6px;">
+                <label class="row-label">Skin Softening</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderSkinSoft" min="0" max="100" step="5" value="0">
+                  <input type="text" class="dv-num-box" id="inpSkinSoft" value="0%">
+                  <span class="tool-icon">◇</span>
+                  <span class="tool-icon reset-single" data-key="skinSoftening">↺</span>
                 </div>
               </div>
             </div>
@@ -700,6 +718,57 @@
 
               <div class="color-hint-banner" style="margin-top: 8px; padding: 6px 8px; background: #151824; border-radius: 4px; border-left: 3px solid #00f0aa; font-size: 10px; color: #8c93a8; line-height: 1.4;">
                 ⚡️ <b>Hardware VideoToolbox Accelerated:</b> Real-time 9:16 preview &amp; batch export at 250+ FPS directly to Apple Silicon encoders.
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3: VIDEO NOISE REDUCTION (ลดสัญญาณรบกวน / นอยส์ในวิดีโอ) -->
+          <div class="dv-card" id="cardDenoise" style="margin-top: 8px;">
+            <div class="dv-card-header">
+              <span class="pill-dot" id="dotDenoise" title="Denoise Status: Off / Active">⚫</span>
+              <span class="card-title">Noise Reduction (ลดนอยส์ในวิดีโอ)</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetDenoise" title="Reset Noise Reduction">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body">
+              <!-- Denoise Preset Selector -->
+              <div class="dv-row">
+                <label class="row-label">Denoise Preset</label>
+                <div class="row-controls">
+                  <select class="dv-select" id="selDenoiseMode">
+                    <option value="off" selected>⚪ Off (ปิดการลดนอยส์)</option>
+                    <option value="light">🍃 Light (ลดนอยส์บางเบา - เก็บเนื้อฟิล์ม 100%)</option>
+                    <option value="medium">💧 Medium (ลดนอยส์สมดุล - แนะนำสำหรับ ISO 1600-6400)</option>
+                    <option value="strong">🛡️ Strong (ลดนอยส์ระดับสูง - งานกลางคืน / แสงน้อย)</option>
+                    <option value="custom">⚙️ Custom (กำหนดความละเอียดเอง)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Denoise Spatial Strength Slider (0 - 10) -->
+              <div class="dv-row" id="rowDenoiseSpatial" style="margin-top: 6px;">
+                <label class="row-label">Spatial (เม็ดนอยส์)</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderDenoiseSpatial" min="0" max="10" step="0.5" value="0">
+                  <input type="text" class="dv-num-box" id="inpDenoiseSpatial" value="0.0">
+                  <span class="tool-icon reset-single" data-key="denoiseSpatial">↺</span>
+                </div>
+              </div>
+
+              <!-- Denoise Temporal Strength Slider (0 - 10) -->
+              <div class="dv-row" id="rowDenoiseTemporal" style="margin-top: 6px;">
+                <label class="row-label">Temporal (การเต้นของนอยส์)</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderDenoiseTemporal" min="0" max="10" step="0.5" value="0">
+                  <input type="text" class="dv-num-box" id="inpDenoiseTemporal" value="0.0">
+                  <span class="tool-icon reset-single" data-key="denoiseTemporal">↺</span>
+                </div>
+              </div>
+
+              <div id="denoiseDesc" style="margin: 6px 0 0 110px; padding: 4px 8px; background: rgba(0, 240, 170, 0.08); border-left: 2px solid #00f0aa; border-radius: 4px; font-size: 10px; color: #a7f3d0; line-height: 1.35;">
+                ⚡️ ลดสัญญาณรบกวนเม็ดทรายด้วย High-Quality 3D Denoise (Spatial + Temporal) ลบเกรนโดยคงความคมชัดของขอบเส้นและตัวบุคคล
               </div>
             </div>
           </div>
