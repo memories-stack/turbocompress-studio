@@ -317,7 +317,7 @@ function gatherCurrentSettings() {
     resW: inpW ? inpW.value : "1080",
     resH: inpH ? inpH.value : "1920",
     verticalRes: chkVRes ? chkVRes.checked : true,
-    bitrateKbps: inpBps ? inpBps.value : "80000",
+    bitrateKbps: inpBps ? inpBps.value : "8000",
     exportAudio: chkAud ? chkAud.checked : true,
     audioCodec: selAudCdc ? selAudCdc.value : "aac",
     audioBitrate: inpAudBps ? inpAudBps.value : "320",
@@ -619,7 +619,7 @@ function syncDomWithSettings(s) {
   }
   if (s.bitrateKbps !== undefined) {
     const el = document.getElementById("inpBitrateKbps");
-    if (el) el.value = s.bitrateKbps;
+    if (el) el.value = (s.bitrateKbps === "80000" || s.bitrateKbps === "20000") ? "8000" : s.bitrateKbps;
   }
   if (s.exportAudio !== undefined) {
     const el = document.getElementById("chkExportAudio");
@@ -3430,7 +3430,7 @@ async function startBatchExport() {
   const qMode = qModeEl ? qModeEl.value : "auto";
   const targetBpsK = (qMode === "restrict" && inpBps && parseInt(inpBps.value) > 500)
     ? parseInt(inpBps.value)
-    : (sliderBitrate ? parseInt(sliderBitrate.value) : 20000);
+    : (sliderBitrate ? parseInt(sliderBitrate.value) : 8000);
 
   const inpW = document.getElementById("inpResW");
   const inpH = document.getElementById("inpResH");

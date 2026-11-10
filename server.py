@@ -123,7 +123,7 @@ DEFAULT_SETTINGS = {
     "resH": "1920",
     "verticalRes": True,
     "qualityMode": "auto",
-    "bitrateKbps": "80000",
+    "bitrateKbps": "8000",
     "exportAudio": True,
     "audioCodec": "aac",
     "audioBitrate": "320",
@@ -1233,7 +1233,8 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
                 if "=" in line:
                     k, v = line.split("=", 1)
                     if k == "speed":
-                        p["speed"] = f"{v}x"
+                        v_clean = v.strip()
+                        p["speed"] = v_clean if v_clean.endswith("x") else f"{v_clean}x"
             proc.wait()
             remove_active_proc(proc)
             return proc.returncode
