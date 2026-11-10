@@ -203,7 +203,6 @@ function gatherCurrentSettings() {
     saturation: inspectorState.saturation,
     temperature: inspectorState.temperature || 0,
     tint: inspectorState.tint || 0,
-    exportScope: (document.getElementById("selExportScope") ? document.getElementById("selExportScope").value : "all"),
     conflictAction: (document.getElementById("selConflictAction") ? document.getElementById("selConflictAction").value : (document.getElementById("selConflictActionFileTab") ? document.getElementById("selConflictActionFileTab").value : "skip")),
     outputPath: inpOut ? inpOut.value.trim() : "",
     fileNamePattern: inpFn ? inpFn.value.trim() : "SourceName",
@@ -403,17 +402,10 @@ function syncDomWithSettings(s) {
     if (sl) sl.value = s.tint;
     if (inp) inp.value = s.tint;
   }
-  if (s.exportScope !== undefined) {
-    const el = document.getElementById("selExportScope");
-    if (el) el.value = s.exportScope;
-  }
-
   // Deliver Page Settings
   if (s.outputPath !== undefined) {
     const el = document.getElementById("inpOutputPath");
     if (el) el.value = s.outputPath;
-    const elPinned = document.getElementById("inpOutputPathPinned");
-    if (elPinned) elPinned.value = s.outputPath;
   }
   if (s.fileNamePattern !== undefined) {
     const el = document.getElementById("inpFileNamePattern");
@@ -489,7 +481,7 @@ function syncDomWithSettings(s) {
 
 function setupAutoSettingsSync() {
   const deliverInputIds = [
-    "inpOutputPath", "inpFileNamePattern", "selFormat", "selCodec", "selExportScope",
+    "inpOutputPath", "inpFileNamePattern", "selFormat", "selCodec",
     "selConflictAction", "selConflictActionFileTab",
     "selResolution", "inpResW", "inpResH", "chkVerticalRes", "inpBitrateKbps",
     "chkExportAudio", "selAudioCodec", "inpAudioBitrate", "selAudioChannels",
@@ -2782,16 +2774,17 @@ async function startBatchExport() {
     if (tlBlock) tlBlock.classList.remove("rendering");
   });
 
-  const selScope = document.getElementById("selExportScope");
-  const scopeVal = selScope ? selScope.value : "all";
-
   let targetIndices = Array.from(selectedIndices);
-  if (scopeVal === "clean") {
-    targetIndices = targetIndices.filter(i => !clipRatings[allClips[i].path]?.rejected);
-  } else if (scopeVal === "star1") {
-    targetIndices = targetIndices.filter(i => (clipRatings[allClips[i].path]?.rating || 0) >= 1 && !clipRatings[allClips[i].path]?.rejected);
-  } else if (scopeVal === "star3") {
-    targetIndices = targetIndices.filter(i => (clipRatings[allClips[i].path]?.rating || 0) >= 3 && !clipRatings[allClips[i].path]?.rejected);
+  const selScope = document.getElementById("selExportScope");
+  if (selScope) {
+    const scopeVal = selScope.value;
+    if (scopeVal === "clean") {
+      targetIndices = targetIndices.filter(i => !clipRatings[allClips[i].path]?.rejected);
+    } else if (scopeVal === "star1") {
+      targetIndices = targetIndices.filter(i => (clipRatings[allClips[i].path]?.rating || 0) >= 1 && !clipRatings[allClips[i].path]?.rejected);
+    } else if (scopeVal === "star3") {
+      targetIndices = targetIndices.filter(i => (clipRatings[allClips[i].path]?.rating || 0) >= 3 && !clipRatings[allClips[i].path]?.rejected);
+    }
   }
 
   if (targetIndices.length === 0) {
