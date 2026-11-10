@@ -1114,7 +1114,8 @@ function applyMonitorTransform() {
     if (tempVal > 0) {
       filterStr += ` sepia(${(tempVal * 0.45).toFixed(1)}%)`;
     } else if (tempVal < 0) {
-      filterStr += ` hue-rotate(${(tempVal * 0.35).toFixed(1)}deg)`;
+      const coolAmt = Math.min(50, Math.abs(tempVal) * 0.5);
+      filterStr += ` hue-rotate(180deg) sepia(${coolAmt.toFixed(1)}%) hue-rotate(180deg)`;
     }
     if (tintVal !== 0) {
       filterStr += ` hue-rotate(${(tintVal * 0.25).toFixed(1)}deg)`;
@@ -2140,10 +2141,10 @@ function setupInspectorListeners() {
 
   // Color Presets
   const colorPresets = {
-    normal: { brightness: 0.0, contrast: 1.0, shadows: 0.0, saturation: 1.0 },
-    shadows: { brightness: 0.05, contrast: 1.05, shadows: 0.40, saturation: 1.10 },
-    cinematic: { brightness: -0.02, contrast: 1.25, shadows: 0.05, saturation: 1.20 },
-    vibrant: { brightness: 0.04, contrast: 1.15, shadows: 0.20, saturation: 1.35 }
+    normal: { brightness: 0.0, contrast: 1.0, shadows: 0.0, saturation: 1.0, temperature: 0, tint: 0, portraitHue: 0 },
+    shadows: { brightness: 0.05, contrast: 1.05, shadows: 0.40, saturation: 1.10, temperature: 0, tint: 0, portraitHue: 0 },
+    cinematic: { brightness: -0.02, contrast: 1.25, shadows: 0.05, saturation: 1.20, temperature: 0, tint: 0, portraitHue: 0 },
+    vibrant: { brightness: 0.04, contrast: 1.15, shadows: 0.20, saturation: 1.35, temperature: 0, tint: 0, portraitHue: 0 }
   };
 
   function applyColorPreset(name) {
@@ -2152,6 +2153,9 @@ function setupInspectorListeners() {
     inspectorState.contrast = p.contrast;
     inspectorState.shadows = p.shadows;
     inspectorState.saturation = p.saturation;
+    inspectorState.temperature = p.temperature !== undefined ? p.temperature : 0;
+    inspectorState.tint = p.tint !== undefined ? p.tint : 0;
+    inspectorState.portraitHue = p.portraitHue !== undefined ? p.portraitHue : 0;
 
     if (sliderBrightness) sliderBrightness.value = p.brightness;
     if (inpBrightness) inpBrightness.value = p.brightness.toFixed(3);
@@ -2162,11 +2166,27 @@ function setupInspectorListeners() {
     if (sliderSaturation) sliderSaturation.value = p.saturation;
     if (inpSaturation) inpSaturation.value = p.saturation.toFixed(3);
 
+    const slTemp = document.getElementById("sliderTemp");
+    const inpTmp = document.getElementById("inpTemp");
+    if (slTemp) slTemp.value = inspectorState.temperature;
+    if (inpTmp) inpTmp.value = inspectorState.temperature;
+
+    const slTint = document.getElementById("sliderTint");
+    const inpTnt = document.getElementById("inpTint");
+    if (slTint) slTint.value = inspectorState.tint;
+    if (inpTnt) inpTnt.value = inspectorState.tint;
+
+    const slPortHue = document.getElementById("sliderPortraitHue");
+    const inpPortHue = document.getElementById("inpPortraitHue");
+    if (slPortHue) slPortHue.value = inspectorState.portraitHue;
+    if (inpPortHue) inpPortHue.value = inspectorState.portraitHue;
+
     document.querySelectorAll(".btn-color-preset").forEach(b => {
       b.classList.toggle("active", b.getAttribute("data-preset") === name);
     });
 
     applyMonitorTransform();
+    saveSettings();
   }
 
   document.querySelectorAll(".btn-color-preset").forEach(btn => {
@@ -2399,7 +2419,11 @@ function setupInspectorListeners() {
   const resetColor = document.getElementById("resetColor");
   if (resetColor) {
     resetColor.addEventListener("click", () => {
+      inspectorState.temperature = 0;
+      inspectorState.tint = 0;
+      inspectorState.portraitHue = 0;
       applyColorPreset("normal");
+      showToast("↺ Color & White Balance Reset to Default");
     });
   }
 
@@ -3140,11 +3164,14 @@ async function startBatchExport() {
   const conflictAction = selConflict ? selConflict.value : "skip";
 
   const isCropBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.crop;
+  const chkTimelineEffects = document.getElementById("chkTimelineEffects");
+  const renderTimelineEffects = chkTimelineEffects ? chkTimelineEffects.checked : true;
 
   const params = {
     rotation: inspectorState.rotation,
     flip_h: !!inspectorState.flipH,
     flip_v: !!inspectorState.flipV,
+    render_timeline_effects: renderTimelineEffects,
     crop_left: isCropBypassed ? 0.0 : (inspectorState.cropL / 500),
     crop_right: isCropBypassed ? 0.0 : (inspectorState.cropR / 500),
     crop_top: isCropBypassed ? 0.0 : (inspectorState.cropT / 500),

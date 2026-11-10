@@ -561,8 +561,11 @@ class StudioHandler(SimpleHTTPRequestHandler):
             return
 
         elif url.path == "/api/export":
-            if not STATE["is_exporting"] and STATE["clips"]:
-                threading.Thread(target=run_batch_export, args=(data,), daemon=True).start()
+            if not STATE["is_exporting"]:
+                if not STATE["clips"] and data.get("paths"):
+                    scan_files(data.get("paths"))
+                if STATE["clips"]:
+                    threading.Thread(target=run_batch_export, args=(data,), daemon=True).start()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -826,25 +829,45 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         vf.append("scale=1080:1920")
 
     # Nikon Picture Control, Tone Profiles & Color Grading (Unified High-Precision Pipeline)
-    nikon_profile = (params.get("nikon_profile") or params.get("nikonProfile") or "").lower()
-    nikon_strength = float(params.get("nikon_strength") or params.get("nikonStrength") or 100) / 100.0
-    custom_lut_path = params.get("custom_lut_path") or params.get("customLutPath") or ""
+    render_timeline_effects = params.get("render_timeline_effects", True)
+    if not render_timeline_effects:
+        nikon_profile = "none"
+        nikon_strength = 0.0
+        custom_lut_path = ""
+        user_brightness = 0.0
+        user_contrast = 1.0
+        user_shadows = 0.0
+        user_saturation = 1.0
+        tot_contrast = 1.0
+        tot_saturation = 1.0
+        tot_brightness = 0.0
+        tot_gamma = 1.0
+        temp = 0.0
+        tint = 0.0
+        r_mult = 1.0
+        b_mult = 1.0
+        g_mult = 1.0
+    else:
+        nikon_profile = (params.get("nikon_profile") or params.get("nikonProfile") or "").lower()
+        nikon_strength = float(params.get("nikon_strength") or params.get("nikonStrength") or 100) / 100.0
+        custom_lut_path = params.get("custom_lut_path") or params.get("customLutPath") or ""
 
-    user_brightness = float(params.get("brightness", 0.0))
-    user_contrast = float(params.get("contrast", 1.0))
-    user_shadows = float(params.get("shadows", 0.0))
-    user_saturation = float(params.get("saturation", 1.0))
+        user_brightness = float(params.get("brightness", 0.0))
+        user_contrast = float(params.get("contrast", 1.0))
+        user_shadows = float(params.get("shadows", 0.0))
+        user_saturation = float(params.get("saturation", 1.0))
 
-    tot_contrast = user_contrast
-    tot_saturation = user_saturation
-    tot_brightness = user_brightness
-    tot_gamma = 1.0 + (user_shadows * 0.8)
+        tot_contrast = user_contrast
+        tot_saturation = user_saturation
+        tot_brightness = user_brightness
+        tot_gamma = 1.0 + (user_shadows * 0.8)
 
-    temp = float(params.get("temperature", 0.0))
-    tint = float(params.get("tint", 0.0))
-    r_mult = 1.0 + (temp * 0.008) + (tint * 0.004)
-    b_mult = 1.0 - (temp * 0.008) + (tint * 0.004)
-    g_mult = 1.0 - (tint * 0.006)
+        temp = float(params.get("temperature", 0.0))
+        tint = float(params.get("tint", 0.0))
+        # Precise, natural white balance temperature scaling (gentle ±10% range at max -50/+50)
+        r_mult = 1.0 + (temp * 0.002) + (tint * 0.002)
+        b_mult = 1.0 - (temp * 0.002) + (tint * 0.002)
+        g_mult = 1.0 - (tint * 0.003)
 
     is_mono = False
 
@@ -967,34 +990,35 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         tot_saturation *= 1.40
         tot_brightness += 0.02
 
-    # Nikon Z8 Portrait Impression Balance (Hue & Brightness)
-    p_hue = float(params.get("portrait_hue", 0.0))  # -10 to +10 (Amber to Magenta)
-    p_bright = float(params.get("portrait_brightness", 0.0))  # -10 to +10
-    if abs(p_hue) > 0.1:
-        # positive = magenta/pink, negative = amber/yellow
-        r_mult *= (1.0 + p_hue * 0.015)
-        b_mult *= (1.0 + p_hue * 0.010)
-    if abs(p_bright) > 0.1:
-        tot_brightness += p_bright * 0.015
-        tot_gamma *= (1.0 + p_bright * 0.02)
+    if render_timeline_effects:
+        # Nikon Z8 Portrait Impression Balance (Hue & Brightness)
+        p_hue = float(params.get("portrait_hue", 0.0))  # -10 to +10 (Amber to Magenta)
+        p_bright = float(params.get("portrait_brightness", 0.0))  # -10 to +10
+        if abs(p_hue) > 0.1:
+            # positive = magenta/pink, negative = amber/yellow
+            r_mult *= (1.0 + p_hue * 0.015)
+            b_mult *= (1.0 + p_hue * 0.010)
+        if abs(p_bright) > 0.1:
+            tot_brightness += p_bright * 0.015
+            tot_gamma *= (1.0 + p_bright * 0.02)
 
-    # Skin Softening (Smart Surface Smoothing)
-    skin_raw = params.get("skin_softening", 0.0)
-    if isinstance(skin_raw, str):
-        if skin_raw.lower() == "low": skin_soft = 0.35
-        elif skin_raw.lower() == "normal": skin_soft = 0.65
-        elif skin_raw.lower() == "high": skin_soft = 0.95
+        # Skin Softening (Smart Surface Smoothing)
+        skin_raw = params.get("skin_softening", 0.0)
+        if isinstance(skin_raw, str):
+            if skin_raw.lower() == "low": skin_soft = 0.35
+            elif skin_raw.lower() == "normal": skin_soft = 0.65
+            elif skin_raw.lower() == "high": skin_soft = 0.95
+            else:
+                try: skin_soft = float(skin_raw.replace("%", "")) / 100.0
+                except: skin_soft = 0.0
         else:
-            try: skin_soft = float(skin_raw.replace("%", "")) / 100.0
-            except: skin_soft = 0.0
-    else:
-        skin_soft = float(skin_raw) / 100.0
+            skin_soft = float(skin_raw) / 100.0
 
-    if (nikon_profile in ["skin_soft", "skin"] or skin_soft > 0.05):
-        eff_soft = skin_soft if skin_soft > 0.05 else (0.6 * nikon_strength)
-        r = 1.0 + (eff_soft * 0.8)
-        s = -0.3 - (eff_soft * 0.5)
-        vf.append(f"smartblur=lr={r:.2f}:ls={s:.2f}")
+        if (nikon_profile in ["skin_soft", "skin"] or skin_soft > 0.05):
+            eff_soft = skin_soft if skin_soft > 0.05 else (0.6 * nikon_strength)
+            r = 1.0 + (eff_soft * 0.8)
+            s = -0.3 - (eff_soft * 0.5)
+            vf.append(f"smartblur=lr={r:.2f}:ls={s:.2f}")
 
     # Video Noise Reduction (Nikon High ISO NR & 3D Denoise)
     denoise_mode = (params.get("denoise_mode") or "off").lower()
