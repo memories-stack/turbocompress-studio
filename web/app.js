@@ -127,14 +127,352 @@ const playheadOverview = document.getElementById("playheadOverview");
 const playheadDetail = document.getElementById("playheadDetail");
 const detailTrack = document.getElementById("detailTrack");
 
+// Settings Persistence System (Saved across app sessions in ~/.turbocompress_studio_settings.json & localStorage)
+let settingsSaveDebounce = null;
+function triggerSaveSettings() {
+  if (settingsSaveDebounce) clearTimeout(settingsSaveDebounce);
+  settingsSaveDebounce = setTimeout(saveCurrentSettings, 400);
+}
+
+function gatherCurrentSettings() {
+  const inpOut = document.getElementById("inpOutputPath");
+  const inpFn = document.getElementById("inpFileNamePattern");
+  const selFmt = document.getElementById("selFormat");
+  const selCdc = document.getElementById("selCodec");
+  const selRes = document.getElementById("selResolution");
+  const inpW = document.getElementById("inpResW");
+  const inpH = document.getElementById("inpResH");
+  const chkVRes = document.getElementById("chkVerticalRes");
+  const inpBps = document.getElementById("inpBitrateKbps");
+  const chkAud = document.getElementById("chkExportAudio");
+  const selAudCdc = document.getElementById("selAudioCodec");
+  const inpAudBps = document.getElementById("inpAudioBitrate");
+  const selAudChan = document.getElementById("selAudioChannels");
+  const inpSub = document.getElementById("inpFileSubfolder");
+  const chkRes = document.getElementById("chkSmartResume");
+  const selWrk = document.getElementById("selWorkers");
+  const selSpd = document.getElementById("selRenderSpeed");
+
+  return {
+    rotation: inspectorState.rotation,
+    scaling: inspectorState.scaling,
+    zoomX: inspectorState.zoomX,
+    zoomY: inspectorState.zoomY,
+    zoomLinked: inspectorState.zoomLinked,
+    posX: inspectorState.posX,
+    posY: inspectorState.posY,
+    anchorX: inspectorState.anchorX,
+    anchorY: inspectorState.anchorY,
+    pitch: inspectorState.pitch,
+    yaw: inspectorState.yaw,
+    flipH: inspectorState.flipH,
+    flipV: inspectorState.flipV,
+    cropL: inspectorState.cropL,
+    cropR: inspectorState.cropR,
+    cropT: inspectorState.cropT,
+    cropB: inspectorState.cropB,
+    cropSoftness: inspectorState.cropSoftness,
+    speed: inspectorState.speed,
+    speedDirection: inspectorState.speedDirection,
+    nikonProfile: inspectorState.nikonProfile,
+    nikonStrength: inspectorState.nikonStrength,
+    customLutPath: inspectorState.customLutPath,
+    brightness: inspectorState.brightness,
+    contrast: inspectorState.contrast,
+    shadows: inspectorState.shadows,
+    saturation: inspectorState.saturation,
+    outputPath: inpOut ? inpOut.value.trim() : "",
+    fileNamePattern: inpFn ? inpFn.value.trim() : "SourceName",
+    format: selFmt ? selFmt.value : "mp4",
+    codec: selCdc ? selCdc.value : "h264",
+    resolution: selRes ? selRes.value : "1080x1920",
+    resW: inpW ? inpW.value : "1080",
+    resH: inpH ? inpH.value : "1920",
+    verticalRes: chkVRes ? chkVRes.checked : true,
+    bitrateKbps: inpBps ? inpBps.value : "80000",
+    exportAudio: chkAud ? chkAud.checked : true,
+    audioCodec: selAudCdc ? selAudCdc.value : "aac",
+    audioBitrate: inpAudBps ? inpAudBps.value : "320",
+    audioChannels: selAudChan ? selAudChan.value : "2",
+    fileSubfolder: inpSub ? inpSub.value.trim() : "",
+    smartResume: chkRes ? chkRes.checked : true,
+    workers: selWrk ? parseInt(selWrk.value) : 2,
+    renderSpeed: selSpd ? selSpd.value : "max"
+  };
+}
+
+async function saveCurrentSettings() {
+  const data = gatherCurrentSettings();
+  try {
+    localStorage.setItem("tc_studio_settings", JSON.stringify(data));
+  } catch (e) {}
+  try {
+    await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+  } catch (e) {}
+}
+
+async function loadSavedSettings() {
+  let settings = null;
+  try {
+    const res = await fetch("/api/settings");
+    if (res.ok) settings = await res.json();
+  } catch (e) {}
+  if (!settings) {
+    try {
+      const local = localStorage.getItem("tc_studio_settings");
+      if (local) settings = JSON.parse(local);
+    } catch (e) {}
+  }
+  if (!settings) return;
+
+  if (settings.rotation !== undefined) inspectorState.rotation = parseFloat(settings.rotation);
+  if (settings.scaling !== undefined) inspectorState.scaling = settings.scaling;
+  if (settings.zoomX !== undefined) inspectorState.zoomX = parseFloat(settings.zoomX);
+  if (settings.zoomY !== undefined) inspectorState.zoomY = parseFloat(settings.zoomY);
+  if (settings.zoomLinked !== undefined) inspectorState.zoomLinked = !!settings.zoomLinked;
+  if (settings.posX !== undefined) inspectorState.posX = parseFloat(settings.posX);
+  if (settings.posY !== undefined) inspectorState.posY = parseFloat(settings.posY);
+  if (settings.anchorX !== undefined) inspectorState.anchorX = parseFloat(settings.anchorX);
+  if (settings.anchorY !== undefined) inspectorState.anchorY = parseFloat(settings.anchorY);
+  if (settings.pitch !== undefined) inspectorState.pitch = parseFloat(settings.pitch);
+  if (settings.yaw !== undefined) inspectorState.yaw = parseFloat(settings.yaw);
+  if (settings.flipH !== undefined) inspectorState.flipH = !!settings.flipH;
+  if (settings.flipV !== undefined) inspectorState.flipV = !!settings.flipV;
+  if (settings.cropL !== undefined) inspectorState.cropL = parseFloat(settings.cropL);
+  if (settings.cropR !== undefined) inspectorState.cropR = parseFloat(settings.cropR);
+  if (settings.cropT !== undefined) inspectorState.cropT = parseFloat(settings.cropT);
+  if (settings.cropB !== undefined) inspectorState.cropB = parseFloat(settings.cropB);
+  if (settings.cropSoftness !== undefined) inspectorState.cropSoftness = parseFloat(settings.cropSoftness);
+  if (settings.speed !== undefined) inspectorState.speed = parseFloat(settings.speed);
+  if (settings.speedDirection !== undefined) inspectorState.speedDirection = settings.speedDirection;
+
+  if (settings.nikonProfile !== undefined) inspectorState.nikonProfile = settings.nikonProfile;
+  if (settings.nikonStrength !== undefined) inspectorState.nikonStrength = parseInt(settings.nikonStrength);
+  if (settings.customLutPath !== undefined) inspectorState.customLutPath = settings.customLutPath;
+  if (settings.brightness !== undefined) inspectorState.brightness = parseFloat(settings.brightness);
+  if (settings.contrast !== undefined) inspectorState.contrast = parseFloat(settings.contrast);
+  if (settings.shadows !== undefined) inspectorState.shadows = parseFloat(settings.shadows);
+  if (settings.saturation !== undefined) inspectorState.saturation = parseFloat(settings.saturation);
+
+  syncDomWithSettings(settings);
+}
+
+function syncDomWithSettings(s) {
+  if (!s) return;
+  if (s.rotation !== undefined) {
+    if (sliderRotation) sliderRotation.value = s.rotation;
+    if (inpRotation) inpRotation.value = parseFloat(s.rotation).toFixed(3);
+    const btn270 = document.getElementById("btnRot270");
+    if (btn270) btn270.classList.toggle("active", s.rotation === 270 || s.rotation === -90);
+  }
+  if (s.scaling !== undefined) {
+    const selScaling = document.getElementById("selScalingModeTransform");
+    if (selScaling) selScaling.value = s.scaling;
+  }
+  if (s.zoomX !== undefined && inpZoomX) inpZoomX.value = parseFloat(s.zoomX).toFixed(3);
+  if (s.zoomY !== undefined && inpZoomY) inpZoomY.value = parseFloat(s.zoomY).toFixed(3);
+  if (s.zoomLinked !== undefined && btnZoomLink) {
+    btnZoomLink.style.color = s.zoomLinked ? "#3a86ff" : "#63687c";
+  }
+  if (s.posX !== undefined) {
+    const el = document.getElementById("inpPosX");
+    if (el) el.value = parseFloat(s.posX).toFixed(3);
+  }
+  if (s.posY !== undefined) {
+    const el = document.getElementById("inpPosY");
+    if (el) el.value = parseFloat(s.posY).toFixed(3);
+  }
+  if (s.anchorX !== undefined) {
+    const el = document.getElementById("inpAnchorX");
+    if (el) el.value = parseFloat(s.anchorX).toFixed(3);
+  }
+  if (s.anchorY !== undefined) {
+    const el = document.getElementById("inpAnchorY");
+    if (el) el.value = parseFloat(s.anchorY).toFixed(3);
+  }
+  if (s.pitch !== undefined) {
+    const sl = document.getElementById("sliderPitch");
+    const inp = document.getElementById("inpPitch");
+    if (sl) sl.value = s.pitch;
+    if (inp) inp.value = parseFloat(s.pitch).toFixed(3);
+  }
+  if (s.yaw !== undefined) {
+    const sl = document.getElementById("sliderYaw");
+    const inp = document.getElementById("inpYaw");
+    if (sl) sl.value = s.yaw;
+    if (inp) inp.value = parseFloat(s.yaw).toFixed(3);
+  }
+  if (s.flipH !== undefined && btnFlipH) {
+    btnFlipH.style.background = s.flipH ? "#e63946" : "#242636";
+  }
+  if (s.flipV !== undefined && btnFlipV) {
+    btnFlipV.style.background = s.flipV ? "#e63946" : "#242636";
+  }
+
+  // Cropping
+  ["cropL", "cropR", "cropT", "cropB", "cropSoftness"].forEach(k => {
+    if (s[k] !== undefined) {
+      const suffix = k.replace("crop", "");
+      const sl = document.getElementById(`sliderCrop${suffix}`);
+      const inp = document.getElementById(`inpCrop${suffix}`);
+      if (sl) sl.value = s[k];
+      if (inp) inp.value = parseFloat(s[k]).toFixed(3);
+    }
+  });
+
+  // Speed
+  if (s.speed !== undefined) {
+    const sl = document.getElementById("sliderSpeed");
+    const inp = document.getElementById("inpSpeed");
+    if (sl) sl.value = s.speed;
+    if (inp) inp.value = parseFloat(s.speed).toFixed(2) + "%";
+  }
+
+  // Nikon Color Engine
+  if (s.nikonProfile !== undefined) {
+    const selP = document.getElementById("selNikonProfile");
+    if (selP) selP.value = s.nikonProfile;
+    const desc = document.getElementById("nikonProfileDesc");
+    if (desc && NIKON_PROFILES_INFO[s.nikonProfile]) desc.textContent = NIKON_PROFILES_INFO[s.nikonProfile];
+  }
+  if (s.nikonStrength !== undefined) {
+    const sl = document.getElementById("sliderNikonStrength");
+    const inp = document.getElementById("inpNikonStrength");
+    if (sl) sl.value = s.nikonStrength;
+    if (inp) inp.value = s.nikonStrength + "%";
+  }
+  if (s.customLutPath !== undefined) {
+    const inp = document.getElementById("inpCustomLutPath");
+    if (inp) inp.value = s.customLutPath;
+  }
+  if (s.brightness !== undefined) {
+    if (sliderBrightness) sliderBrightness.value = s.brightness;
+    if (inpBrightness) inpBrightness.value = parseFloat(s.brightness).toFixed(3);
+  }
+  if (s.contrast !== undefined) {
+    if (sliderContrast) sliderContrast.value = s.contrast;
+    if (inpContrast) inpContrast.value = parseFloat(s.contrast).toFixed(3);
+  }
+  if (s.shadows !== undefined) {
+    if (sliderShadows) sliderShadows.value = s.shadows;
+    if (inpShadows) inpShadows.value = parseFloat(s.shadows).toFixed(3);
+  }
+  if (s.saturation !== undefined) {
+    if (sliderSaturation) sliderSaturation.value = s.saturation;
+    if (inpSaturation) inpSaturation.value = parseFloat(s.saturation).toFixed(3);
+  }
+
+  // Deliver Page Settings
+  if (s.outputPath !== undefined) {
+    const el = document.getElementById("inpOutputPath");
+    if (el) el.value = s.outputPath;
+  }
+  if (s.fileNamePattern !== undefined) {
+    const el = document.getElementById("inpFileNamePattern");
+    if (el) el.value = s.fileNamePattern;
+  }
+  if (s.format !== undefined) {
+    const el = document.getElementById("selFormat");
+    if (el) el.value = s.format;
+  }
+  if (s.codec !== undefined) {
+    const el = document.getElementById("selCodec");
+    if (el) el.value = s.codec;
+  }
+  if (s.resolution !== undefined) {
+    const el = document.getElementById("selResolution");
+    if (el) el.value = s.resolution;
+  }
+  if (s.resW !== undefined) {
+    const el = document.getElementById("inpResW");
+    if (el) el.value = s.resW;
+  }
+  if (s.resH !== undefined) {
+    const el = document.getElementById("inpResH");
+    if (el) el.value = s.resH;
+  }
+  if (s.verticalRes !== undefined) {
+    const el = document.getElementById("chkVerticalRes");
+    if (el) el.checked = !!s.verticalRes;
+  }
+  if (s.bitrateKbps !== undefined) {
+    const el = document.getElementById("inpBitrateKbps");
+    if (el) el.value = s.bitrateKbps;
+  }
+  if (s.exportAudio !== undefined) {
+    const el = document.getElementById("chkExportAudio");
+    if (el) el.checked = !!s.exportAudio;
+  }
+  if (s.audioCodec !== undefined) {
+    const el = document.getElementById("selAudioCodec");
+    if (el) el.value = s.audioCodec;
+  }
+  if (s.audioBitrate !== undefined) {
+    const el = document.getElementById("inpAudioBitrate");
+    if (el) el.value = s.audioBitrate;
+  }
+  if (s.audioChannels !== undefined) {
+    const el = document.getElementById("selAudioChannels");
+    if (el) el.value = s.audioChannels;
+  }
+  if (s.fileSubfolder !== undefined) {
+    const el = document.getElementById("inpFileSubfolder");
+    if (el) el.value = s.fileSubfolder;
+  }
+  if (s.smartResume !== undefined) {
+    const el = document.getElementById("chkSmartResume");
+    if (el) el.checked = !!s.smartResume;
+  }
+  if (s.workers !== undefined) {
+    const el = document.getElementById("selWorkers");
+    if (el) el.value = s.workers;
+  }
+  if (s.renderSpeed !== undefined) {
+    const el = document.getElementById("selRenderSpeed");
+    if (el) el.value = s.renderSpeed;
+  }
+}
+
+function setupAutoSettingsSync() {
+  const deliverInputIds = [
+    "inpOutputPath", "inpFileNamePattern", "selFormat", "selCodec",
+    "selResolution", "inpResW", "inpResH", "chkVerticalRes", "inpBitrateKbps",
+    "chkExportAudio", "selAudioCodec", "inpAudioBitrate", "selAudioChannels",
+    "inpFileSubfolder", "chkSmartResume", "selWorkers", "selRenderSpeed"
+  ];
+  deliverInputIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("change", triggerSaveSettings);
+      el.addEventListener("input", triggerSaveSettings);
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    const data = gatherCurrentSettings();
+    try {
+      localStorage.setItem("tc_studio_settings", JSON.stringify(data));
+    } catch (e) {}
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+    navigator.sendBeacon("/api/settings", blob);
+    navigator.sendBeacon("/api/clear");
+  });
+}
+
 // Initialize safely regardless of when script is loaded
-function initApp() {
+async function initApp() {
+  await loadSavedSettings();
   loadClips();
   setupInspectorListeners();
   setupCompareListeners();
   setupDragAndDrop();
   setupTransport();
   setupKeyboardShortcuts();
+  setupAutoSettingsSync();
 
   const selPoolSort = document.getElementById("selPoolSort");
   if (selPoolSort) {
@@ -196,6 +534,12 @@ async function loadClips() {
 
     if (allClips.length > 0) {
       updateMonitorDisplay(0);
+    } else {
+      if (noClipMsg) noClipMsg.style.display = "flex";
+      if (monitorImg) monitorImg.style.display = "none";
+      if (monitorVideo) monitorVideo.style.display = "none";
+      if (playheadOverview) playheadOverview.style.left = "0%";
+      if (playheadDetail) playheadDetail.style.left = "0%";
     }
   } catch (err) {
     console.error("Error loading clips:", err);
@@ -216,7 +560,21 @@ function setViewMode(mode) {
 function renderMediaPool() {
   mediaGrid.innerHTML = "";
   if (allClips.length === 0) {
-    mediaGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #63687c; padding: 40px 0;">No clips in Media Pool.<br>Drag and drop video files or folders here.</div>`;
+    mediaGrid.innerHTML = `
+      <div class="empty-media-pool-zone" style="grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; text-align: center; border: 2px dashed #282a3a; border-radius: 12px; margin: 16px 8px; background: rgba(18, 20, 29, 0.45);">
+        <span style="font-size: 36px; margin-bottom: 10px; filter: drop-shadow(0 0 14px rgba(0, 240, 170, 0.35));">📥</span>
+        <div style="font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px;">Media Pool is Clean &amp; Ready</div>
+        <div style="font-size: 11px; color: #72778c; margin-bottom: 16px; max-width: 280px; line-height: 1.4;">Drag &amp; drop Nikon Z8 video clips or camera folders here to start your next batch project.</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-davinci-pill" id="btnEmptyBrowseFolder" style="padding: 6px 16px; font-size: 11px; font-weight: 600; background: #00ddff; color: #000; cursor: pointer;">📁 Import Folder...</button>
+          <button class="btn-davinci-pill" id="btnEmptyBrowseFiles" style="padding: 6px 16px; font-size: 11px; font-weight: 600; background: #232636; color: #e2e8f0; border: 1px solid #36394e; cursor: pointer;">🎬 Select Files...</button>
+        </div>
+      </div>
+    `;
+    const bF = document.getElementById("btnEmptyBrowseFolder");
+    if (bF) bF.addEventListener("click", () => fetch("/api/browse-folder", { method: "POST" }).then(loadClips));
+    const bFi = document.getElementById("btnEmptyBrowseFiles");
+    if (bFi) bFi.addEventListener("click", () => fetch("/api/browse-files", { method: "POST" }).then(loadClips));
     return;
   }
 
@@ -512,6 +870,8 @@ function applyMonitorTransform() {
     sbsImgAfter.style.opacity = opacityVal;
     sbsImgAfter.style.objectFit = "contain";
   }
+
+  triggerSaveSettings();
 }
 
 // Direct URL Hash Navigation (e.g. #deliver, #audio, #file, #2up, #side)

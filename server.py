@@ -19,6 +19,80 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = 8765
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+SETTINGS_PATH = os.path.expanduser("~/.turbocompress_studio_settings.json")
+
+DEFAULT_SETTINGS = {
+    "rotation": 270.0,
+    "scaling": "fit",
+    "zoomX": 1.0,
+    "zoomY": 1.0,
+    "zoomLinked": True,
+    "posX": 0.0,
+    "posY": 0.0,
+    "anchorX": 0.0,
+    "anchorY": 0.0,
+    "pitch": 0.0,
+    "yaw": 0.0,
+    "flipH": False,
+    "flipV": False,
+    "cropL": 0.0,
+    "cropR": 0.0,
+    "cropT": 0.0,
+    "cropB": 0.0,
+    "cropSoftness": 0.0,
+    "speed": 100.0,
+    "speedDirection": "forward",
+    "nikonProfile": "nlog_rec709",
+    "nikonStrength": 100,
+    "customLutPath": "",
+    "brightness": 0.0,
+    "contrast": 1.0,
+    "shadows": 0.0,
+    "saturation": 1.0,
+    "outputPath": "/Users/siamratchongtong/Desktop/STD_VT/test_Exp",
+    "fileNamePattern": "SourceName",
+    "renderMode": "individual",
+    "format": "mp4",
+    "codec": "h264",
+    "resolution": "1080x1920",
+    "resW": "1080",
+    "resH": "1920",
+    "verticalRes": True,
+    "qualityMode": "auto",
+    "bitrateKbps": "80000",
+    "exportAudio": True,
+    "audioCodec": "aac",
+    "audioBitrate": "320",
+    "audioChannels": "2",
+    "filenameUses": "source",
+    "fileSubfolder": "",
+    "smartResume": True,
+    "workers": 2,
+    "renderSpeed": "max"
+}
+
+def load_app_settings():
+    settings = dict(DEFAULT_SETTINGS)
+    if os.path.exists(SETTINGS_PATH):
+        try:
+            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                if isinstance(saved, dict):
+                    settings.update(saved)
+        except Exception:
+            pass
+    return settings
+
+def save_app_settings(new_data):
+    try:
+        current = load_app_settings()
+        current.update(new_data)
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
 def get_ffmpeg_bin():
     local_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
@@ -261,6 +335,13 @@ class StudioHandler(SimpleHTTPRequestHandler):
             self.serve_video_file(fpath)
             return
 
+        elif url.path == "/api/settings":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(load_app_settings()).encode())
+            return
+
         super().do_GET()
 
     def do_POST(self):
@@ -269,7 +350,29 @@ class StudioHandler(SimpleHTTPRequestHandler):
         post_body = self.rfile.read(content_len).decode()
         data = json.loads(post_body) if post_body else {}
 
-        if url.path == "/api/browse-folder":
+        if url.path == "/api/settings":
+            success = save_app_settings(data)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": success, "settings": load_app_settings()}).encode())
+            return
+
+        elif url.path == "/api/clear" or url.path == "/api/clear_on_exit":
+            with proc_lock:
+                STATE["clips"] = []
+                STATE["progress"] = {
+                    "current_idx": 0, "total": 0, "current_name": "", "percent": 0.0,
+                    "speed": "0.0x", "remaining_str": "00m 00s", "status": "Ready",
+                    "eta_str": "--:--", "completed_paths": []
+                }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "total": 0}).encode())
+            return
+
+        elif url.path == "/api/browse-folder":
             default_dir = "/Users/siamratchongtong/Desktop/STD_VT"
             if not os.path.exists(default_dir):
                 default_dir = "/Users/siamratchongtong/Desktop"
@@ -805,14 +908,8 @@ def run_batch_export(params):
 
 
 def main():
-    # Auto scan user's folder if exists (Priority: 2,145 clips shoot folder)
-    mass_dir = "/Users/siamratchongtong/Desktop/STD_VT/081169/100NC_Z8"
-    default_dir = "/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8"
-    if os.path.exists(mass_dir):
-        scan_files([mass_dir])
-    elif os.path.exists(default_dir):
-        scan_files([default_dir])
-
+    # Media Pool starts fresh and empty for new jobs
+    # Settings are saved and loaded from ~/.turbocompress_studio_settings.json
     server = ThreadingHTTPServer(("127.0.0.1", PORT), StudioHandler)
     print(f"TurboCompress Studio Server running on http://127.0.0.1:{PORT}")
     server.serve_forever()

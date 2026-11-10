@@ -83,6 +83,13 @@ static int is_port_open(int port) {
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
+    // Clear imported clips so next launch starts with a clean screen
+    NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"http://127.0.0.1:%d/api/clear", SERVER_PORT]];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
+    [req setHTTPMethod:@"POST"];
+    [req setTimeoutInterval:0.8];
+    [NSURLConnection sendSynchronousRequest:req returningResponse:nil error:nil];
+
     if (g_server_pid > 0) {
         kill(g_server_pid, SIGTERM);
     }
