@@ -457,6 +457,41 @@
 
         <!-- PANE 2: NIKON COLOR ENGINE & GRADING -->
         <div class="insp-pane" id="paneColor" style="display: none;">
+          <!-- CARD 0: REAL-TIME SCOPE & HISTOGRAM -->
+          <div class="dv-card" id="cardHistogram" style="margin-bottom: 8px;">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotHistogram">🔴</span>
+              <span class="card-title">Live Scopes • Histogram</span>
+              <div class="histo-mode-pills">
+                <button class="btn-histo-mode active" data-mode="rgb" title="RGB Overlay Histogram">RGB</button>
+                <button class="btn-histo-mode" data-mode="luma" title="Luminance (Y) Waveform">Luma</button>
+                <button class="btn-histo-mode" data-mode="parade" title="RGB Separate Parade">Parade</button>
+              </div>
+            </div>
+
+            <div class="dv-card-body histo-body">
+              <!-- Scope Canvas Container -->
+              <div class="histo-canvas-wrap">
+                <canvas id="histoCanvas" width="340" height="110"></canvas>
+                <!-- IRE Scale Grid Lines -->
+                <div class="histo-grid">
+                  <span class="grid-line line-100"><label>100</label></span>
+                  <span class="grid-line line-75"><label>75</label></span>
+                  <span class="grid-line line-50"><label>50</label></span>
+                  <span class="grid-line line-25"><label>25</label></span>
+                  <span class="grid-line line-0"><label>0</label></span>
+                </div>
+              </div>
+
+              <!-- Scope Stats Readout -->
+              <div class="histo-stats-bar">
+                <span class="h-stat" id="statBlackClip" title="Shadows below 5 IRE">Shadows: <b id="valBlackClip" style="color: #60a5fa;">0.0%</b></span>
+                <span class="h-stat" id="statMidGrey" title="Midtone exposure (Nikon N-Log Skin 40-50 IRE)">Midtone: <b id="valMidGrey" style="color: #00f0aa;">44 IRE</b></span>
+                <span class="h-stat" id="statWhiteClip" title="Highlights above 95 IRE">Highlights: <b id="valWhiteClip" style="color: #f87171;">0.0%</b></span>
+              </div>
+            </div>
+          </div>
+
           <!-- CARD 1: NIKON PICTURE CONTROL & TONE PROFILES -->
           <div class="dv-card" id="cardNikonColor">
             <div class="dv-card-header">

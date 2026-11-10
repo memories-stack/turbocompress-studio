@@ -711,6 +711,9 @@ function updateMonitorDisplay(idx) {
   if (digitalTimecode) digitalTimecode.textContent = "00:00:00:00";
 
   monitorImg.style.display = "block";
+  monitorImg.onload = () => {
+    applyMonitorTransform();
+  };
   monitorImg.src = thumbUrl;
 
   if (monitorImgBefore) {
@@ -840,7 +843,7 @@ function applyMonitorTransform() {
     el.style.clipPath = clipPathStr;
     el.style.opacity = opacityVal;
     el.style.mixBlendMode = blendModeVal;
-    el.style.objectFit = "contain";
+    el.style.objectFit = objectFitVal;
     el.style.filter = filterStr;
   });
 
@@ -870,10 +873,224 @@ function applyMonitorTransform() {
     sbsImgAfter.style.filter = isBypassed ? "none" : filterStr;
     sbsImgAfter.style.clipPath = clipPathStr;
     sbsImgAfter.style.opacity = opacityVal;
-    sbsImgAfter.style.objectFit = "contain";
+    sbsImgAfter.style.objectFit = objectFitVal;
   }
 
+  renderHistogram();
   triggerSaveSettings();
+}
+
+// Real-Time Scopes & Histogram Engine
+let offscreenCanvas = null;
+let offscreenCtx = null;
+let currentHistoMode = "rgb"; // "rgb", "luma", "parade"
+
+function renderHistogram() {
+  const canvas = document.getElementById("histoCanvas");
+  if (!canvas) return;
+
+  const paneColor = document.getElementById("paneColor");
+  if (paneColor && paneColor.style.display === "none") return;
+
+  const sourceEl = (monitorVideo && monitorVideo.style.display !== "none" && monitorVideo.videoWidth > 0)
+    ? monitorVideo
+    : (monitorImg && monitorImg.src && (monitorImg.naturalWidth > 0 || monitorImg.complete) ? monitorImg : null);
+
+  if (!offscreenCanvas) {
+    offscreenCanvas = document.createElement("canvas");
+    offscreenCanvas.width = 160;
+    offscreenCanvas.height = 90;
+    offscreenCtx = offscreenCanvas.getContext("2d", { willReadFrequently: true });
+  }
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (!sourceEl) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.font = "10px -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Select a clip to view live histogram", W / 2, H / 2 + 3);
+    return;
+  }
+
+  try {
+    offscreenCtx.clearRect(0, 0, 160, 90);
+
+    const isColBypassed = isBypassed;
+    if (!isColBypassed) {
+      let br = 1.0 + inspectorState.brightness + (inspectorState.shadows * 0.35);
+      let ct = inspectorState.contrast;
+      let sat = inspectorState.saturation;
+      const isNikonBypassed = (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor);
+      const nikonFactor = isNikonBypassed ? 0.0 : (inspectorState.nikonStrength / 100);
+      const nikonProfile = inspectorState.nikonProfile || "nlog_rec709";
+
+      if (nikonFactor > 0.001) {
+        if (nikonProfile === "nlog_rec709") {
+          ct *= 1.0 + (0.18 * nikonFactor);
+          sat *= 1.0 + (0.22 * nikonFactor);
+          br += 0.01 * nikonFactor;
+        } else if (nikonProfile === "rich_portrait") {
+          ct *= 1.0 + (0.08 * nikonFactor);
+          sat *= 1.0 + (0.14 * nikonFactor);
+          br += 0.03 * nikonFactor;
+        } else if (nikonProfile === "portrait") {
+          ct *= 1.0 + (0.05 * nikonFactor);
+          sat *= 1.0 + (0.10 * nikonFactor);
+          br += 0.02 * nikonFactor;
+        } else if (nikonProfile === "vivid") {
+          ct *= 1.0 + (0.25 * nikonFactor);
+          sat *= 1.0 + (0.35 * nikonFactor);
+        } else if (nikonProfile === "flat") {
+          ct *= 1.0 - (0.08 * nikonFactor);
+          sat *= 1.0 - (0.06 * nikonFactor);
+          br += 0.02 * nikonFactor;
+        } else if (nikonProfile === "monochrome") {
+          ct *= 1.0 + (0.28 * nikonFactor);
+          br -= 0.02 * nikonFactor;
+        }
+      }
+      offscreenCtx.filter = `brightness(${br.toFixed(3)}) contrast(${ct.toFixed(3)}) saturate(${sat.toFixed(3)})`;
+    } else {
+      offscreenCtx.filter = "none";
+    }
+
+    offscreenCtx.drawImage(sourceEl, 0, 0, 160, 90);
+    const imgData = offscreenCtx.getImageData(0, 0, 160, 90);
+    const data = imgData.data;
+    const numPixels = 160 * 90;
+
+    const rHist = new Float32Array(256);
+    const gHist = new Float32Array(256);
+    const bHist = new Float32Array(256);
+    const lumaHist = new Float32Array(256);
+
+    let underClip = 0;
+    let overClip = 0;
+    let lumaSum = 0;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const luma = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+
+      rHist[r]++;
+      gHist[g]++;
+      bHist[b]++;
+      lumaHist[luma]++;
+
+      if (luma < 13) underClip++; // < 5 IRE
+      if (luma > 242) overClip++; // > 95 IRE
+      lumaSum += luma;
+    }
+
+    // Update stats bar
+    const valBlackClip = document.getElementById("valBlackClip");
+    const valMidGrey = document.getElementById("valMidGrey");
+    const valWhiteClip = document.getElementById("valWhiteClip");
+    if (valBlackClip) valBlackClip.textContent = `${((underClip / numPixels) * 100).toFixed(1)}%`;
+    if (valWhiteClip) valWhiteClip.textContent = `${((overClip / numPixels) * 100).toFixed(1)}%`;
+    if (valMidGrey) {
+      const avgLumaIRE = Math.round((lumaSum / numPixels / 255) * 100);
+      valMidGrey.textContent = `${avgLumaIRE} IRE`;
+    }
+
+    // Peak bin for normalization
+    let maxVal = 0;
+    for (let i = 1; i < 255; i++) {
+      if (rHist[i] > maxVal) maxVal = rHist[i];
+      if (gHist[i] > maxVal) maxVal = gHist[i];
+      if (bHist[i] > maxVal) maxVal = bHist[i];
+      if (lumaHist[i] > maxVal) maxVal = lumaHist[i];
+    }
+    if (maxVal === 0) maxVal = 1;
+
+    if (currentHistoMode === "rgb") {
+      ctx.globalCompositeOperation = "screen";
+
+      const drawChannel = (hist, color, fillAlpha) => {
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        for (let i = 0; i < 256; i++) {
+          const x = (i / 255) * W;
+          const norm = Math.min(1.0, hist[i] / maxVal);
+          const y = H - (norm * (H - 6));
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(W, H);
+        ctx.fillStyle = fillAlpha;
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      };
+
+      drawChannel(rHist, "#ef4444", "rgba(239, 68, 68, 0.28)");
+      drawChannel(gHist, "#22c55e", "rgba(34, 197, 94, 0.28)");
+      drawChannel(bHist, "#3b82f6", "rgba(59, 130, 246, 0.28)");
+      ctx.globalCompositeOperation = "source-over";
+
+    } else if (currentHistoMode === "luma") {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, "rgba(255, 255, 255, 0.85)");
+      grad.addColorStop(0.5, "rgba(0, 240, 170, 0.65)");
+      grad.addColorStop(1, "rgba(59, 130, 246, 0.2)");
+
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let i = 0; i < 256; i++) {
+        const x = (i / 255) * W;
+        const norm = Math.min(1.0, lumaHist[i] / maxVal);
+        const y = H - (norm * (H - 6));
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = "#00f0aa";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+    } else if (currentHistoMode === "parade") {
+      const colW = W / 3;
+      const drawParadeCol = (hist, startX, strokeColor, fillColor) => {
+        ctx.beginPath();
+        ctx.moveTo(startX, H);
+        for (let i = 0; i < 256; i++) {
+          const x = startX + (i / 255) * colW;
+          const norm = Math.min(1.0, hist[i] / maxVal);
+          const y = H - (norm * (H - 6));
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(startX + colW, H);
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        if (startX > 0) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(startX, 0);
+          ctx.lineTo(startX, H);
+          ctx.stroke();
+        }
+      };
+
+      drawParadeCol(rHist, 0, "#ef4444", "rgba(239, 68, 68, 0.35)");
+      drawParadeCol(gHist, colW, "#22c55e", "rgba(34, 197, 94, 0.35)");
+      drawParadeCol(bHist, colW * 2, "#3b82f6", "rgba(59, 130, 246, 0.35)");
+    }
+  } catch (err) {
+    // Canvas security or load race guard
+  }
 }
 
 // Direct URL Hash Navigation (e.g. #deliver, #audio, #file, #2up, #side)
@@ -1008,6 +1225,19 @@ function setupInspectorListeners() {
           pane.style.display = (name === targetTab) ? "flex" : "none";
         }
       });
+      if (targetTab === "color") {
+        setTimeout(renderHistogram, 25);
+      }
+    });
+  });
+
+  // Histogram Mode Pills (RGB / Luma / Parade)
+  document.querySelectorAll(".btn-histo-mode").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".btn-histo-mode").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentHistoMode = btn.dataset.mode;
+      renderHistogram();
     });
   });
 
@@ -1111,6 +1341,7 @@ function setupInspectorListeners() {
     selScalingModeTransform.addEventListener("change", (e) => {
       inspectorState.scaling = e.target.value;
       applyMonitorTransform();
+      triggerSaveSettings();
     });
   }
 
@@ -2022,6 +2253,8 @@ function setupTransport() {
         const pct = (monitorVideo.currentTime / monitorVideo.duration) * 100;
         if (scrubSlider) scrubSlider.value = pct;
         if (digitalTimecode) digitalTimecode.textContent = formatTimecode(monitorVideo.currentTime);
+        const pCol = document.getElementById("paneColor");
+        if (pCol && pCol.style.display !== "none") renderHistogram();
       }
     });
 
