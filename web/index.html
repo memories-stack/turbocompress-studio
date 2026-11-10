@@ -1215,10 +1215,15 @@
             </div>
           </div>
 
-          <!-- Hidden SVG Hardware ColorSlice Filter for 60 FPS Live Video/Image Preview -->
+          <!-- Hidden SVG Hardware ColorSlice & Primaries Filter for 60 FPS Live Video/Image Preview -->
           <svg width="0" height="0" style="position:absolute;pointer-events:none;opacity:0;">
             <defs>
               <filter id="zcutColorSliceFilter" color-interpolation-filters="sRGB">
+                <feComponentTransfer id="csFeTransfer">
+                  <feFuncR id="csFuncR" type="identity"/>
+                  <feFuncG id="csFuncG" type="identity"/>
+                  <feFuncB id="csFuncB" type="identity"/>
+                </feComponentTransfer>
                 <feColorMatrix id="csFeMatrix" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
               </filter>
             </defs>

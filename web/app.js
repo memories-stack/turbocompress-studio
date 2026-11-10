@@ -88,6 +88,9 @@ function isPrimariesBarsModified(pb) {
 
 function updateColorSliceSvgFilter() {
   const feMatrix = document.getElementById("csFeMatrix");
+  const fnR = document.getElementById("csFuncR");
+  const fnG = document.getElementById("csFuncG");
+  const fnB = document.getElementById("csFuncB");
   if (!feMatrix) return false;
   const cs = inspectorState.colorSlice;
   const pb = inspectorState.primariesBars;
@@ -98,19 +101,20 @@ function updateColorSliceSvgFilter() {
 
   if (!csActive && !pbActive) {
     feMatrix.setAttribute("values", "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0");
+    if (fnR) fnR.setAttribute("type", "identity");
+    if (fnG) fnG.setAttribute("type", "identity");
+    if (fnB) fnB.setAttribute("type", "identity");
     return false;
   }
 
-  // Start with 3x3 identity matrix + 3x1 offset
   let M = [
     [1, 0, 0],
     [0, 1, 0],
     [0, 0, 1]
   ];
-  let O = [0, 0, 0];
   const lumaW = [0.2126, 0.7152, 0.0722];
 
-  // 1. Fold DaVinci Primaries - Color Bars (Lift, Gamma, Gain, Offset, Temp, Tint, Cont, Pivot, ColBoost, Sat, Hue)
+  // 1. True Non-Linear 17-Point Transfer Curves for Primaries Color Bars (Lift / Gamma / Gain / Offset / Pivot / Shad / HiLight)
   if (pbActive && pb) {
     const t = pb.top || {};
     const b = pb.bot || {};
@@ -120,7 +124,7 @@ function updateColorSliceSvgFilter() {
     const of = pb.offset || { r: 25, g: 25, b: 25 };
 
     const cont = t.cont !== undefined ? t.cont : 1.0;
-    const pivot = t.pivot !== undefined ? t.pivot : 0.435;
+    const pivot = Math.max(0.05, Math.min(0.95, t.pivot !== undefined ? t.pivot : 0.435));
     const pbSat = ((b.sat !== undefined ? b.sat : 50.0) / 50.0) + ((b.colBoost || 0) / 100.0) * 0.45;
     const pbHue = ((b.hue !== undefined ? b.hue : 50.0) - 50.0) / 50.0;
     const temp = (t.temp || 0) / 100.0;
@@ -128,27 +132,45 @@ function updateColorSliceSvgFilter() {
     const shad = (b.shad || 0) / 100.0;
     const hiLight = (b.hiLight || 0) / 100.0;
 
-    // Per-channel Gain * Contrast * Gamma slope
-    const chGain = [
-      (gn.y !== undefined ? gn.y : 1) * (gn.r !== undefined ? gn.r : 1) * (1 + temp * 0.14 + tint * 0.06 + hiLight * 0.18),
-      (gn.y !== undefined ? gn.y : 1) * (gn.g !== undefined ? gn.g : 1) * (1 - tint * 0.08 + hiLight * 0.18),
-      (gn.y !== undefined ? gn.y : 1) * (gn.b !== undefined ? gn.b : 1) * (1 - temp * 0.14 + tint * 0.06 + hiLight * 0.18)
+    const liftRGB = [
+      (lf.y || 0) + (lf.r || 0) + ((of.r !== undefined ? of.r : 25) - 25) * 0.006,
+      (lf.y || 0) + (lf.g || 0) + ((of.g !== undefined ? of.g : 25) - 25) * 0.006,
+      (lf.y || 0) + (lf.b || 0) + ((of.b !== undefined ? of.b : 25) - 25) * 0.006
+    ];
+    const gainRGB = [
+      (gn.y !== undefined ? gn.y : 1) * (gn.r !== undefined ? gn.r : 1) * (1 + temp * 0.12 + tint * 0.05),
+      (gn.y !== undefined ? gn.y : 1) * (gn.g !== undefined ? gn.g : 1) * (1 - tint * 0.07),
+      (gn.y !== undefined ? gn.y : 1) * (gn.b !== undefined ? gn.b : 1) * (1 - temp * 0.12 + tint * 0.05)
+    ];
+    const gammaExp = [
+      Math.max(0.25, Math.min(4.0, 1.0 / Math.max(0.2, 1.0 + ((gm.y || 0) + (gm.r || 0)) * 1.35))),
+      Math.max(0.25, Math.min(4.0, 1.0 / Math.max(0.2, 1.0 + ((gm.y || 0) + (gm.g || 0)) * 1.35))),
+      Math.max(0.25, Math.min(4.0, 1.0 / Math.max(0.2, 1.0 + ((gm.y || 0) + (gm.b || 0)) * 1.35)))
     ];
 
-    const chLift = [
-      (lf.y || 0) + (lf.r || 0) + ((of.r !== undefined ? of.r : 25) - 25) * 0.008 + ((gm.y || 0) + (gm.r || 0)) * 0.42 + shad * 0.16,
-      (lf.y || 0) + (lf.g || 0) + ((of.g !== undefined ? of.g : 25) - 25) * 0.008 + ((gm.y || 0) + (gm.g || 0)) * 0.42 + shad * 0.16,
-      (lf.y || 0) + (lf.b || 0) + ((of.b !== undefined ? of.b : 25) - 25) * 0.008 + ((gm.y || 0) + (gm.b || 0)) * 0.42 + shad * 0.16
-    ];
+    const funcs = [fnR, fnG, fnB];
+    for (let ch = 0; ch < 3; ch++) {
+      if (!funcs[ch]) continue;
+      const tbl = [];
+      for (let i = 0; i <= 16; i++) {
+        let v = i / 16.0;
+        v = v * gainRGB[ch] + liftRGB[ch] * (1.0 - v);
+        v = Math.max(0.0, Math.min(1.0, v));
+        if (v > 0.0) v = Math.pow(v, gammaExp[ch]);
+        if (Math.abs(shad) > 0.002) v += shad * 0.22 * Math.pow(1.0 - v, 2) * Math.sqrt(v);
+        if (Math.abs(hiLight) > 0.002) v += hiLight * 0.22 * Math.pow(v, 2) * Math.sqrt(1.0 - v);
+        if (Math.abs(cont - 1.0) > 0.002) v = pivot + (v - pivot) * cont;
+        tbl.push(Math.max(0.0, Math.min(1.0, v)).toFixed(4));
+      }
+      funcs[ch].setAttribute("type", "table");
+      funcs[ch].setAttribute("tableValues", tbl.join(" "));
+    }
 
     for (let r = 0; r < 3; r++) {
-      const slope = (chGain[r] - (lf.y || 0) - (lf[r === 0 ? "r" : r === 1 ? "g" : "b"] || 0)) * cont;
       for (let c = 0; c < 3; c++) {
         const base = (r === c ? 1.0 : 0.0);
-        const satMix = lumaW[c] + (base - lumaW[c]) * pbSat;
-        M[r][c] = satMix * slope;
+        M[r][c] = lumaW[c] + (base - lumaW[c]) * pbSat;
       }
-      O[r] += chLift[r] + (1.0 - cont) * pivot;
     }
 
     if (Math.abs(pbHue) > 0.005) {
@@ -157,9 +179,13 @@ function updateColorSliceSvgFilter() {
       M[1][0] += hShift * 0.5; M[1][2] -= hShift * 0.5;
       M[2][0] -= hShift * 0.5; M[2][1] += hShift * 0.5;
     }
+  } else {
+    if (fnR) fnR.setAttribute("type", "identity");
+    if (fnG) fnG.setAttribute("type", "identity");
+    if (fnB) fnB.setAttribute("type", "identity");
   }
 
-  // 2. Fold DaVinci ColorSlice 7-Vector Subtractive Grading
+  // 2. Fold DaVinci ColorSlice 7-Vector Subtractive Grading (Zero-sum detector weights keep greys 100% neutral!)
   if (csActive && cs) {
     const m = cs.master || { den: 0, denDepth: 0, sat: 1, satBal: 0, satDepth: 0, hue: 0 };
     const gDen = (m.den || 0) + (m.denDepth || 0) * 0.35;
@@ -169,7 +195,8 @@ function updateColorSliceSvgFilter() {
     const dScale = Math.max(0.4, 1.0 - gDen * 0.28);
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
-        M[r][c] *= dScale * (c === r ? gSat : 1.0);
+        const base = M[r][c];
+        M[r][c] = (lumaW[c] + (base - lumaW[c]) * gSat) * dScale;
       }
     }
 
@@ -191,9 +218,9 @@ function updateColorSliceSvgFilter() {
 
       const dRGB = [0, 0, 0];
       for (let i = 0; i < 3; i++) {
-        dRGB[i] += (-den * 0.46) * vec.u[i];
-        dRGB[i] += (satDiff * 0.68) * vec.s[i];
-        dRGB[i] += (hue * 0.48) * vec.t[i];
+        dRGB[i] += (-den * 0.32) * vec.u[i];
+        dRGB[i] += (satDiff * 0.45) * vec.s[i];
+        dRGB[i] += (hue * 0.35) * vec.t[i];
       }
 
       for (let r = 0; r < 3; r++) {
@@ -205,9 +232,9 @@ function updateColorSliceSvgFilter() {
   }
 
   const vals = [
-    M[0][0].toFixed(4), M[0][1].toFixed(4), M[0][2].toFixed(4), "0", O[0].toFixed(4),
-    M[1][0].toFixed(4), M[1][1].toFixed(4), M[1][2].toFixed(4), "0", O[1].toFixed(4),
-    M[2][0].toFixed(4), M[2][1].toFixed(4), M[2][2].toFixed(4), "0", O[2].toFixed(4),
+    M[0][0].toFixed(4), M[0][1].toFixed(4), M[0][2].toFixed(4), "0", "0",
+    M[1][0].toFixed(4), M[1][1].toFixed(4), M[1][2].toFixed(4), "0", "0",
+    M[2][0].toFixed(4), M[2][1].toFixed(4), M[2][2].toFixed(4), "0", "0",
     "0", "0", "0", "1", "0"
   ].join(" ");
   feMatrix.setAttribute("values", vals);

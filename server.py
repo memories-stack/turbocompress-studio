@@ -791,24 +791,32 @@ class StudioHandler(SimpleHTTPRequestHandler):
                 bytes_left -= len(chunk)
 
 
+import tempfile
+import colorsys
+
 _BAKED_LUT_CACHE = {"hash": None, "path": None}
 
-COLORSLICE_VECTORS_PY = {
-    "red":     {"w": [ 0.70, -0.45, -0.25], "u": [0.85, 0.15, 0.15], "s": [ 0.65, -0.32, -0.33], "t": [ 0.05,  0.55, -0.60]},
-    "skin":    {"w": [ 0.55,  0.05, -0.60], "u": [0.80, 0.52, 0.35], "s": [ 0.48,  0.04, -0.52], "t": [ 0.38, -0.52,  0.14]},
-    "yellow":  {"w": [ 0.40,  0.45, -0.85], "u": [0.75, 0.75, 0.12], "s": [ 0.35,  0.38, -0.73], "t": [-0.52,  0.50,  0.02]},
-    "green":   {"w": [-0.45,  0.85, -0.40], "u": [0.18, 0.82, 0.22], "s": [-0.34,  0.68, -0.34], "t": [-0.45, -0.05,  0.50]},
-    "cyan":    {"w": [-0.85,  0.42,  0.43], "u": [0.12, 0.75, 0.78], "s": [-0.68,  0.34,  0.34], "t": [ 0.02, -0.52,  0.50]},
-    "blue":    {"w": [-0.35, -0.45,  0.80], "u": [0.18, 0.28, 0.88], "s": [-0.33, -0.35,  0.68], "t": [ 0.52, -0.04, -0.48]},
-    "magenta": {"w": [ 0.45, -0.85,  0.40], "u": [0.78, 0.16, 0.75], "s": [ 0.36, -0.70,  0.34], "t": [ 0.45,  0.08, -0.53]}
+# Exact Hue Centers (in degrees 0-360) and Half-Widths for DaVinci 7-Vector ColorSlice
+COLORSLICE_HUE_WINDOWS = {
+    "red":     (0.0,   26.0),
+    "skin":    (22.0,  24.0),  # Human skin tone I-Line (~8° to 46° orange-peach)
+    "yellow":  (58.0,  26.0),
+    "green":   (112.0, 42.0),  # Foliage & grass (70° to 154°)
+    "cyan":    (180.0, 34.0),
+    "blue":    (228.0, 38.0),  # Sky & blue apparel (190° to 266°)
+    "magenta": (305.0, 36.0)
 }
 
-def bake_davinci_grade_lut(cs, pb):
-    """Bakes DaVinci ColorSlice (7-Vector) + Primaries Color Bars (Lift/Gamma/Gain/Offset) into a 17x17x17 .cube 3D LUT in ~2.5ms."""
-    if not cs and not pb:
-        return None
+def _hue_diff_deg(h1, h2):
+    d = (h1 - h2 + 180.0) % 360.0 - 180.0
+    return d
 
-    # Check if modified from defaults
+def bake_davinci_grade_lut(cs, pb, skin_hue=0.0, skin_bright=0.0):
+    """
+    Bakes DaVinci ColorSlice (7-Vector Selective HSL) + Primaries Color Bars (True Non-Linear Lift/Gamma/Gain/Offset)
+    + Selective Skin Tone & Radiance into a 17x17x17 .cube 3D LUT in ~5ms.
+    Neutral greys/whites/blacks (roads, shoes, shadows) are 100% protected from color casts.
+    """
     cs_active = False
     if isinstance(cs, dict):
         m = cs.get("master") or {}
@@ -816,7 +824,7 @@ def bake_davinci_grade_lut(cs, pb):
             abs(float(m.get("sat", 1)) - 1.0) > 0.005 or abs(float(m.get("satBal", 0))) > 0.005 or
             abs(float(m.get("satDepth", 0))) > 0.005 or abs(float(m.get("hue", 0))) > 0.005):
             cs_active = True
-        for k in COLORSLICE_VECTORS_PY:
+        for k in COLORSLICE_HUE_WINDOWS:
             sl = cs.get(k) or {}
             if (abs(float(sl.get("center", 0))) > 0.005 or abs(float(sl.get("hue", 0))) > 0.005 or
                 abs(float(sl.get("den", 0))) > 0.005 or abs(float(sl.get("sat", 1)) - 1.0) > 0.005):
@@ -842,19 +850,22 @@ def bake_davinci_grade_lut(cs, pb):
             abs(float(of.get("r", 25)) - 25.0) > 0.05 or abs(float(of.get("g", 25)) - 25.0) > 0.05 or abs(float(of.get("b", 25)) - 25.0) > 0.05):
             pb_active = True
 
-    if not cs_active and not pb_active:
+    skin_slider_active = (abs(float(skin_hue)) > 0.2 or abs(float(skin_bright)) > 0.2)
+
+    if not cs_active and not pb_active and not skin_slider_active:
         return None
 
-    state_key = json.dumps({"cs": cs if cs_active else None, "pb": pb if pb_active else None}, sort_keys=True)
+    state_key = json.dumps({
+        "cs": cs if cs_active else None,
+        "pb": pb if pb_active else None,
+        "sh": round(float(skin_hue), 2),
+        "sb": round(float(skin_bright), 2)
+    }, sort_keys=True)
     h_val = hashlib.md5(state_key.encode("utf-8")).hexdigest()[:12]
     if _BAKED_LUT_CACHE["hash"] == h_val and _BAKED_LUT_CACHE["path"] and os.path.exists(_BAKED_LUT_CACHE["path"]):
         return _BAKED_LUT_CACHE["path"]
 
-    # Build 3x3 Matrix + 3x1 Offset matching updateColorSliceSvgFilter() 1:1
-    M = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
-    O = [0.0, 0.0, 0.0]
-    luma_w = [0.2126, 0.7152, 0.0722]
-
+    # Pre-extract Primaries Bars parameters
     if pb_active and isinstance(pb, dict):
         t = pb.get("top") or {}
         b = pb.get("bot") or {}
@@ -862,88 +873,152 @@ def bake_davinci_grade_lut(cs, pb):
         gm = pb.get("gamma") or {}
         gn = pb.get("gain") or {}
         of = pb.get("offset") or {}
+        pb_temp = float(t.get("temp", 0.0)) / 100.0
+        pb_tint = float(t.get("tint", 0.0)) / 100.0
+        pb_cont = float(t.get("cont", 1.0))
+        pb_pivot = max(0.05, min(0.95, float(t.get("pivot", 0.435))))
+        pb_colboost = float(b.get("colBoost", 0.0)) / 100.0
+        pb_shad = float(b.get("shad", 0.0)) / 100.0
+        pb_hilight = float(b.get("hiLight", 0.0)) / 100.0
+        pb_sat = float(b.get("sat", 50.0)) / 50.0
+        pb_hue_deg = ((float(b.get("hue", 50.0)) - 50.0) / 50.0) * 30.0
 
-        cont = float(t.get("cont", 1.0))
-        pivot = float(t.get("pivot", 0.435))
-        pb_sat = (float(b.get("sat", 50.0)) / 50.0) + (float(b.get("colBoost", 0.0)) / 100.0) * 0.45
-        pb_hue = (float(b.get("hue", 50.0)) - 50.0) / 50.0
-        temp = float(t.get("temp", 0.0)) / 100.0
-        tint = float(t.get("tint", 0.0)) / 100.0
-        shad = float(b.get("shad", 0.0)) / 100.0
-        hi_light = float(b.get("hiLight", 0.0)) / 100.0
-
-        ch_gain = [
-            float(gn.get("y", 1.0)) * float(gn.get("r", 1.0)) * (1.0 + temp * 0.14 + tint * 0.06 + hi_light * 0.18),
-            float(gn.get("y", 1.0)) * float(gn.get("g", 1.0)) * (1.0 - tint * 0.08 + hi_light * 0.18),
-            float(gn.get("y", 1.0)) * float(gn.get("b", 1.0)) * (1.0 - temp * 0.14 + tint * 0.06 + hi_light * 0.18)
+        lift_rgb = [
+            float(lf.get("y", 0.0)) + float(lf.get("r", 0.0)) + (float(of.get("r", 25.0)) - 25.0) * 0.006,
+            float(lf.get("y", 0.0)) + float(lf.get("g", 0.0)) + (float(of.get("g", 25.0)) - 25.0) * 0.006,
+            float(lf.get("y", 0.0)) + float(lf.get("b", 0.0)) + (float(of.get("b", 25.0)) - 25.0) * 0.006
         ]
-        ch_lift = [
-            float(lf.get("y", 0.0)) + float(lf.get("r", 0.0)) + (float(of.get("r", 25.0)) - 25.0) * 0.008 + (float(gm.get("y", 0.0)) + float(gm.get("r", 0.0))) * 0.42 + shad * 0.16,
-            float(lf.get("y", 0.0)) + float(lf.get("g", 0.0)) + (float(of.get("g", 25.0)) - 25.0) * 0.008 + (float(gm.get("y", 0.0)) + float(gm.get("g", 0.0))) * 0.42 + shad * 0.16,
-            float(lf.get("y", 0.0)) + float(lf.get("b", 0.0)) + (float(of.get("b", 25.0)) - 25.0) * 0.008 + (float(gm.get("y", 0.0)) + float(gm.get("b", 0.0))) * 0.42 + shad * 0.16
+        gain_rgb = [
+            float(gn.get("y", 1.0)) * float(gn.get("r", 1.0)) * (1.0 + pb_temp * 0.12 + pb_tint * 0.05),
+            float(gn.get("y", 1.0)) * float(gn.get("g", 1.0)) * (1.0 - pb_tint * 0.07),
+            float(gn.get("y", 1.0)) * float(gn.get("b", 1.0)) * (1.0 - pb_temp * 0.12 + pb_tint * 0.05)
         ]
-        ch_keys = ["r", "g", "b"]
-        for r_i in range(3):
-            slope = (ch_gain[r_i] - float(lf.get("y", 0.0)) - float(lf.get(ch_keys[r_i], 0.0))) * cont
-            for c_i in range(3):
-                base = 1.0 if r_i == c_i else 0.0
-                sat_mix = luma_w[c_i] + (base - luma_w[c_i]) * pb_sat
-                M[r_i][c_i] = sat_mix * slope
-            O[r_i] += ch_lift[r_i] + (1.0 - cont) * pivot
+        gamma_rgb = [
+            max(0.25, min(4.0, 1.0 / max(0.2, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("r", 0.0))) * 1.35))),
+            max(0.25, min(4.0, 1.0 / max(0.2, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("g", 0.0))) * 1.35))),
+            max(0.25, min(4.0, 1.0 / max(0.2, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("b", 0.0))) * 1.35)))
+        ]
 
-        if abs(pb_hue) > 0.005:
-            hs = pb_hue * 0.35
-            M[0][1] -= hs * 0.5; M[0][2] += hs * 0.5
-            M[1][0] += hs * 0.5; M[1][2] -= hs * 0.5
-            M[2][0] -= hs * 0.5; M[2][1] += hs * 0.5
-
+    # Pre-extract ColorSlice parameters (merging dedicated Skin Tone & Radiance sliders into the 'skin' slice!)
+    active_slices = []
+    g_den = 0.0
+    g_sat = 1.0
+    g_hue_deg = 0.0
     if cs_active and isinstance(cs, dict):
         m = cs.get("master") or {}
         g_den = float(m.get("den", 0.0)) + float(m.get("denDepth", 0.0)) * 0.35
         g_sat = float(m.get("sat", 1.0)) + float(m.get("satBal", 0.0)) * 0.25 + float(m.get("satDepth", 0.0)) * 0.20
-        g_hue = float(m.get("hue", 0.0))
+        g_hue_deg = float(m.get("hue", 0.0)) * 30.0
 
-        d_scale = max(0.4, 1.0 - g_den * 0.28)
-        for r_i in range(3):
-            for c_i in range(3):
-                M[r_i][c_i] *= d_scale * (g_sat if c_i == r_i else 1.0)
+    for k, (base_c, half_w) in COLORSLICE_HUE_WINDOWS.items():
+        sl = (cs.get(k) if (cs_active and isinstance(cs, dict)) else None) or {}
+        c_shift = float(sl.get("center", 0.0)) * 14.0
+        raw_hue = float(sl.get("hue", 0.0))
+        # For skin (22°), dragging Hue right (+) toward Red/Magenta shifts angle toward 8° Rosy Pink
+        h_shift = (-raw_hue * 18.0) if k == "skin" else (raw_hue * 24.0)
+        den = float(sl.get("den", 0.0))
+        sat = float(sl.get("sat", 1.0))
 
-        if abs(g_hue) > 0.005:
-            hs = g_hue * 0.32
-            M[0][1] -= hs * 0.5; M[0][2] += hs * 0.5
-            M[1][0] += hs * 0.5; M[1][2] -= hs * 0.5
-            M[2][0] -= hs * 0.5; M[2][1] += hs * 0.5
+        # Merge the dedicated Skin Tone & Radiance sliders directly into the selective 'skin' vector!
+        if k == "skin" and skin_slider_active:
+            # Positive skin_hue = Rosy Pink (shifts skin hue from ~22° orange-yellow counter-clockwise toward ~12° rose-red)
+            h_shift -= (float(skin_hue) / 50.0) * 14.0
+            # Positive skin_bright = Lifts skin luminance (negative subtractive density!)
+            den -= (float(skin_bright) / 50.0) * 0.38
+            sat *= (1.0 + abs(float(skin_hue)) / 50.0 * 0.12)
 
-        for k, vec in COLORSLICE_VECTORS_PY.items():
-            sl = cs.get(k) or {}
-            den = float(sl.get("den", 0.0))
-            sat_diff = float(sl.get("sat", 1.0)) - 1.0
-            hue = float(sl.get("hue", 0.0)) + float(sl.get("center", 0.0)) * 0.35
-            if abs(den) < 0.003 and abs(sat_diff) < 0.003 and abs(hue) < 0.003:
-                continue
-            d_rgb = [
-                (-den * 0.46) * vec["u"][i] + (sat_diff * 0.68) * vec["s"][i] + (hue * 0.48) * vec["t"][i]
-                for i in range(3)
-            ]
-            for r_i in range(3):
-                for c_i in range(3):
-                    M[r_i][c_i] += d_rgb[r_i] * vec["w"][c_i]
+        if abs(c_shift) > 0.05 or abs(h_shift) > 0.05 or abs(den) > 0.003 or abs(sat - 1.0) > 0.003:
+            active_slices.append((k, (base_c + c_shift) % 360.0, half_w, h_shift, den, sat))
 
-    import tempfile
     lut_path = os.path.join(tempfile.gettempdir(), f"zcut_grade_{h_val}.cube")
-    lines = ["TITLE \"ZCut_DaVinci_ColorSlice_Primaries\"", "LUT_3D_SIZE 17", "DOMAIN_MIN 0.0 0.0 0.0", "DOMAIN_MAX 1.0 1.0 1.0"]
+    lines = ["TITLE \"ZCut_DaVinci_Selective_3DLUT\"", "LUT_3D_SIZE 17", "DOMAIN_MIN 0.0 0.0 0.0", "DOMAIN_MAX 1.0 1.0 1.0"]
     size = 17
     inv = 1.0 / (size - 1)
+    import math
+
     for bi in range(size):
         b_in = bi * inv
         for gi in range(size):
             g_in = gi * inv
             for ri in range(size):
-                r_in = ri * inv
-                r_out = max(0.0, min(1.0, M[0][0] * r_in + M[0][1] * g_in + M[0][2] * b_in + O[0]))
-                g_out = max(0.0, min(1.0, M[1][0] * r_in + M[1][1] * g_in + M[1][2] * b_in + O[1]))
-                b_out = max(0.0, min(1.0, M[2][0] * r_in + M[2][1] * g_in + M[2][2] * b_in + O[2]))
-                lines.append(f"{r_out:.5f} {g_out:.5f} {b_out:.5f}")
+                r, g, b = ri * inv, g_in, b_in
+
+                # STAGE 1: True Non-Linear DaVinci Primaries Color Bars (Lift / Gamma / Gain / Offset / Pivot / Shad / HiLight / ColBoost)
+                if pb_active:
+                    rgb = [r, g, b]
+                    for ch_i in range(3):
+                        v = rgb[ch_i]
+                        # Lift (affects shadows, anchored at 1.0) & Gain (scales from 0.0)
+                        v = v * gain_rgb[ch_i] + lift_rgb[ch_i] * (1.0 - v)
+                        v = max(0.0, min(1.0, v))
+                        # True Gamma power curve (0.0 and 1.0 remain 100% anchored!)
+                        if v > 0.0:
+                            v = v ** gamma_rgb[ch_i]
+                        # Shadow & Highlight recovery
+                        if abs(pb_shad) > 0.002:
+                            v += pb_shad * 0.22 * ((1.0 - v) ** 2) * (v ** 0.5)
+                        if abs(pb_hilight) > 0.002:
+                            v += pb_hilight * 0.22 * (v ** 2) * ((1.0 - v) ** 0.5)
+                        # Contrast around Pivot
+                        if abs(pb_cont - 1.0) > 0.002:
+                            v = pb_pivot + (v - pb_pivot) * pb_cont
+                        rgb[ch_i] = max(0.0, min(1.0, v))
+                    r, g, b = rgb[0], rgb[1], rgb[2]
+
+                    # Primaries Saturation, Color Boost (Vibrance), and Hue
+                    if abs(pb_sat - 1.0) > 0.003 or abs(pb_colboost) > 0.003 or abs(pb_hue_deg) > 0.05:
+                        h, l, s = colorsys.rgb_to_hls(r, g, b)
+                        if abs(pb_hue_deg) > 0.05:
+                            h = (h + pb_hue_deg / 360.0) % 1.0
+                        eff_s = s * pb_sat
+                        if abs(pb_colboost) > 0.003:
+                            # Color Boost boosts low-to-mid saturation more than already-saturated pixels
+                            eff_s += pb_colboost * s * (1.0 - s) * 1.4
+                        s = max(0.0, min(1.0, eff_s))
+                        r, g, b = colorsys.hls_to_rgb(h, l, s)
+
+                # STAGE 2: True Selective 7-Vector DaVinci ColorSlice (with 100% Neutral Grey/White/Black Protection)
+                if cs_active or active_slices:
+                    c_max = max(r, g, b)
+                    c_min = min(r, g, b)
+                    chroma = c_max - c_min
+                    # Smooth chroma gate: neutral greys/whites/roads (chroma < 0.04) are 0% affected!
+                    if chroma > 0.02:
+                        sat_gate = min(1.0, max(0.0, (chroma - 0.02) / 0.14))
+                        h, l, s = colorsys.rgb_to_hls(r, g, b)
+                        h_deg = h * 360.0
+
+                        tot_h_shift = g_hue_deg
+                        tot_den = g_den * sat_gate
+                        tot_sat_mult = g_sat
+
+                        for (s_name, center_deg, half_w, h_sh, den_val, sat_val) in active_slices:
+                            d_deg = abs(_hue_diff_deg(h_deg, center_deg))
+                            if d_deg < half_w:
+                                # Smooth cosine bell curve inside the slice's hue wedge
+                                w_hue = math.cos((d_deg / half_w) * (math.pi * 0.5)) ** 2
+                                w = w_hue * sat_gate
+                                if s_name == "skin":
+                                    # Extra midtone protection so deep black shadows or pure white highlights aren't shifted
+                                    luma_gate = 4.0 * l * (1.0 - l)
+                                    w *= max(0.25, luma_gate)
+                                tot_h_shift += h_sh * w
+                                tot_den += den_val * w
+                                tot_sat_mult *= (1.0 + (sat_val - 1.0) * w)
+
+                        h_new = ((h_deg + tot_h_shift) % 360.0) / 360.0
+                        s_new = max(0.0, min(1.0, s * tot_sat_mult))
+                        # Subtractive Film Density: positive density deepens luminance of saturated colors; negative density lifts midtone glow!
+                        if tot_den >= 0:
+                            l_new = l * (1.0 - tot_den * 0.42 * min(1.0, s_new * 1.4))
+                        else:
+                            # Negative density lifts luminance smoothly with highlight roll-off protection
+                            lift_amt = abs(tot_den) * 0.45
+                            l_new = l + lift_amt * l * (1.0 - l) * 1.8
+                        l_new = max(0.0, min(1.0, l_new))
+                        r, g, b = colorsys.hls_to_rgb(h_new, l_new, s_new)
+
+                lines.append(f"{max(0.0, min(1.0, r)):.5f} {max(0.0, min(1.0, g)):.5f} {max(0.0, min(1.0, b)):.5f}")
 
     with open(lut_path, "w", encoding="utf-8") as f_lut:
         f_lut.write("\n".join(lines) + "\n")
@@ -1246,29 +1321,13 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         tot_saturation *= 1.40
         tot_brightness += 0.02
 
+    p_hue = 0.0
+    p_bright = 0.0
     if render_timeline_effects:
         # Skin Tone & Aura Engine (Hue: -50 Golden Amber ↔ +50 Rosy Pink | Radiance: -50 ↔ +50 Midtone Lift)
+        # Handled selectively inside bake_davinci_grade_lut() so neutral greys/roads are 100% protected!
         p_hue = float(params.get("portrait_hue", 0.0))
         p_bright = float(params.get("portrait_brightness", 0.0))
-        if abs(p_hue) > 0.1:
-            if p_hue > 0:
-                # Positive = Rosy Pink (cuts yellow/green cast on skin, adds healthy rosy blush)
-                r_mult *= (1.0 + p_hue * 0.0042)
-                g_mult *= (1.0 - p_hue * 0.0022)
-                b_mult *= (1.0 + p_hue * 0.0028)
-                tot_saturation *= (1.0 + (p_hue / 100.0) * 0.14)
-            else:
-                # Negative = Warm Golden / Honey Glow
-                ah = abs(p_hue)
-                r_mult *= (1.0 + ah * 0.0040)
-                g_mult *= (1.0 + ah * 0.0014)
-                b_mult *= (1.0 - ah * 0.0035)
-                tot_saturation *= (1.0 + (ah / 100.0) * 0.12)
-        if abs(p_bright) > 0.1:
-            # Midtone Gamma & Radiance lift (targets 35-70 IRE skin zone without clipping highlights)
-            tot_brightness += (p_bright / 100.0) * 0.14
-            tot_gamma *= (1.0 + (p_bright / 100.0) * 0.65)
-            tot_contrast *= (1.0 - (p_bright / 100.0) * 0.05)
 
         # Skin Softening (Smart Surface Smoothing)
         skin_raw = params.get("skin_softening", 0.0)
@@ -1320,11 +1379,11 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     if (abs(r_mult - 1.0) > 0.005 or abs(g_mult - 1.0) > 0.005 or abs(b_mult - 1.0) > 0.005):
         vf.append(f"colorchannelmixer=rr={r_mult:.3f}:gg={g_mult:.3f}:bb={b_mult:.3f}")
 
-    # DaVinci ColorSlice (7-Vector) + Primaries Color Bars (Lift/Gamma/Gain/Offset) -> 3D LUT (.cube) Hardware Acceleration
+    # DaVinci ColorSlice (7-Vector) + Primaries Color Bars (Lift/Gamma/Gain/Offset) + Selective Skin Tone -> 3D LUT (.cube)
     if render_timeline_effects:
         cs_data = params.get("color_slice")
         pb_data = params.get("primaries_bars")
-        baked_lut = bake_davinci_grade_lut(cs_data, pb_data)
+        baked_lut = bake_davinci_grade_lut(cs_data, pb_data, p_hue, p_bright)
         if baked_lut and os.path.exists(baked_lut):
             safe_baked = baked_lut.replace("\\", "/").replace(":", "\\:")
             vf.append(f"lut3d=file='{safe_baked}':interp=tetrahedral")
