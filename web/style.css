@@ -4224,14 +4224,15 @@ body.theme-light .deliver-label {
   font-weight: 600 !important;
 }
 
-/* Scopes & Histogram in Light Mode */
+/* Scopes & Histogram in Light Mode — Full RGB Color with Clean Eye-Care Canvas */
 body.theme-light .histo-canvas-wrap {
   background: #f8fafc !important;
-  border: 1px solid #cbd5e1 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
 }
 
 body.theme-light #histoCanvas {
-  filter: grayscale(1) contrast(1.15) !important;
+  filter: none !important;
 }
 
 body.theme-light .histo-grid .grid-line {
@@ -4247,10 +4248,19 @@ body.theme-light .histo-stats-bar {
   border-top: 1px solid #e2e8f0 !important;
 }
 
-body.theme-light #valBlackClip,
-body.theme-light #valMidGrey,
+body.theme-light #valBlackClip {
+  color: #0A84FF !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light #valMidGrey {
+  color: #10b981 !important;
+  font-weight: 700 !important;
+}
+
 body.theme-light #valWhiteClip {
-  color: #0f172a !important;
+  color: #e11d48 !important;
+  font-weight: 700 !important;
 }
 
 body.theme-light .wb-kelvin-badge {
@@ -5647,4 +5657,21 @@ body:not(.theme-light) .dv-slider::-webkit-slider-thumb {
   background: #0A84FF !important;
   border: 2px solid #FFFFFF !important;
   box-shadow: 0 1px 6px rgba(10, 132, 255, 0.5) !important;
+}
+
+/* RGB Histogram & Subtle White Balance Track Spectrum in Eye-Care Light Mode */
+body.theme-light #histoCanvas {
+  filter: none !important;
+}
+
+body.theme-light .wb-slider-temp::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, rgba(14, 165, 233, 0.42), #cbd5e1 50%, rgba(245, 158, 11, 0.45)) !important;
+  height: 5px !important;
+  border-radius: 3px !important;
+}
+
+body.theme-light .wb-slider-tint::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.38), #cbd5e1 50%, rgba(236, 72, 153, 0.42)) !important;
+  height: 5px !important;
+  border-radius: 3px !important;
 }

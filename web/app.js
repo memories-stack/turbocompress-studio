@@ -1509,8 +1509,10 @@ function renderHistogram() {
     }
     if (maxVal === 0) maxVal = 1;
 
+    const isLight = document.body.classList.contains("theme-light");
+
     if (currentHistoMode === "rgb") {
-      ctx.globalCompositeOperation = "screen";
+      ctx.globalCompositeOperation = isLight ? "source-over" : "screen";
 
       const drawChannel = (hist, color, fillAlpha) => {
         ctx.beginPath();
@@ -1525,20 +1527,32 @@ function renderHistogram() {
         ctx.fillStyle = fillAlpha;
         ctx.fill();
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = isLight ? 1.4 : 1.2;
         ctx.stroke();
       };
 
-      drawChannel(rHist, "#ef4444", "rgba(239, 68, 68, 0.28)");
-      drawChannel(gHist, "#22c55e", "rgba(34, 197, 94, 0.28)");
-      drawChannel(bHist, "#3b82f6", "rgba(59, 130, 246, 0.28)");
+      if (isLight) {
+        drawChannel(rHist, "#e11d48", "rgba(244, 63, 94, 0.22)");
+        drawChannel(gHist, "#10b981", "rgba(16, 185, 129, 0.22)");
+        drawChannel(bHist, "#0A84FF", "rgba(10, 132, 255, 0.24)");
+      } else {
+        drawChannel(rHist, "#ef4444", "rgba(239, 68, 68, 0.28)");
+        drawChannel(gHist, "#22c55e", "rgba(34, 197, 94, 0.28)");
+        drawChannel(bHist, "#3b82f6", "rgba(59, 130, 246, 0.28)");
+      }
       ctx.globalCompositeOperation = "source-over";
 
     } else if (currentHistoMode === "luma") {
       const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, "rgba(255, 255, 255, 0.85)");
-      grad.addColorStop(0.5, "rgba(0, 240, 170, 0.65)");
-      grad.addColorStop(1, "rgba(59, 130, 246, 0.2)");
+      if (isLight) {
+        grad.addColorStop(0, "rgba(10, 132, 255, 0.38)");
+        grad.addColorStop(0.6, "rgba(175, 82, 222, 0.20)");
+        grad.addColorStop(1, "rgba(10, 132, 255, 0.05)");
+      } else {
+        grad.addColorStop(0, "rgba(255, 255, 255, 0.85)");
+        grad.addColorStop(0.5, "rgba(0, 240, 170, 0.65)");
+        grad.addColorStop(1, "rgba(59, 130, 246, 0.2)");
+      }
 
       ctx.beginPath();
       ctx.moveTo(0, H);
@@ -1551,7 +1565,7 @@ function renderHistogram() {
       ctx.lineTo(W, H);
       ctx.fillStyle = grad;
       ctx.fill();
-      ctx.strokeStyle = "#00f0aa";
+      ctx.strokeStyle = isLight ? "#0A84FF" : "#00f0aa";
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
@@ -1570,11 +1584,11 @@ function renderHistogram() {
         ctx.fillStyle = fillColor;
         ctx.fill();
         ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = isLight ? 1.4 : 1.2;
         ctx.stroke();
 
         if (startX > 0) {
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.12)" : "rgba(255, 255, 255, 0.15)";
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(startX, 0);
@@ -1583,16 +1597,16 @@ function renderHistogram() {
         }
       };
 
-      drawParadeCol(rHist, 0, "#ef4444", "rgba(239, 68, 68, 0.35)");
-      drawParadeCol(gHist, colW, "#22c55e", "rgba(34, 197, 94, 0.35)");
-      drawParadeCol(bHist, colW * 2, "#3b82f6", "rgba(59, 130, 246, 0.35)");
+      drawParadeCol(rHist, 0, isLight ? "#e11d48" : "#ef4444", isLight ? "rgba(244, 63, 94, 0.25)" : "rgba(239, 68, 68, 0.35)");
+      drawParadeCol(gHist, colW, isLight ? "#10b981" : "#22c55e", isLight ? "rgba(16, 185, 129, 0.25)" : "rgba(34, 197, 94, 0.35)");
+      drawParadeCol(bHist, colW * 2, isLight ? "#0A84FF" : "#3b82f6", isLight ? "rgba(10, 132, 255, 0.25)" : "rgba(59, 130, 246, 0.35)");
     } else if (currentHistoMode === "vector") {
       // Vectorscope with Skin Tone Line (I-Bar at 11 o'clock / -57° angle)
       const cx = W / 2;
       const cy = H / 2;
       const radius = Math.min(cx, cy) - 6;
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.14)" : "rgba(255, 255, 255, 0.12)";
       ctx.lineWidth = 1;
 
       // Concentric saturation rings (25%, 50%, 75%, 100%)
@@ -1612,14 +1626,14 @@ function renderHistogram() {
 
       // Skin Tone Line (I-Line at 11 o'clock / -57° angle)
       const skinAngle = -57 * (Math.PI / 180);
-      ctx.strokeStyle = "#f59e0b";
+      ctx.strokeStyle = isLight ? "#d97706" : "#f59e0b";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(skinAngle) * radius, cy + Math.sin(skinAngle) * radius);
       ctx.stroke();
 
-      ctx.fillStyle = "#f59e0b";
+      ctx.fillStyle = isLight ? "#d97706" : "#f59e0b";
       ctx.font = "8px -apple-system, sans-serif";
       ctx.fillText("SKIN TONE", cx + Math.cos(skinAngle) * (radius - 18) - 16, cy + Math.sin(skinAngle) * (radius - 18));
 
@@ -1627,9 +1641,9 @@ function renderHistogram() {
       const targets = [
         { label: "R", angle: -104, col: "#ef4444" },
         { label: "Mg", angle: -61, col: "#ec4899" },
-        { label: "B", angle: 13, col: "#3b82f6" },
+        { label: "B", angle: 13, col: "#0A84FF" },
         { label: "Cy", angle: 76, col: "#06b6d4" },
-        { label: "G", angle: 119, col: "#22c55e" },
+        { label: "G", angle: 119, col: "#10b981" },
         { label: "Yl", angle: -167, col: "#eab308" }
       ];
       targets.forEach(t => {
@@ -1644,7 +1658,7 @@ function renderHistogram() {
       });
 
       // Sample pixels and plot chrominance point cloud
-      ctx.fillStyle = "rgba(0, 240, 170, 0.4)";
+      ctx.fillStyle = isLight ? "rgba(10, 132, 255, 0.55)" : "rgba(0, 240, 170, 0.4)";
       for (let i = 0; i < data.length; i += 8) {
         const r = data[i];
         const g = data[i + 1];
