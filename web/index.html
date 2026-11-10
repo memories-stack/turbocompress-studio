@@ -556,35 +556,23 @@
             </div>
           </div>
 
-          <!-- CARD 1: NIKON Z8 / ZR / Z6 III COLOR & TONE ENGINE -->
+          <!-- CARD 1: COLOR PROFILE & TONE ENGINE -->
           <div class="dv-card" id="cardNikonColor">
             <div class="dv-card-header">
-              <span class="pill-dot active" id="dotNikonColor" title="Nikon Color Engine Status: Active">🟢</span>
-              <span class="card-title">Nikon Z8 • ZR • Z6 III Color Engine</span>
+              <span class="pill-dot active" id="dotNikonColor" title="Color Profile Engine: Active">🟢</span>
+              <span class="card-title">Color Profile &amp; Tone Engine</span>
               <div class="card-tools">
-                <span class="tool-icon reset-btn" id="resetNikonProfile" title="Reset to Default N-Log Rec.709">↺</span>
+                <span class="tool-icon reset-btn" id="resetNikonProfile" title="Reset to Default Rec.709">↺</span>
               </div>
             </div>
 
             <div class="dv-card-body">
-              <!-- Live In-Camera Code Detection Badge -->
-              <div class="nikon-camera-code-card" id="nikonCameraCodeCard" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 6px 10px; background: linear-gradient(135deg, rgba(255, 225, 0, 0.08), rgba(0, 221, 255, 0.05)); border: 1px solid rgba(255, 225, 0, 0.25); border-radius: 6px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 14px;">📷</span>
-                  <div>
-                    <div style="font-size: 11px; font-weight: 600; color: #ffe100;" id="cameraCodeModel">Nikon Z8 / ZR / Z6 III Detected</div>
-                    <div style="font-size: 10px; color: #94a3b8;" id="cameraCodeDetail">In-Camera: PORTRAIT • NIKKOR Z 70-200mm f/2.8 • WB: SUNNY</div>
-                  </div>
-                </div>
-                <button class="btn-sync-camera" id="btnSyncCameraCode" title="ดึงค่าการตั้งค่า Picture Control จากโค้ดของกล้องมาใช้ทันที" style="background: #ffe100; color: #000; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer; transition: 0.15s ease;">⚡️ ดึงโค้ดจากกล้อง</button>
-              </div>
-
-              <!-- Profile Selector with Official Camera Optgroups -->
+              <!-- Profile Selector -->
               <div class="dv-row">
                 <label class="row-label">Tone Profile</label>
                 <div class="row-controls">
                   <select class="dv-select" id="selNikonProfile">
-                    <optgroup label="🌟 Official Nikon Z8 • ZR • Z6 III Picture Controls (EXPEED 7)">
+                    <optgroup label="🌟 Portrait &amp; Natural Profiles (โหมดภาพและบุคคล)">
                       <option value="rich_portrait">🌸 Rich Tone Portrait (PT2 - ผิวอมชมพู สว่างใส)</option>
                       <option value="portrait" selected>🌺 Standard Portrait (PT - ภาพบุคคล โทนผิวสมจริง)</option>
                       <option value="skin_soft">🧴 Skin Softening (เนียนใส ออร่าผิวธรรมชาติ)</option>
@@ -609,7 +597,7 @@
                       <option value="sepia">📜 Sepia (ซีเปีย - วินเทจคลาสสิก)</option>
                     </optgroup>
                     <optgroup label="🎬 Log &amp; Custom LUT">
-                      <option value="nlog_rec709">🎨 Nikon N-Log ➔ Rec.709 (Auto-Contrast)</option>
+                      <option value="nlog_rec709">🎨 Log ➔ Rec.709 (Auto-Contrast Expansion)</option>
                       <option value="custom">📁 Custom 3D LUT (.cube)...</option>
                       <option value="none">⚪️ None (Source Original)</option>
                     </optgroup>
@@ -620,7 +608,7 @@
 
               <!-- Profile Description Pill -->
               <div id="nikonProfileDesc" style="margin: 4px 0 8px 110px; padding: 4px 8px; background: rgba(0, 221, 255, 0.08); border-left: 2px solid #00ddff; border-radius: 4px; font-size: 10px; color: #8ecae6; line-height: 1.35;">
-                Nikon Z8 golden ratio curve: +18% Contrast, +22% Saturation &amp; shadow detail recovery for punchy, ready-to-share vertical reels.
+                Professional golden ratio curve: +18% Contrast, +22% Saturation &amp; shadow detail recovery for punchy, ready-to-share vertical reels.
               </div>
 
               <!-- Custom LUT row (Hidden by default, shown when custom selected) -->

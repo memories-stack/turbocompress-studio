@@ -948,25 +948,6 @@ function updateMonitorDisplay(idx) {
   if (sbsImgBefore) sbsImgBefore.src = thumbUrl;
   if (sbsImgAfter) sbsImgAfter.src = thumbUrl;
 
-  // Live Camera Metadata Code Badge
-  const nMeta = clip.nikon_meta || {};
-  const codeCard = document.getElementById("nikonCameraCodeCard");
-  const codeModel = document.getElementById("cameraCodeModel");
-  const codeDetail = document.getElementById("cameraCodeDetail");
-  if (codeCard) {
-    if (nMeta.is_nikon || nMeta.picture_control || nMeta.camera_model) {
-      if (codeModel) codeModel.textContent = `${nMeta.camera_model || "Nikon Z8"} In-Camera Code Detected`;
-      let details = [];
-      if (nMeta.picture_control) details.push(`In-Camera: ${nMeta.picture_control}`);
-      if (nMeta.lens) details.push(`Lens: ${nMeta.lens.replace("NIKKOR Z ", "")}`);
-      if (nMeta.white_balance) details.push(`WB: ${nMeta.white_balance}`);
-      if (codeDetail) codeDetail.textContent = details.join(" • ") || "In-Camera Picture Control code ready";
-    } else {
-      if (codeModel) codeModel.textContent = "Nikon Z8 Profile Optimizer";
-      if (codeDetail) codeDetail.textContent = "Auto-detect or 1-click apply in-camera Nikon Picture Controls";
-    }
-  }
-
   applyMonitorTransform();
   updatePlayhead(idx);
 }
@@ -2290,48 +2271,7 @@ function setupInspectorListeners() {
     });
   }
 
-  // Sync In-Camera Code (Auto-Detect from Nikon Z8 MP4 Atoms)
-  const btnSyncCameraCode = document.getElementById("btnSyncCameraCode");
-  if (btnSyncCameraCode) {
-    btnSyncCameraCode.addEventListener("click", () => {
-      const clip = allClips[primaryPreviewIndex];
-      const nMeta = clip ? (clip.nikon_meta || {}) : {};
-      const pc = (nMeta.picture_control || "PORTRAIT").toUpperCase();
-      let matchedProfile = "portrait";
-      if (pc.includes("RICH")) matchedProfile = "rich_portrait";
-      else if (pc.includes("PORTRAIT")) matchedProfile = "portrait";
-      else if (pc.includes("NEUTRAL")) matchedProfile = "neutral";
-      else if (pc.includes("VIVID")) matchedProfile = "vivid";
-      else if (pc.includes("FLAT")) matchedProfile = "flat";
-      else if (pc.includes("MONOCHROME") || pc.includes("B&W")) matchedProfile = "monochrome";
-      else if (pc.includes("DREAM")) matchedProfile = "dream";
-      else if (pc.includes("MORNING")) matchedProfile = "morning";
-      else if (pc.includes("POP")) matchedProfile = "pop";
-      else if (pc.includes("SUNDAY")) matchedProfile = "sunday";
-      else if (pc.includes("SOMBER")) matchedProfile = "somber";
-      else if (pc.includes("DRAMATIC")) matchedProfile = "dramatic";
-      else if (pc.includes("SILENCE")) matchedProfile = "silence";
-      else if (pc.includes("BLEACH")) matchedProfile = "bleach_bypass";
-      else if (pc.includes("MELANCHOLIC")) matchedProfile = "melancholic";
-      else if (pc.includes("PURE")) matchedProfile = "pure";
-      else if (pc.includes("DENIM")) matchedProfile = "denim";
-      else if (pc.includes("TOY")) matchedProfile = "toy";
-      else if (pc.includes("SEPIA")) matchedProfile = "sepia";
-
-      inspectorState.nikonProfile = matchedProfile;
-      inspectorState.nikonStrength = 100;
-      if (selNikonProfile) selNikonProfile.value = matchedProfile;
-      if (sliderNikonStrength) sliderNikonStrength.value = 100;
-      if (inpNikonStrength) inpNikonStrength.value = "100%";
-      if (nikonProfileDesc && NIKON_PROFILES_INFO[matchedProfile]) {
-        nikonProfileDesc.textContent = NIKON_PROFILES_INFO[matchedProfile];
-      }
-      applyMonitorTransform();
-      showToast(`⚡️ ดึงโค้ดกล้องสำเร็จ: ${nMeta.camera_model || "Nikon Z8 / ZR / Z6 III"} [${pc}]`);
-    });
-  }
-
-  // In-Camera Skin Softening Quick Presets (Off, Low, Normal, High)
+  // Skin Softening Quick Presets (Off, Low, Normal, High)
   document.querySelectorAll(".btn-soft-preset").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".btn-soft-preset").forEach(b => b.classList.toggle("active", b === btn));
