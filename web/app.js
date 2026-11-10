@@ -357,34 +357,41 @@ function syncDomWithSettings(s) {
 
   // Nikon Color Engine
   if (s.nikonProfile !== undefined) {
+    inspectorState.nikonProfile = s.nikonProfile;
     const selP = document.getElementById("selNikonProfile");
     if (selP) selP.value = s.nikonProfile;
     const desc = document.getElementById("nikonProfileDesc");
     if (desc && NIKON_PROFILES_INFO[s.nikonProfile]) desc.textContent = NIKON_PROFILES_INFO[s.nikonProfile];
   }
   if (s.nikonStrength !== undefined) {
+    inspectorState.nikonStrength = parseFloat(s.nikonStrength);
     const sl = document.getElementById("sliderNikonStrength");
     const inp = document.getElementById("inpNikonStrength");
     if (sl) sl.value = s.nikonStrength;
     if (inp) inp.value = s.nikonStrength + "%";
   }
   if (s.customLutPath !== undefined) {
+    inspectorState.customLutPath = s.customLutPath;
     const inp = document.getElementById("inpCustomLutPath");
     if (inp) inp.value = s.customLutPath;
   }
   if (s.brightness !== undefined) {
+    inspectorState.brightness = parseFloat(s.brightness);
     if (sliderBrightness) sliderBrightness.value = s.brightness;
     if (inpBrightness) inpBrightness.value = parseFloat(s.brightness).toFixed(3);
   }
   if (s.contrast !== undefined) {
+    inspectorState.contrast = parseFloat(s.contrast);
     if (sliderContrast) sliderContrast.value = s.contrast;
     if (inpContrast) inpContrast.value = parseFloat(s.contrast).toFixed(3);
   }
   if (s.shadows !== undefined) {
+    inspectorState.shadows = parseFloat(s.shadows);
     if (sliderShadows) sliderShadows.value = s.shadows;
     if (inpShadows) inpShadows.value = parseFloat(s.shadows).toFixed(3);
   }
   if (s.saturation !== undefined) {
+    inspectorState.saturation = parseFloat(s.saturation);
     if (sliderSaturation) sliderSaturation.value = s.saturation;
     if (inpSaturation) inpSaturation.value = parseFloat(s.saturation).toFixed(3);
   }
@@ -938,28 +945,30 @@ function applyMonitorTransform() {
 
   if (nikonFactor > 0.001) {
     if (nikonProfile === "nlog_rec709") {
-      ct *= 1.0 + (0.18 * nikonFactor);
-      sat *= 1.0 + (0.22 * nikonFactor);
-      br += 0.01 * nikonFactor;
+      ct *= 1.0 + (0.35 * nikonFactor);
+      sat *= 1.0 + (0.40 * nikonFactor);
+      br += 0.02 * nikonFactor;
     } else if (nikonProfile === "rich_portrait") {
-      ct *= 1.0 + (0.08 * nikonFactor);
-      sat *= 1.0 + (0.14 * nikonFactor);
+      ct *= 1.0 + (0.18 * nikonFactor);
+      sat *= 1.0 + (0.28 * nikonFactor);
       br += 0.03 * nikonFactor;
-      sepiaVal = 8.0 * nikonFactor;
+      sepiaVal = 14.0 * nikonFactor;
     } else if (nikonProfile === "portrait") {
-      ct *= 1.0 + (0.05 * nikonFactor);
-      sat *= 1.0 + (0.10 * nikonFactor);
+      ct *= 1.0 + (0.15 * nikonFactor);
+      sat *= 1.0 + (0.22 * nikonFactor);
       br += 0.02 * nikonFactor;
+      sepiaVal = 10.0 * nikonFactor;
     } else if (nikonProfile === "vivid") {
-      ct *= 1.0 + (0.25 * nikonFactor);
-      sat *= 1.0 + (0.35 * nikonFactor);
+      ct *= 1.0 + (0.35 * nikonFactor);
+      sat *= 1.0 + (0.50 * nikonFactor);
+      br += 0.01 * nikonFactor;
     } else if (nikonProfile === "flat") {
-      ct *= 1.0 - (0.08 * nikonFactor);
-      sat *= 1.0 - (0.06 * nikonFactor);
-      br += 0.02 * nikonFactor;
+      ct *= 1.0 - (0.12 * nikonFactor);
+      sat *= 1.0 - (0.08 * nikonFactor);
+      br += 0.04 * nikonFactor;
     } else if (nikonProfile === "monochrome") {
       grayscaleVal = 100.0 * nikonFactor;
-      ct *= 1.0 + (0.28 * nikonFactor);
+      ct *= 1.0 + (0.38 * nikonFactor);
       br -= 0.02 * nikonFactor;
     }
   }

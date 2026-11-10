@@ -734,55 +734,86 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     elif res_param == "1080x1920":
         vf.append("scale=1080:1920")
 
-    # Nikon Picture Control & Tone Profile Processing
-    nikon_profile = params.get("nikon_profile", "")
-    nikon_strength = float(params.get("nikon_strength", 100)) / 100.0
-    custom_lut_path = params.get("custom_lut_path", "")
+    # Nikon Picture Control, Tone Profiles & Color Grading (Unified High-Precision Pipeline)
+    nikon_profile = (params.get("nikon_profile") or params.get("nikonProfile") or "").lower()
+    nikon_strength = float(params.get("nikon_strength") or params.get("nikonStrength") or 100) / 100.0
+    custom_lut_path = params.get("custom_lut_path") or params.get("customLutPath") or ""
+
+    user_brightness = float(params.get("brightness", 0.0))
+    user_contrast = float(params.get("contrast", 1.0))
+    user_shadows = float(params.get("shadows", 0.0))
+    user_saturation = float(params.get("saturation", 1.0))
+
+    tot_contrast = user_contrast
+    tot_saturation = user_saturation
+    tot_brightness = user_brightness
+    tot_gamma = 1.0 + (user_shadows * 0.8)
+
+    temp = float(params.get("temperature", 0.0))
+    tint = float(params.get("tint", 0.0))
+    r_mult = 1.0 + (temp * 0.008) + (tint * 0.004)
+    b_mult = 1.0 - (temp * 0.008) + (tint * 0.004)
+    g_mult = 1.0 - (tint * 0.006)
+
+    is_mono = False
 
     if nikon_profile == "custom" and custom_lut_path and os.path.isfile(custom_lut_path):
         vf.append(f"lut3d=file='{custom_lut_path}':interp=tetrahedral")
     elif nikon_strength > 0.001 and nikon_profile not in ["", "none"]:
         f = nikon_strength
         if nikon_profile == "nlog_rec709":
-            vf.append(f"eq=contrast={1.0 + 0.18 * f:.3f}:saturation={1.0 + 0.22 * f:.3f}:brightness={0.01 * f:.3f}")
+            tot_contrast *= (1.0 + 0.35 * f)
+            tot_saturation *= (1.0 + 0.40 * f)
+            tot_brightness += 0.02 * f
+            tot_gamma *= (1.0 + 0.06 * f)
         elif nikon_profile == "rich_portrait":
-            vf.append(f"eq=contrast={1.0 + 0.08 * f:.3f}:saturation={1.0 + 0.14 * f:.3f}:brightness={0.03 * f:.3f}:gamma={1.0 + 0.08 * f:.3f}")
+            tot_contrast *= (1.0 + 0.18 * f)
+            tot_saturation *= (1.0 + 0.28 * f)
+            tot_brightness += 0.03 * f
+            tot_gamma *= (1.0 + 0.12 * f)
+            r_mult *= (1.0 + 0.08 * f)
+            b_mult *= (1.0 - 0.05 * f)
         elif nikon_profile == "portrait":
-            vf.append(f"eq=contrast={1.0 + 0.05 * f:.3f}:saturation={1.0 + 0.10 * f:.3f}:brightness={0.02 * f:.3f}:gamma={1.0 + 0.05 * f:.3f}")
+            tot_contrast *= (1.0 + 0.15 * f)
+            tot_saturation *= (1.0 + 0.22 * f)
+            tot_brightness += 0.02 * f
+            tot_gamma *= (1.0 + 0.08 * f)
+            r_mult *= (1.0 + 0.05 * f)
+            b_mult *= (1.0 - 0.04 * f)
         elif nikon_profile == "vivid":
-            vf.append(f"eq=contrast={1.0 + 0.25 * f:.3f}:saturation={1.0 + 0.35 * f:.3f}:brightness=0.000")
+            tot_contrast *= (1.0 + 0.35 * f)
+            tot_saturation *= (1.0 + 0.50 * f)
+            tot_brightness += 0.01 * f
+            tot_gamma *= (1.0 - 0.04 * f)
         elif nikon_profile == "flat":
-            vf.append(f"eq=contrast={1.0 - 0.08 * f:.3f}:saturation={1.0 - 0.06 * f:.3f}:brightness={0.02 * f:.3f}:gamma={1.0 + 0.06 * f:.3f}")
+            tot_contrast *= (1.0 - 0.12 * f)
+            tot_saturation *= (1.0 - 0.08 * f)
+            tot_brightness += 0.04 * f
+            tot_gamma *= (1.0 + 0.22 * f)
         elif nikon_profile == "monochrome":
-            vf.append(f"hue=s={1.0 - f:.3f},eq=contrast={1.0 + 0.28 * f:.3f}:brightness={-0.02 * f:.3f}")
+            is_mono = True
+            tot_contrast *= (1.0 + 0.38 * f)
+            tot_brightness -= 0.02 * f
     elif params.get("nlog_normalize", False):
-        vf.append("eq=contrast=1.18:saturation=1.22:brightness=0.01")
+        tot_contrast *= 1.35
+        tot_saturation *= 1.40
+        tot_brightness += 0.02
 
-    # Color, Exposure & Shadow Grading (DaVinci Resolve Style)
-    brightness = float(params.get("brightness", 0.0))
-    contrast = float(params.get("contrast", 1.0))
-    shadows = float(params.get("shadows", 0.0))
-    saturation = float(params.get("saturation", 1.0))
+    tot_contrast = max(0.2, min(2.5, tot_contrast))
+    tot_saturation = max(0.0, min(3.0, tot_saturation))
+    tot_brightness = max(-1.0, min(1.0, tot_brightness))
+    tot_gamma = max(0.5, min(2.5, tot_gamma))
 
-    # Shadow lifting via gamma (gamma > 1 lifts dark shadow areas without clipping highlights)
-    gamma_val = 1.0 + (shadows * 0.8)
-    gamma_val = max(0.5, min(2.5, gamma_val))
+    if is_mono:
+        vf.append(f"hue=s=0,eq=contrast={tot_contrast:.3f}:brightness={tot_brightness:.3f}:gamma={tot_gamma:.3f}")
+    elif (abs(tot_brightness) > 0.001 or abs(tot_contrast - 1.0) > 0.001 or abs(tot_gamma - 1.0) > 0.001 or abs(tot_saturation - 1.0) > 0.001):
+        vf.append(f"eq=brightness={tot_brightness:.3f}:contrast={tot_contrast:.3f}:saturation={tot_saturation:.3f}:gamma={tot_gamma:.3f}")
 
-    eff_brightness = max(-1.0, min(1.0, brightness))
-    eff_contrast = max(0.2, min(2.5, contrast))
-    eff_sat = max(0.0, min(3.0, saturation))
-
-    if (abs(eff_brightness) > 0.001 or abs(eff_contrast - 1.0) > 0.001 or abs(gamma_val - 1.0) > 0.001 or abs(eff_sat - 1.0) > 0.001):
-        vf.append(f"eq=brightness={eff_brightness:.3f}:contrast={eff_contrast:.3f}:saturation={eff_sat:.3f}:gamma={gamma_val:.3f}")
-
-    # White Balance: Temperature (Warm/Cool) & Tint (Green/Magenta) via hardware colorchannelmixer
-    temp = float(params.get("temperature", 0.0))
-    tint = float(params.get("tint", 0.0))
-    if abs(temp) > 0.01 or abs(tint) > 0.01:
-        r_scale = max(0.5, min(1.5, 1.0 + (temp * 0.006)))
-        b_scale = max(0.5, min(1.5, 1.0 - (temp * 0.006)))
-        g_scale = max(0.5, min(1.5, 1.0 - (tint * 0.006)))
-        vf.append(f"colorchannelmixer=rr={r_scale:.3f}:gg={g_scale:.3f}:bb={b_scale:.3f}")
+    r_mult = max(0.5, min(1.5, r_mult))
+    g_mult = max(0.5, min(1.5, g_mult))
+    b_mult = max(0.5, min(1.5, b_mult))
+    if (abs(r_mult - 1.0) > 0.005 or abs(g_mult - 1.0) > 0.005 or abs(b_mult - 1.0) > 0.005):
+        vf.append(f"colorchannelmixer=rr={r_mult:.3f}:gg={g_mult:.3f}:bb={b_mult:.3f}")
 
     codec_req = (params.get("codec") or "h264").lower()
     is_prores = "prores" in codec_req
