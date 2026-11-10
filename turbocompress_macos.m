@@ -47,8 +47,7 @@ static int is_port_open(int port) {
     [self.window setTitle:@"TurboCompress Studio — Fast Batch Vertical Recoder (Nikon Z8)"];
     [self.window center];
     [self.window setMinSize:NSMakeSize(1100, 700)];
-    [self.window setBackgroundColor:[NSColor colorWithCalibratedRed:0.06 green:0.07 blue:0.09 alpha:1.0]];
-    [self.window setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
+    [self.window setAppearance:nil];
     [self.window setDelegate:self];
 
     WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];

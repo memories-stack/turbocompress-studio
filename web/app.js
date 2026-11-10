@@ -168,6 +168,77 @@ const playheadOverview = document.getElementById("playheadOverview");
 const playheadDetail = document.getElementById("playheadDetail");
 const detailTrack = document.getElementById("detailTrack");
 
+// Day / Night Theme Management (Dark, Light, Auto System Following)
+let currentThemeMode = "dark"; // "dark" | "light" | "auto"
+const systemColorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+function applyTheme(mode, persist = true) {
+  if (mode !== "dark" && mode !== "light" && mode !== "auto") {
+    mode = "auto";
+  }
+  currentThemeMode = mode;
+  const isAuto = mode === "auto";
+  const shouldBeDark = isAuto ? systemColorScheme.matches : (mode === "dark");
+
+  if (shouldBeDark) {
+    document.body.classList.remove("theme-light");
+    document.body.classList.add("theme-dark");
+  } else {
+    document.body.classList.remove("theme-dark");
+    document.body.classList.add("theme-light");
+  }
+
+  // Update active pill button
+  const btnDark = document.getElementById("btnThemeDark");
+  const btnLight = document.getElementById("btnThemeLight");
+  const btnAuto = document.getElementById("btnThemeAuto");
+  if (btnDark) btnDark.classList.toggle("active", mode === "dark");
+  if (btnLight) btnLight.classList.toggle("active", mode === "light");
+  if (btnAuto) btnAuto.classList.toggle("active", mode === "auto");
+
+  if (persist) {
+    try {
+      localStorage.setItem("tc_studio_theme", mode);
+    } catch (e) {}
+    triggerSaveSettings();
+  }
+}
+
+function setupThemeSwitcher() {
+  const btnDark = document.getElementById("btnThemeDark");
+  const btnLight = document.getElementById("btnThemeLight");
+  const btnAuto = document.getElementById("btnThemeAuto");
+
+  if (btnDark) btnDark.addEventListener("click", () => applyTheme("dark"));
+  if (btnLight) btnLight.addEventListener("click", () => applyTheme("light"));
+  if (btnAuto) btnAuto.addEventListener("click", () => applyTheme("auto"));
+
+  // React dynamically when macOS/Windows transitions day <-> night in Auto mode
+  try {
+    systemColorScheme.addEventListener("change", () => {
+      if (currentThemeMode === "auto") {
+        applyTheme("auto", false);
+      }
+    });
+  } catch (err) {
+    try {
+      systemColorScheme.addListener(() => {
+        if (currentThemeMode === "auto") {
+          applyTheme("auto", false);
+        }
+      });
+    } catch (e2) {}
+  }
+
+  // Load initial theme from localStorage or fallback
+  let initialTheme = "dark";
+  try {
+    const saved = localStorage.getItem("tc_studio_theme");
+    if (saved) initialTheme = saved;
+  } catch (e) {}
+  applyTheme(initialTheme, false);
+}
+
 // Settings Persistence System (Saved across app sessions in ~/.turbocompress_studio_settings.json & localStorage)
 let settingsSaveDebounce = null;
 function triggerSaveSettings() {
@@ -246,7 +317,8 @@ function gatherCurrentSettings() {
     fileSubfolder: inpSub ? inpSub.value.trim() : "",
     smartResume: chkRes ? chkRes.checked : true,
     workers: selWrk ? parseInt(selWrk.value) : 2,
-    renderSpeed: selSpd ? selSpd.value : "max"
+    renderSpeed: selSpd ? selSpd.value : "max",
+    theme: currentThemeMode
   };
 }
 
@@ -306,6 +378,10 @@ async function loadSavedSettings() {
   if (settings.contrast !== undefined) inspectorState.contrast = parseFloat(settings.contrast);
   if (settings.shadows !== undefined) inspectorState.shadows = parseFloat(settings.shadows);
   if (settings.saturation !== undefined) inspectorState.saturation = parseFloat(settings.saturation);
+
+  if (settings.theme !== undefined) {
+    applyTheme(settings.theme, false);
+  }
 
   syncDomWithSettings(settings);
 }
@@ -626,6 +702,7 @@ function setupAutoSettingsSync() {
 
 // Initialize safely regardless of when script is loaded
 async function initApp() {
+  setupThemeSwitcher();
   await loadSavedSettings();
   loadClips();
   setupInspectorListeners();

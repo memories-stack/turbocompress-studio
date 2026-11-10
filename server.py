@@ -68,7 +68,8 @@ DEFAULT_SETTINGS = {
     "fileSubfolder": "",
     "smartResume": True,
     "workers": 2,
-    "renderSpeed": "max"
+    "renderSpeed": "max",
+    "theme": "auto"
 }
 
 def load_app_settings():
