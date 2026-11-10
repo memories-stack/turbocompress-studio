@@ -89,11 +89,8 @@ function saveClipRatings() {
   } catch (e) {}
 }
 
-// Live Video Overlays & Guides State
-let isPeakingActive = false;
-let isZebraActive = false;
+// Social Media Safe Zones & Guides State
 let activeGuideMode = "none";
-let zebraPhase = 0;
 
 // DOM Elements
 const mediaGrid = document.getElementById("mediaGrid");
@@ -948,7 +945,6 @@ function applyMonitorTransform() {
   }
 
   scheduleHistogram();
-  scheduleMonitorOverlays();
   triggerSaveSettings();
 }
 
@@ -963,16 +959,6 @@ function scheduleHistogram() {
   histoRafId = requestAnimationFrame(() => {
     histoRafId = null;
     renderHistogram();
-  });
-}
-
-let overlayRafId = null;
-function scheduleMonitorOverlays() {
-  if (!isPeakingActive && !isZebraActive) return;
-  if (overlayRafId) return;
-  overlayRafId = requestAnimationFrame(() => {
-    overlayRafId = null;
-    renderMonitorOverlays();
   });
 }
 
@@ -1253,101 +1239,6 @@ function renderHistogram() {
   } catch (err) {
     // Canvas security or load race guard
   }
-}
-
-// 1. Live Focus Peaking & Zebra Stripes Overlay Engine
-function renderMonitorOverlays() {
-  const canvas = document.getElementById("monitorOverlayCanvas");
-  if (!canvas) return;
-
-  const screenBox = document.getElementById("screenBox");
-  if (!screenBox) return;
-
-  if (canvas.width !== screenBox.clientWidth || canvas.height !== screenBox.clientHeight) {
-    canvas.width = screenBox.clientWidth;
-    canvas.height = screenBox.clientHeight;
-  }
-
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width;
-  const H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-
-  if (!isPeakingActive && !isZebraActive) return;
-
-  const sourceEl = (monitorVideo && monitorVideo.style.display !== "none" && monitorVideo.videoWidth > 0)
-    ? monitorVideo
-    : (monitorImg && monitorImg.src && (monitorImg.naturalWidth > 0 || monitorImg.complete) ? monitorImg : null);
-
-  if (!sourceEl) return;
-
-  if (!offscreenCanvas) {
-    offscreenCanvas = document.createElement("canvas");
-    offscreenCanvas.width = 160;
-    offscreenCanvas.height = 90;
-    offscreenCtx = offscreenCanvas.getContext("2d", { willReadFrequently: true });
-  }
-
-  try {
-    offscreenCtx.drawImage(sourceEl, 0, 0, 160, 90);
-    const imgData = offscreenCtx.getImageData(0, 0, 160, 90);
-    const d = imgData.data;
-    const sw = 160;
-    const sh = 90;
-
-    const gray = new Uint8Array(sw * sh);
-    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
-      gray[j] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
-    }
-
-    const scaleX = W / sw;
-    const scaleY = H / sh;
-
-    // Zebra Stripes (> 95 IRE / 242)
-    if (isZebraActive) {
-      zebraPhase = (zebraPhase + 1) % 12;
-      ctx.strokeStyle = "#f59e0b";
-      ctx.lineWidth = 1.5;
-
-      for (let y = 0; y < sh; y += 2) {
-        for (let x = 0; x < sw; x += 2) {
-          const idx = y * sw + x;
-          if (gray[idx] >= 242) {
-            const screenX = x * scaleX;
-            const screenY = y * scaleY;
-            if (((x + y + zebraPhase) % 8) < 4) {
-              ctx.beginPath();
-              ctx.moveTo(screenX, screenY + scaleY * 2);
-              ctx.lineTo(screenX + scaleX * 2, screenY);
-              ctx.stroke();
-            }
-          }
-        }
-      }
-    }
-
-    // Focus Peaking (Sobel 3x3 Edge Detection)
-    if (isPeakingActive) {
-      ctx.fillStyle = "#00ff66";
-      const threshold = 36;
-
-      for (let y = 1; y < sh - 1; y++) {
-        for (let x = 1; x < sw - 1; x++) {
-          const idx = y * sw + x;
-          const gx = -gray[idx - sw - 1] + gray[idx - sw + 1]
-                     -2 * gray[idx - 1]   + 2 * gray[idx + 1]
-                     -gray[idx + sw - 1] + gray[idx + sw + 1];
-          const gy = -gray[idx - sw - 1] - 2 * gray[idx - sw] - gray[idx - sw + 1]
-                     +gray[idx + sw - 1] + 2 * gray[idx + sw] + gray[idx + sw + 1];
-
-          const mag = Math.abs(gx) + Math.abs(gy);
-          if (mag > threshold) {
-            ctx.fillRect(x * scaleX, y * scaleY, scaleX + 0.5, scaleY + 0.5);
-          }
-        }
-      }
-    }
-  } catch (e) {}
 }
 
 // 2. Master Stereo Audio Peak VU Meter (Ultra-smooth 60 FPS, Zero Audio Pipeline Block)
@@ -1998,26 +1889,6 @@ function setupInspectorListeners() {
           }
         }
       });
-    });
-  }
-
-  const btnPeakingToggle = document.getElementById("btnPeakingToggle");
-  if (btnPeakingToggle) {
-    btnPeakingToggle.addEventListener("click", () => {
-      isPeakingActive = !isPeakingActive;
-      btnPeakingToggle.classList.toggle("active", isPeakingActive);
-      renderMonitorOverlays();
-      showToast(isPeakingActive ? "🎯 Focus Peaking (Neon Green) Enabled" : "🎯 Focus Peaking Disabled");
-    });
-  }
-
-  const btnZebraToggle = document.getElementById("btnZebraToggle");
-  if (btnZebraToggle) {
-    btnZebraToggle.addEventListener("click", () => {
-      isZebraActive = !isZebraActive;
-      btnZebraToggle.classList.toggle("active", isZebraActive);
-      renderMonitorOverlays();
-      showToast(isZebraActive ? "🦓 Zebra Stripes (> 95 IRE) Enabled" : "🦓 Zebra Stripes Disabled");
     });
   }
 
