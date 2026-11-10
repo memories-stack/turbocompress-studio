@@ -566,7 +566,56 @@
             </div>
           </div>
 
-          <!-- CARD 1: COLOR PROFILE & TONE ENGINE -->
+          <!-- CARD 1: WHITE BALANCE & COLOR TEMPERATURE (ไวท์บาลานซ์และอุณหภูมิสี) -->
+          <div class="dv-card" id="cardWhiteBalance" style="margin-top: 8px;">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotWhiteBalance" title="White Balance: Active">🔴</span>
+              <span class="card-title">White Balance &amp; Temperature (ไวท์บาลานซ์)</span>
+              <div class="card-tools">
+                <span class="wb-kelvin-badge" id="wbKelvinBadge">5200K Neutral</span>
+                <span class="tool-icon reset-btn" id="resetWhiteBalance" title="Reset White Balance to 0 (As Shot)">↺</span>
+              </div>
+            </div>
+
+            <div class="dv-card-body">
+              <!-- Quick 1-Click White Balance Presets -->
+              <div class="quick-wb-presets-row">
+                <button class="btn-wb-preset active" data-wb="shot" title="Original Camera White Balance (0 / 5200K)">⚪️ As Shot</button>
+                <button class="btn-wb-preset" data-wb="daylight" title="Daylight Outdoor (แสงแดดกลางแจ้ง 5600K / +12)">☀️ Daylight</button>
+                <button class="btn-wb-preset" data-wb="cloudy" title="Cloudy Overcast (เมฆครึ้ม / อุ่นขึ้น 6500K / +25)">☁️ Cloudy</button>
+                <button class="btn-wb-preset" data-wb="shade" title="Shade / Tree Shadows (แก้ฟ้าใต้ร่มไม้ 7500K / +38)">🌤 Shade</button>
+                <button class="btn-wb-preset" data-wb="tungsten" title="Tungsten / Indoor Incandescent (ไฟส้มในอาคาร 3200K / -30)">💡 Tungsten</button>
+              </div>
+
+              <!-- Color Temperature Slider (Cool Blue <-> Warm Amber) -->
+              <div class="dv-row wb-slider-row">
+                <label class="row-label wb-row-label">
+                  <span>Temperature</span>
+                  <span class="wb-track-hint">🧊 Cool • Warm ☀️</span>
+                </label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider wb-slider-temp" id="sliderTemp" min="-50" max="50" step="1" value="0">
+                  <input type="text" class="dv-num-box wb-num-box" id="inpTemp" value="0">
+                  <span class="tool-icon reset-single" data-key="temperature" title="Reset Temperature">↺</span>
+                </div>
+              </div>
+
+              <!-- Tint Slider (Green <-> Magenta) -->
+              <div class="dv-row wb-slider-row" style="margin-top: 4px;">
+                <label class="row-label wb-row-label">
+                  <span>Tint</span>
+                  <span class="wb-track-hint">🍏 Green • Magenta 🍇</span>
+                </label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider wb-slider-tint" id="sliderTint" min="-50" max="50" step="1" value="0">
+                  <input type="text" class="dv-num-box wb-num-box" id="inpTint" value="0">
+                  <span class="tool-icon reset-single" data-key="tint" title="Reset Tint">↺</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2: COLOR PROFILE & TONE ENGINE -->
           <div class="dv-card" id="cardNikonColor">
             <div class="dv-card-header">
               <span class="pill-dot active" id="dotNikonColor" title="Color Profile Engine: Active">🟢</span>
@@ -689,28 +738,6 @@
                 <button class="btn-color-preset" data-preset="shadows" title="Brighten shadows and reveal shadow details">☀️ Lift Shadows</button>
                 <button class="btn-color-preset" data-preset="cinematic" title="Punchy contrast and rich tones">🎬 Cinematic</button>
                 <button class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">🌟 Vibrant</button>
-              </div>
-
-              <!-- White Balance: Color Temperature (Cool/Blue to Warm/Amber) -->
-              <div class="dv-row">
-                <label class="row-label">Temperature</label>
-                <div class="row-controls">
-                  <input type="range" class="dv-slider" id="sliderTemp" min="-50" max="50" step="1" value="0">
-                  <input type="text" class="dv-num-box" id="inpTemp" value="0">
-                  <span class="tool-icon">◇</span>
-                  <span class="tool-icon reset-single" data-key="temperature">↺</span>
-                </div>
-              </div>
-
-              <!-- White Balance: Tint (Green to Magenta) -->
-              <div class="dv-row">
-                <label class="row-label">Tint</label>
-                <div class="row-controls">
-                  <input type="range" class="dv-slider" id="sliderTint" min="-50" max="50" step="1" value="0">
-                  <input type="text" class="dv-num-box" id="inpTint" value="0">
-                  <span class="tool-icon">◇</span>
-                  <span class="tool-icon reset-single" data-key="tint">↺</span>
-                </div>
               </div>
 
               <!-- Brightness -->

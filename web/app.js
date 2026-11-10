@@ -386,6 +386,31 @@ async function loadSavedSettings() {
   syncDomWithSettings(settings);
 }
 
+function updateWhitebalanceBadge() {
+  const badge = document.getElementById("wbKelvinBadge");
+  const temp = inspectorState.temperature || 0;
+  const tint = inspectorState.tint || 0;
+  const kelvin = Math.round(5200 + (temp * 60));
+  let desc = "Neutral";
+  if (temp >= 35) desc = "Shade (อบอุ่น)";
+  else if (temp >= 20) desc = "Cloudy (อุ่น)";
+  else if (temp >= 8) desc = "Daylight";
+  else if (temp <= -25) desc = "Tungsten (คูล)";
+  else if (temp <= -8) desc = "Cool (เย็น)";
+  if (badge) badge.textContent = `${kelvin}K ${desc}`;
+
+  document.querySelectorAll(".btn-wb-preset").forEach(btn => {
+    const wb = btn.dataset.wb;
+    let match = false;
+    if (wb === "shot" && temp === 0 && tint === 0) match = true;
+    else if (wb === "daylight" && temp === 12) match = true;
+    else if (wb === "cloudy" && temp === 25) match = true;
+    else if (wb === "shade" && temp === 38) match = true;
+    else if (wb === "tungsten" && temp === -30) match = true;
+    btn.classList.toggle("active", match);
+  });
+}
+
 function syncDomWithSettings(s) {
   if (!s) return;
   if (s.rotation !== undefined) {
@@ -511,6 +536,7 @@ function syncDomWithSettings(s) {
     if (sl) sl.value = s.tint;
     if (inp) inp.value = s.tint;
   }
+  updateWhitebalanceBadge();
   if (s.skinSoftening !== undefined) {
     inspectorState.skinSoftening = parseFloat(s.skinSoftening);
     const sl = document.getElementById("sliderSkinSoft");
@@ -2124,13 +2150,15 @@ function setupInspectorListeners() {
     slider.addEventListener("input", (e) => {
       const v = parseFloat(e.target.value);
       inspectorState[key] = v;
-      input.value = v.toFixed(3);
+      input.value = (key === "temperature" || key === "tint") ? v.toFixed(0) : v.toFixed(3);
+      if (key === "temperature" || key === "tint") updateWhitebalanceBadge();
       applyMonitorTransform();
     });
     input.addEventListener("change", (e) => {
       const v = parseFloat(e.target.value) || 0.0;
       inspectorState[key] = v;
       slider.value = v;
+      if (key === "temperature" || key === "tint") updateWhitebalanceBadge();
       applyMonitorTransform();
     });
   }
@@ -2147,6 +2175,51 @@ function setupInspectorListeners() {
   const sliderTint = document.getElementById("sliderTint");
   const inpTint = document.getElementById("inpTint");
   if (sliderTint && inpTint) bindColorSlider(sliderTint, inpTint, "tint");
+
+  // White Balance Presets & Management
+  const wbPresets = {
+    shot: { temp: 0, tint: 0 },
+    daylight: { temp: 12, tint: 2 },
+    cloudy: { temp: 25, tint: 4 },
+    shade: { temp: 38, tint: 8 },
+    tungsten: { temp: -30, tint: -6 }
+  };
+
+  document.querySelectorAll(".btn-wb-preset").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.wb;
+      const val = wbPresets[key] || wbPresets.shot;
+      inspectorState.temperature = val.temp;
+      inspectorState.tint = val.tint;
+
+      if (sliderTemp) sliderTemp.value = val.temp;
+      if (inpTemp) inpTemp.value = val.temp;
+      if (sliderTint) sliderTint.value = val.tint;
+      if (inpTint) inpTint.value = val.tint;
+
+      updateWhitebalanceBadge();
+      applyMonitorTransform();
+      triggerSaveSettings();
+      showToast(`🌡 White Balance: ${btn.textContent.trim()}`);
+    });
+  });
+
+  const resetWhiteBalance = document.getElementById("resetWhiteBalance");
+  if (resetWhiteBalance) {
+    resetWhiteBalance.addEventListener("click", () => {
+      inspectorState.temperature = 0;
+      inspectorState.tint = 0;
+      if (sliderTemp) sliderTemp.value = 0;
+      if (inpTemp) inpTemp.value = 0;
+      if (sliderTint) sliderTint.value = 0;
+      if (inpTint) inpTint.value = 0;
+
+      updateWhitebalanceBadge();
+      applyMonitorTransform();
+      triggerSaveSettings();
+      showToast("↺ White Balance Reset to 0 (As Shot)");
+    });
+  }
 
   // Media Pool Rating Filter Buttons
   document.querySelectorAll(".btn-rf").forEach(btn => {
@@ -2318,6 +2391,7 @@ function setupInspectorListeners() {
     const inpTnt = document.getElementById("inpTint");
     if (slTint) slTint.value = inspectorState.tint;
     if (inpTnt) inpTnt.value = inspectorState.tint;
+    updateWhitebalanceBadge();
 
     const slPortHue = document.getElementById("sliderPortraitHue");
     const inpPortHue = document.getElementById("inpPortraitHue");
