@@ -52,6 +52,7 @@ const inspectorState = {
   nikonStrength: 100,
   customLutPath: "",
   skinSoftening: 0,
+  portraitHue: 0,
   denoiseMode: "off",
   denoiseSpatial: 0.0,
   denoiseTemporal: 0.0,
@@ -80,8 +81,16 @@ const NIKON_PROFILES_INFO = {
   dream: "Nikon Dream: ethereal warm pastel glow with gentle highlight compression for romantic/moody scenes.",
   morning: "Nikon Morning: crisp, fresh morning light with clean sun-drenched clarity and vibrant greens.",
   pop: "Nikon Pop: vibrant, high-energy primary colors and punchy contrast for lively action.",
+  sunday: "Nikon Sunday: warm, calm afternoon sun glow with soft highlights and relaxed warmth.",
+  somber: "Nikon Somber: desaturated moodiness with lifted shadows for introspective cinematic scenes.",
+  dramatic: "Nikon Dramatic: high contrast punch with deep shadows for intense emotion and impact.",
+  silence: "Nikon Silence: minimalist muted tones with serene, peaceful balance.",
   bleach_bypass: "Nikon Bleach Bypass: high-contrast silver-halide film look with desaturated cinematic tones.",
+  melancholic: "Nikon Melancholic: cool Nordic cyan tones with subdued contrast and moody atmosphere.",
+  pure: "Nikon Pure: ultra-clean clarity, transparent highlights, and natural unblemished tones.",
   denim: "Nikon Denim: deep indigo blue and cool shadow tones for modern stylish streetwear.",
+  toy: "Nikon Toy Camera: saturated pop colors with subtle optical vignetting for playful retro vibes.",
+  sepia: "Nikon Sepia: rich warm monochrome with classic amber-brown archival toning.",
   monochrome: "Nikon Deep Tone B&W: rich deep blacks, fine tonal gradation inspired by classic film.",
   custom: "Custom 3D LUT (.cube): apply exact external LUT profiles at VideoToolbox hardware speed.",
   none: "Source Original: straight passthrough from camera without tone modifications."
@@ -210,6 +219,7 @@ function gatherCurrentSettings() {
     nikonStrength: inspectorState.nikonStrength,
     customLutPath: inspectorState.customLutPath,
     skinSoftening: (document.getElementById("sliderSkinSoft") ? parseFloat(document.getElementById("sliderSkinSoft").value) : (inspectorState.skinSoftening || 0)),
+    portraitHue: (document.getElementById("sliderPortraitHue") ? parseFloat(document.getElementById("sliderPortraitHue").value) : (inspectorState.portraitHue || 0)),
     denoiseMode: (document.getElementById("selDenoiseMode") ? document.getElementById("selDenoiseMode").value : (inspectorState.denoiseMode || "off")),
     denoiseSpatial: (document.getElementById("sliderDenoiseSpatial") ? parseFloat(document.getElementById("sliderDenoiseSpatial").value) : (inspectorState.denoiseSpatial || 0)),
     denoiseTemporal: (document.getElementById("sliderDenoiseTemporal") ? parseFloat(document.getElementById("sliderDenoiseTemporal").value) : (inspectorState.denoiseTemporal || 0)),
@@ -432,6 +442,13 @@ function syncDomWithSettings(s) {
     if (sl) sl.value = s.skinSoftening;
     if (inp) inp.value = s.skinSoftening + "%";
   }
+  if (s.portraitHue !== undefined) {
+    inspectorState.portraitHue = parseFloat(s.portraitHue);
+    const sl = document.getElementById("sliderPortraitHue");
+    const inp = document.getElementById("inpPortraitHue");
+    if (sl) sl.value = s.portraitHue;
+    if (inp) inp.value = s.portraitHue;
+  }
   if (s.denoiseMode !== undefined) {
     inspectorState.denoiseMode = s.denoiseMode;
     const sel = document.getElementById("selDenoiseMode");
@@ -541,7 +558,7 @@ function setupAutoSettingsSync() {
     "selResolution", "inpResW", "inpResH", "chkVerticalRes", "inpBitrateKbps",
     "chkExportAudio", "selAudioCodec", "inpAudioBitrate", "selAudioChannels",
     "inpFileSubfolder", "chkSmartResume", "selWorkers", "selRenderSpeed",
-    "sliderSkinSoft", "selDenoiseMode", "sliderDenoiseSpatial", "sliderDenoiseTemporal"
+    "sliderSkinSoft", "sliderPortraitHue", "selDenoiseMode", "sliderDenoiseSpatial", "sliderDenoiseTemporal"
   ];
   deliverInputIds.forEach(id => {
     const el = document.getElementById(id);
@@ -931,6 +948,25 @@ function updateMonitorDisplay(idx) {
   if (sbsImgBefore) sbsImgBefore.src = thumbUrl;
   if (sbsImgAfter) sbsImgAfter.src = thumbUrl;
 
+  // Live Camera Metadata Code Badge
+  const nMeta = clip.nikon_meta || {};
+  const codeCard = document.getElementById("nikonCameraCodeCard");
+  const codeModel = document.getElementById("cameraCodeModel");
+  const codeDetail = document.getElementById("cameraCodeDetail");
+  if (codeCard) {
+    if (nMeta.is_nikon || nMeta.picture_control || nMeta.camera_model) {
+      if (codeModel) codeModel.textContent = `${nMeta.camera_model || "Nikon Z8"} In-Camera Code Detected`;
+      let details = [];
+      if (nMeta.picture_control) details.push(`In-Camera: ${nMeta.picture_control}`);
+      if (nMeta.lens) details.push(`Lens: ${nMeta.lens.replace("NIKKOR Z ", "")}`);
+      if (nMeta.white_balance) details.push(`WB: ${nMeta.white_balance}`);
+      if (codeDetail) codeDetail.textContent = details.join(" • ") || "In-Camera Picture Control code ready";
+    } else {
+      if (codeModel) codeModel.textContent = "Nikon Z8 Profile Optimizer";
+      if (codeDetail) codeDetail.textContent = "Auto-detect or 1-click apply in-camera Nikon Picture Controls";
+    }
+  }
+
   applyMonitorTransform();
   updatePlayhead(idx);
 }
@@ -1043,6 +1079,37 @@ function applyMonitorTransform() {
     } else if (nikonProfile === "denim") {
       ct *= 1.0 + (0.22 * nikonFactor);
       sat *= 1.0 + (0.15 * nikonFactor);
+    } else if (nikonProfile === "sunday") {
+      ct *= 1.0 + (0.08 * nikonFactor);
+      sat *= 1.0 + (0.15 * nikonFactor);
+      br += 0.03 * nikonFactor;
+      sepiaVal = 10.0 * nikonFactor;
+    } else if (nikonProfile === "somber") {
+      ct *= 1.0 - (0.08 * nikonFactor);
+      sat *= 1.0 - (0.25 * nikonFactor);
+      br += 0.02 * nikonFactor;
+    } else if (nikonProfile === "dramatic") {
+      ct *= 1.0 + (0.40 * nikonFactor);
+      sat *= 1.0 + (0.25 * nikonFactor);
+      br -= 0.02 * nikonFactor;
+    } else if (nikonProfile === "silence") {
+      ct *= 1.0 - (0.15 * nikonFactor);
+      sat *= 1.0 - (0.35 * nikonFactor);
+      br += 0.04 * nikonFactor;
+    } else if (nikonProfile === "melancholic") {
+      ct *= 1.0 + (0.10 * nikonFactor);
+      sat *= 1.0 - (0.12 * nikonFactor);
+    } else if (nikonProfile === "pure") {
+      ct *= 1.0 + (0.12 * nikonFactor);
+      sat *= 1.0 + (0.10 * nikonFactor);
+      br += 0.04 * nikonFactor;
+    } else if (nikonProfile === "toy") {
+      ct *= 1.0 + (0.28 * nikonFactor);
+      sat *= 1.0 + (0.35 * nikonFactor);
+    } else if (nikonProfile === "sepia") {
+      grayscaleVal = 100.0 * nikonFactor;
+      sepiaVal = 80.0 * nikonFactor;
+      ct *= 1.0 + (0.20 * nikonFactor);
     } else if (nikonProfile === "monochrome") {
       grayscaleVal = 100.0 * nikonFactor;
       ct *= 1.0 + (0.38 * nikonFactor);
@@ -1070,6 +1137,12 @@ function applyMonitorTransform() {
     }
     if (tintVal !== 0) {
       filterStr += ` hue-rotate(${(tintVal * 0.25).toFixed(1)}deg)`;
+    }
+
+    // Nikon Z8 Portrait Impression Balance (Hue)
+    const portHue = inspectorState.portraitHue || 0;
+    if (portHue !== 0) {
+      filterStr += ` hue-rotate(${(portHue * 0.8).toFixed(1)}deg)`;
     }
 
     // Skin Softening preview
@@ -2217,6 +2290,81 @@ function setupInspectorListeners() {
     });
   }
 
+  // Sync In-Camera Code (Auto-Detect from Nikon Z8 MP4 Atoms)
+  const btnSyncCameraCode = document.getElementById("btnSyncCameraCode");
+  if (btnSyncCameraCode) {
+    btnSyncCameraCode.addEventListener("click", () => {
+      const clip = allClips[primaryPreviewIndex];
+      const nMeta = clip ? (clip.nikon_meta || {}) : {};
+      const pc = (nMeta.picture_control || "PORTRAIT").toUpperCase();
+      let matchedProfile = "portrait";
+      if (pc.includes("RICH")) matchedProfile = "rich_portrait";
+      else if (pc.includes("PORTRAIT")) matchedProfile = "portrait";
+      else if (pc.includes("NEUTRAL")) matchedProfile = "neutral";
+      else if (pc.includes("VIVID")) matchedProfile = "vivid";
+      else if (pc.includes("FLAT")) matchedProfile = "flat";
+      else if (pc.includes("MONOCHROME") || pc.includes("B&W")) matchedProfile = "monochrome";
+      else if (pc.includes("DREAM")) matchedProfile = "dream";
+      else if (pc.includes("MORNING")) matchedProfile = "morning";
+      else if (pc.includes("POP")) matchedProfile = "pop";
+      else if (pc.includes("SUNDAY")) matchedProfile = "sunday";
+      else if (pc.includes("SOMBER")) matchedProfile = "somber";
+      else if (pc.includes("DRAMATIC")) matchedProfile = "dramatic";
+      else if (pc.includes("SILENCE")) matchedProfile = "silence";
+      else if (pc.includes("BLEACH")) matchedProfile = "bleach_bypass";
+      else if (pc.includes("MELANCHOLIC")) matchedProfile = "melancholic";
+      else if (pc.includes("PURE")) matchedProfile = "pure";
+      else if (pc.includes("DENIM")) matchedProfile = "denim";
+      else if (pc.includes("TOY")) matchedProfile = "toy";
+      else if (pc.includes("SEPIA")) matchedProfile = "sepia";
+
+      inspectorState.nikonProfile = matchedProfile;
+      inspectorState.nikonStrength = 100;
+      if (selNikonProfile) selNikonProfile.value = matchedProfile;
+      if (sliderNikonStrength) sliderNikonStrength.value = 100;
+      if (inpNikonStrength) inpNikonStrength.value = "100%";
+      if (nikonProfileDesc && NIKON_PROFILES_INFO[matchedProfile]) {
+        nikonProfileDesc.textContent = NIKON_PROFILES_INFO[matchedProfile];
+      }
+      applyMonitorTransform();
+      showToast(`⚡️ ดึงโค้ดกล้องสำเร็จ: ${nMeta.camera_model || "Nikon Z8"} [${pc}]`);
+    });
+  }
+
+  // In-Camera Skin Softening Quick Presets (Off, Low, Normal, High)
+  document.querySelectorAll(".btn-soft-preset").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".btn-soft-preset").forEach(b => b.classList.toggle("active", b === btn));
+      const val = parseFloat(btn.getAttribute("data-val")) || 0;
+      inspectorState.skinSoftening = val;
+      if (sliderSkinSoft) sliderSkinSoft.value = val;
+      if (inpSkinSoft) inpSkinSoft.value = `${val}%`;
+      applyMonitorTransform();
+    });
+  });
+
+  // Nikon Z8 Portrait Impression Balance (Hue)
+  const sliderPortraitHue = document.getElementById("sliderPortraitHue");
+  const inpPortraitHue = document.getElementById("inpPortraitHue");
+  if (sliderPortraitHue) {
+    sliderPortraitHue.addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      inspectorState.portraitHue = v;
+      if (inpPortraitHue) inpPortraitHue.value = v;
+      applyMonitorTransform();
+    });
+  }
+  if (inpPortraitHue) {
+    inpPortraitHue.addEventListener("change", (e) => {
+      let v = parseFloat(e.target.value) || 0;
+      v = Math.max(-10, Math.min(10, v));
+      inspectorState.portraitHue = v;
+      inpPortraitHue.value = v;
+      if (sliderPortraitHue) sliderPortraitHue.value = v;
+      applyMonitorTransform();
+    });
+  }
+
   // Noise Reduction Controls
   const selDenoiseMode = document.getElementById("selDenoiseMode");
   const rowDenoiseSpatial = document.getElementById("rowDenoiseSpatial");
@@ -2229,7 +2377,10 @@ function setupInspectorListeners() {
   const dotDenoise = document.getElementById("dotDenoise");
 
   const DENOISE_DESC_MAP = {
-    off: "⚪ Denoise ปิดอยู่: ไม่มีการประมวลผลลดนอยส์ เหมาะสำหรับวิดีโอที่เนียนดีอยู่แล้วหรือต้องการความเร็วสูงสุด",
+    off: "⚪ Denoise ปิด: ไม่มีการประมวลผลลดนอยส์ เหมาะสำหรับวิดีโอที่เนียนดีอยู่แล้วหรือต้องการความเร็วสูงสุด",
+    low: "🍃 Low (ต่ำ): ลดนอยส์บางเบา hqdn3d (2.0/1.5/2.5/2.0) รักษาเนื้อฟิล์มและเท็กซ์เจอร์เดิม 100%",
+    normal: "💧 Normal (ปกติ): ลดนอยส์สมดุล hqdn3d (4.0/3.0/4.5/3.5) แนะนำสำหรับกล้อง Nikon Z8 ที่ ISO 1600-6400",
+    high: "🛡️ High (สูง): ลดนอยส์ระดับสูง hqdn3d (7.0/5.0/7.0/5.0) สำหรับถ่ายกลางคืน แสงน้อย หรือ ISO สูงจัด",
     light: "🍃 Light: ลดนอยส์บางเบา hqdn3d (2.0/1.5/2.5/2.0) รักษาเนื้อฟิล์มและเท็กซ์เจอร์เดิม 100%",
     medium: "💧 Medium: ลดนอยส์สมดุล hqdn3d (4.0/3.0/4.5/3.5) แนะนำสำหรับ ISO 1600-6400 เนียนตาเป็นธรรมชาติ",
     strong: "🛡️ Strong: ลดนอยส์ระดับสูง hqdn3d (7.0/5.0/7.0/5.0) สำหรับงานกลางคืน แสงน้อย หรือ ISO สูงจัด",
@@ -2362,6 +2513,12 @@ function setupInspectorListeners() {
         const inp = document.getElementById("inpDenoiseTemporal");
         if (sl) sl.value = 0;
         if (inp) inp.value = "0.0";
+      } else if (key === "portraitHue") {
+        inspectorState.portraitHue = 0;
+        const sl = document.getElementById("sliderPortraitHue");
+        const inp = document.getElementById("inpPortraitHue");
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0";
       } else if (key === "temperature") {
         inspectorState.temperature = 0;
         const sl = document.getElementById("sliderTemp");
@@ -3064,6 +3221,7 @@ async function startBatchExport() {
     nikon_strength: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : inspectorState.nikonStrength,
     custom_lut_path: inspectorState.customLutPath || "",
     skin_softening: inspectorState.skinSoftening || 0,
+    portrait_hue: inspectorState.portraitHue || 0,
     denoise_mode: (inspectorState.bypassedCards && inspectorState.bypassedCards.denoise) ? "off" : (inspectorState.denoiseMode || "off"),
     denoise_spatial: inspectorState.denoiseSpatial || 0,
     denoise_temporal: inspectorState.denoiseTemporal || 0,

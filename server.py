@@ -182,6 +182,69 @@ def remove_active_proc(p):
     with proc_lock:
         active_processes.discard(p)
 
+def extract_nikon_metadata(filepath):
+    """
+    Extract embedded in-camera Nikon metadata (Picture Control, Model, Lens, WB)
+    directly from MP4/MOV header atoms (NCDT / NCTG maker notes).
+    """
+    meta = {
+        "is_nikon": False,
+        "camera_model": "",
+        "lens": "",
+        "picture_control": "",
+        "white_balance": "",
+        "firmware": ""
+    }
+    try:
+        with open(filepath, "rb") as f:
+            data = f.read(65536)
+
+        if b"NIKON" in data:
+            meta["is_nikon"] = True
+            meta["make"] = "Nikon"
+
+        if b"NIKON Z 8" in data:
+            meta["camera_model"] = "Nikon Z8"
+        elif b"NIKON Z 9" in data:
+            meta["camera_model"] = "Nikon Z9"
+        elif b"NIKON Z f" in data:
+            meta["camera_model"] = "Nikon Zf"
+        elif b"NIKON Z 6" in data:
+            meta["camera_model"] = "Nikon Z6"
+        elif b"NIKON" in data:
+            meta["camera_model"] = "Nikon Camera"
+
+        # Firmware
+        fw_idx = data.find(b"Ver.")
+        if fw_idx != -1:
+            meta["firmware"] = data[fw_idx:fw_idx+12].decode("latin1", errors="ignore").split("\x00")[0].strip()
+
+        # Lens
+        lens_idx = data.find(b"NIKKOR Z")
+        if lens_idx != -1:
+            meta["lens"] = data[lens_idx:lens_idx+40].decode("latin1", errors="ignore").split("\x00")[0].strip()
+
+        # In-Camera Picture Control (Tag 0x0023 / 0310)
+        pc_idx = data.find(b"03100310")
+        if pc_idx != -1:
+            pc_name = data[pc_idx+8:pc_idx+28].decode("latin1", errors="ignore").strip("\x00").strip()
+            meta["picture_control"] = pc_name
+        else:
+            # Fallback scan for common names
+            for pc in [b"PORTRAIT", b"STANDARD", b"NEUTRAL", b"VIVID", b"FLAT", b"MONOCHROME", b"DREAM", b"MORNING", b"POP"]:
+                if pc in data:
+                    meta["picture_control"] = pc.decode("latin1")
+                    break
+
+        # White Balance
+        for wb in [b"SUNNY", b"AUTO", b"CLOUDY", b"SHADE", b"INCANDESCENT", b"FLUORESCENT", b"FLASH", b"K_TEMP"]:
+            if wb in data:
+                meta["white_balance"] = wb.decode("latin1")
+                break
+    except Exception:
+        pass
+    return meta
+
 def get_media_info(filepath):
     info = {"fps": "25.000", "duration": 0.0, "width": 1920, "height": 1080}
     try:
@@ -227,13 +290,15 @@ def scan_files(paths):
     new_clips = []
     for f in found:
         if f not in existing:
+            n_meta = extract_nikon_metadata(f)
             new_clips.append({
                 "path": f,
                 "name": os.path.basename(f),
                 "size": os.path.getsize(f),
                 "size_fmt": f"{os.path.getsize(f) / (1024*1024):.1f} MB",
                 "mtime": os.path.getmtime(f),
-                "fps": "25.000"
+                "fps": "25.000",
+                "nikon_meta": n_meta
             })
     STATE["clips"].extend(new_clips)
     return len(new_clips)
@@ -826,6 +891,47 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             tot_saturation *= (1.0 + 0.15 * f)
             b_mult *= (1.0 + 0.12 * f)
             r_mult *= (1.0 - 0.06 * f)
+        elif nikon_profile == "sunday":
+            tot_contrast *= (1.0 + 0.08 * f)
+            tot_saturation *= (1.0 + 0.15 * f)
+            tot_brightness += 0.03 * f
+            tot_gamma *= (1.0 + 0.12 * f)
+            r_mult *= (1.0 + 0.05 * f)
+            b_mult *= (1.0 - 0.03 * f)
+        elif nikon_profile == "somber":
+            tot_contrast *= (1.0 - 0.08 * f)
+            tot_saturation *= (1.0 - 0.25 * f)
+            tot_brightness += 0.02 * f
+            tot_gamma *= (1.0 + 0.18 * f)
+        elif nikon_profile == "dramatic":
+            tot_contrast *= (1.0 + 0.40 * f)
+            tot_saturation *= (1.0 + 0.25 * f)
+            tot_brightness -= 0.02 * f
+            tot_gamma *= (1.0 - 0.08 * f)
+        elif nikon_profile == "silence":
+            tot_contrast *= (1.0 - 0.15 * f)
+            tot_saturation *= (1.0 - 0.35 * f)
+            tot_brightness += 0.04 * f
+            tot_gamma *= (1.0 + 0.15 * f)
+        elif nikon_profile == "melancholic":
+            tot_contrast *= (1.0 + 0.10 * f)
+            tot_saturation *= (1.0 - 0.12 * f)
+            b_mult *= (1.0 + 0.14 * f)
+            r_mult *= (1.0 - 0.05 * f)
+        elif nikon_profile == "pure":
+            tot_contrast *= (1.0 + 0.12 * f)
+            tot_saturation *= (1.0 + 0.10 * f)
+            tot_brightness += 0.04 * f
+            tot_gamma *= (1.0 + 0.10 * f)
+        elif nikon_profile == "toy":
+            tot_contrast *= (1.0 + 0.28 * f)
+            tot_saturation *= (1.0 + 0.35 * f)
+            tot_gamma *= (1.0 - 0.06 * f)
+        elif nikon_profile == "sepia":
+            is_mono = True
+            tot_contrast *= (1.0 + 0.20 * f)
+            r_mult *= (1.0 + 0.18 * f)
+            b_mult *= (1.0 - 0.15 * f)
         elif nikon_profile == "monochrome":
             is_mono = True
             tot_contrast *= (1.0 + 0.38 * f)
@@ -835,24 +941,45 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         tot_saturation *= 1.40
         tot_brightness += 0.02
 
+    # Nikon Z8 Portrait Impression Balance (Hue & Brightness)
+    p_hue = float(params.get("portrait_hue", 0.0))  # -10 to +10 (Amber to Magenta)
+    p_bright = float(params.get("portrait_brightness", 0.0))  # -10 to +10
+    if abs(p_hue) > 0.1:
+        # positive = magenta/pink, negative = amber/yellow
+        r_mult *= (1.0 + p_hue * 0.015)
+        b_mult *= (1.0 + p_hue * 0.010)
+    if abs(p_bright) > 0.1:
+        tot_brightness += p_bright * 0.015
+        tot_gamma *= (1.0 + p_bright * 0.02)
+
     # Skin Softening (Smart Surface Smoothing)
-    skin_soft = float(params.get("skin_softening", 0.0)) / 100.0
+    skin_raw = params.get("skin_softening", 0.0)
+    if isinstance(skin_raw, str):
+        if skin_raw.lower() == "low": skin_soft = 0.35
+        elif skin_raw.lower() == "normal": skin_soft = 0.65
+        elif skin_raw.lower() == "high": skin_soft = 0.95
+        else:
+            try: skin_soft = float(skin_raw.replace("%", "")) / 100.0
+            except: skin_soft = 0.0
+    else:
+        skin_soft = float(skin_raw) / 100.0
+
     if (nikon_profile in ["skin_soft", "skin"] or skin_soft > 0.05):
         eff_soft = skin_soft if skin_soft > 0.05 else (0.6 * nikon_strength)
         r = 1.0 + (eff_soft * 0.8)
         s = -0.3 - (eff_soft * 0.5)
         vf.append(f"smartblur=lr={r:.2f}:ls={s:.2f}")
 
-    # Video Noise Reduction (High-Quality 3D Denoise)
+    # Video Noise Reduction (Nikon High ISO NR & 3D Denoise)
     denoise_mode = (params.get("denoise_mode") or "off").lower()
     denoise_spatial = float(params.get("denoise_spatial", 0.0))
     denoise_temporal = float(params.get("denoise_temporal", 0.0))
 
-    if denoise_mode == "light":
+    if denoise_mode in ["low", "light"]:
         vf.append("hqdn3d=2.0:1.5:2.5:2.0")
-    elif denoise_mode == "medium":
+    elif denoise_mode in ["normal", "medium"]:
         vf.append("hqdn3d=4.0:3.0:4.5:3.5")
-    elif denoise_mode == "strong":
+    elif denoise_mode in ["high", "strong"]:
         vf.append("hqdn3d=7.0:5.0:7.0:5.0")
     elif denoise_mode == "custom" and (denoise_spatial > 0.1 or denoise_temporal > 0.1):
         sp = max(0.5, min(10.0, denoise_spatial))
