@@ -1392,6 +1392,13 @@ def run_batch_export(params):
     # Final full RAM and cache eviction after batch job ends
     purge_system_and_process_ram()
 
+    # Refresh macOS Finder QuickLook thumbnail cache so overwritten videos show new color thumbnails immediately
+    if sys.platform == "darwin":
+        try:
+            subprocess.Popen(["qlmanage", "-r", "cache"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
     # Native macOS completion notification
     if sys.platform == "darwin" and not STATE["cancel_requested"]:
         completed_count = len(p["completed_paths"])

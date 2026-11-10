@@ -589,6 +589,10 @@ function syncDomWithSettings(s) {
   if (s.outputPath !== undefined) {
     const el = document.getElementById("inpOutputPath");
     if (el) el.value = s.outputPath;
+    const topTxt = document.getElementById("topFolderPathText");
+    if (topTxt && s.outputPath) {
+      topTxt.textContent = "Output: " + s.outputPath.split("/").filter(Boolean).slice(-3).join(" / ");
+    }
   }
   if (s.fileNamePattern !== undefined) {
     const el = document.getElementById("inpFileNamePattern");
@@ -2974,6 +2978,10 @@ function setupInspectorListeners() {
         if (inp) inp.value = data.output_dir;
         const inpPinned = document.getElementById("inpOutputPathPinned");
         if (inpPinned) inpPinned.value = data.output_dir;
+        const topTxt = document.getElementById("topFolderPathText");
+        if (topTxt && data.output_dir) {
+          topTxt.textContent = "Output: " + data.output_dir.split("/").filter(Boolean).slice(-3).join(" / ");
+        }
         triggerSaveSettings();
         showToast(`📁 Output destination set to: ${data.output_dir.split("/").filter(Boolean).slice(-2).join(" / ")}`);
       }
@@ -3001,11 +3009,18 @@ function setupInspectorListeners() {
     });
   }
 
-  // Open Folder
+  // Open Folder (including clicking Top Center Output Folder Pill)
   const btnOpenFolder = document.getElementById("btnOpenFolder");
   if (btnOpenFolder) {
     btnOpenFolder.addEventListener("click", () => {
       fetch("/api/open-folder", { method: "POST" });
+    });
+  }
+  const topSourceFolder = document.getElementById("topSourceFolder");
+  if (topSourceFolder) {
+    topSourceFolder.addEventListener("click", () => {
+      fetch("/api/open-folder", { method: "POST" });
+      showToast("📂 Opening Export Destination Folder in Finder...");
     });
   }
 
