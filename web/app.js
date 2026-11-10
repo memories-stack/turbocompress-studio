@@ -3468,9 +3468,12 @@ async function pollExportStatus() {
 
       playCompletionChime();
       showToast("🎉 Rendering completed successfully! Saved to destination folder.");
+      // Automatically purge RAM and flush file buffers upon export completion
+      fetch("/api/clear-cache", { method: "POST" }).catch(() => {});
     } else if (st.status === "Stopped") {
       clearInterval(exportPollTimer);
       isExporting = false;
+      fetch("/api/clear-cache", { method: "POST" }).catch(() => {});
       if (btnQuickExport) {
         btnQuickExport.disabled = false;
         btnQuickExport.textContent = "🚀 Quick Export";

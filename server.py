@@ -16,6 +16,45 @@ import threading
 import subprocess
 from pathlib import Path
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import gc
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+def purge_system_and_process_ram(filepath=None):
+    """
+    Actively clear RAM, purge file from OS unified buffer cache,
+    and trigger generation-2 garbage collection after every export task.
+    Prevents memory leaks, RAM bloat, and machine throttling on mass batch jobs.
+    """
+    if filepath and os.path.exists(filepath):
+        if sys.platform == "darwin" and fcntl is not None:
+            try:
+                # F_NOCACHE flushes the file from macOS Unified Buffer Cache (UBC)
+                with open(filepath, "rb") as f:
+                    fcntl.fcntl(f.fileno(), fcntl.F_NOCACHE, 1)
+            except Exception:
+                pass
+        elif hasattr(os, "posix_fadvise"):
+            try:
+                with open(filepath, "rb") as f:
+                    os.posix_fadvise(f.fileno(), 0, os.path.getsize(filepath), os.POSIX_FADV_DONTNEED)
+            except Exception:
+                pass
+
+    try:
+        gc.collect(2)
+    except Exception:
+        pass
+
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.psapi.EmptyWorkingSet(ctypes.windll.kernel32.GetCurrentProcess())
+        except Exception:
+            pass
 
 PORT = 8765
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
@@ -625,7 +664,6 @@ class StudioHandler(SimpleHTTPRequestHandler):
             return
 
         elif url.path == "/api/clear-cache":
-            import gc
             freed = 0
             thumb_cache_dir = "/tmp/tc_thumbs"
             if os.path.exists(thumb_cache_dir):
@@ -635,7 +673,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
                         os.remove(f.path)
                     except:
                         pass
-            gc.collect()
+            purge_system_and_process_ram()
             freed_mb = f"{freed / (1024*1024):.1f} MB"
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -1058,8 +1096,18 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     is_hevc = codec_req in ["hevc", "h265"]
     is_webm = (ext == "webm" or codec_req == "vp9")
 
-    def execute_ffmpeg(enc_codec):
-        cmd = [FFMPEG_BIN, "-nostdin", "-y", "-i", src]
+    def execute_ffmpeg(enc_codec, use_hwaccel=True):
+        cmd = [FFMPEG_BIN, "-nostdin", "-y"]
+        # Dedicated hardware decoding via GPU Media Engine
+        if use_hwaccel:
+            if sys.platform == "darwin":
+                cmd.extend(["-hwaccel", "videotoolbox"])
+            elif sys.platform == "win32":
+                if "nvenc" in enc_codec:
+                    cmd.extend(["-hwaccel", "cuda"])
+                else:
+                    cmd.extend(["-hwaccel", "auto"])
+        cmd.extend(["-i", src])
         if is_prores:
             prof = 2  # Standard ProRes 422
             if "hq" in codec_req: prof = 3
@@ -1144,9 +1192,13 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             if proc:
                 remove_active_proc(proc)
             return 1
+        finally:
+            if proc and proc.stdout:
+                try: proc.stdout.close()
+                except Exception: pass
 
-    # Attempt 1: Target Hardware Encoder (Apple VideoToolbox / NVENC)
-    rc = execute_ffmpeg(codec)
+    # Attempt 1: Target Hardware Encoder (Apple VideoToolbox / NVENC) with GPU Hardware Decoder
+    rc = execute_ffmpeg(codec, use_hwaccel=True)
 
     # Attempt 2: Auto-retry hardware if session was busy
     if (rc != 0 or not os.path.exists(out_file) or os.path.getsize(out_file) < 1000) and not STATE["cancel_requested"]:
@@ -1154,7 +1206,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             try: os.remove(out_file)
             except: pass
         time.sleep(0.3)
-        rc = execute_ffmpeg(codec)
+        rc = execute_ffmpeg(codec, use_hwaccel=True)
 
     # Attempt 3: Software Fallback if hardware encoder temporarily exhausted
     if (rc != 0 or not os.path.exists(out_file) or os.path.getsize(out_file) < 1000) and not STATE["cancel_requested"]:
@@ -1169,7 +1221,11 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             fallback_codec = "libx265"
         elif is_webm:
             fallback_codec = "libvpx-vp9"
-        execute_ffmpeg(fallback_codec)
+        execute_ffmpeg(fallback_codec, use_hwaccel=False)
+
+    # Immediately purge RAM, OS page cache, and file buffers after EVERY clip
+    purge_system_and_process_ram(out_file)
+    purge_system_and_process_ram(src)
 
     if not STATE["cancel_requested"] and os.path.exists(out_file) and os.path.getsize(out_file) > 1000:
         with proc_lock:
@@ -1182,8 +1238,6 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
                 rem_sec = int(avg_time * (total - done_count))
                 p["remaining_str"] = f"{rem_sec // 60:02d}m {rem_sec % 60:02d}s"
                 p["eta_str"] = time.strftime("%H:%M", time.localtime(time.time() + rem_sec))
-        import gc
-        gc.collect()
         return src
     else:
         # Fallback counting so UI progress never freezes at 0%
@@ -1280,6 +1334,8 @@ def run_batch_export(params):
     p["percent"] = 100.0 if not STATE["cancel_requested"] else p["percent"]
     p["status"] = "Stopped" if STATE["cancel_requested"] else "Completed"
     p["remaining_str"] = "00m 00s"
+    # Final full RAM and cache eviction after batch job ends
+    purge_system_and_process_ram()
 
     # Native macOS completion notification
     if sys.platform == "darwin" and not STATE["cancel_requested"]:
