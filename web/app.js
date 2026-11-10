@@ -181,7 +181,7 @@ function gatherCurrentSettings() {
     contrast: inspectorState.contrast,
     shadows: inspectorState.shadows,
     saturation: inspectorState.saturation,
-    outputPath: inpOut ? inpOut.value.trim() : "",
+    outputPath: (document.getElementById("inpOutputPathPinned") ? document.getElementById("inpOutputPathPinned").value.trim() : (inpOut ? inpOut.value.trim() : "")),
     fileNamePattern: inpFn ? inpFn.value.trim() : "SourceName",
     format: selFmt ? selFmt.value : "mp4",
     codec: selCdc ? selCdc.value : "h264",
@@ -370,6 +370,8 @@ function syncDomWithSettings(s) {
   if (s.outputPath !== undefined) {
     const el = document.getElementById("inpOutputPath");
     if (el) el.value = s.outputPath;
+    const elPinned = document.getElementById("inpOutputPathPinned");
+    if (elPinned) elPinned.value = s.outputPath;
   }
   if (s.fileNamePattern !== undefined) {
     const el = document.getElementById("inpFileNamePattern");
@@ -1721,6 +1723,9 @@ function setupInspectorListeners() {
       if (data.success && data.output_dir) {
         const inp = document.getElementById("inpOutputPath");
         if (inp) inp.value = data.output_dir;
+        const inpPinned = document.getElementById("inpOutputPathPinned");
+        if (inpPinned) inpPinned.value = data.output_dir;
+        triggerSaveSettings();
         showToast(`📁 Output destination set to: ${data.output_dir.split("/").filter(Boolean).slice(-2).join(" / ")}`);
       }
     } catch (err) {
@@ -1733,6 +1738,19 @@ function setupInspectorListeners() {
 
   const btnBrowseOutputTop = document.getElementById("btnBrowseOutputTop");
   if (btnBrowseOutputTop) btnBrowseOutputTop.addEventListener("click", triggerSetOutputFolder);
+
+  const btnBrowseOutputPinned = document.getElementById("btnBrowseOutputPinned");
+  if (btnBrowseOutputPinned) btnBrowseOutputPinned.addEventListener("click", triggerSetOutputFolder);
+
+  const inpOutputPathPinned = document.getElementById("inpOutputPathPinned");
+  if (inpOutputPathPinned) inpOutputPathPinned.addEventListener("click", triggerSetOutputFolder);
+
+  const btnOpenDestinationPinned = document.getElementById("btnOpenDestinationPinned");
+  if (btnOpenDestinationPinned) {
+    btnOpenDestinationPinned.addEventListener("click", () => {
+      fetch("/api/open-folder", { method: "POST" });
+    });
+  }
 
   // Open Folder
   const btnOpenFolder = document.getElementById("btnOpenFolder");
@@ -2083,8 +2101,9 @@ async function startBatchExport() {
   });
 
   const selectedPaths = Array.from(selectedIndices).map(i => allClips[i].path);
+  const inpPinned = document.getElementById("inpOutputPathPinned");
   const inpOut = document.getElementById("inpOutputPath");
-  const outDir = inpOut ? inpOut.value.trim() : "";
+  const outDir = (inpPinned && inpPinned.value.trim()) ? inpPinned.value.trim() : (inpOut ? inpOut.value.trim() : "");
   const sliderBitrate = document.getElementById("sliderBitrate");
   const chkExportAudio = document.getElementById("chkExportAudio");
   const selAudioCodec = document.getElementById("selAudioCodec");

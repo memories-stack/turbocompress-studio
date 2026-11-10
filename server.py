@@ -489,6 +489,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
             if chosen:
                 os.makedirs(chosen, exist_ok=True)
                 STATE["output_dir"] = chosen
+                save_app_settings({"outputPath": chosen})
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

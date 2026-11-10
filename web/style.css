@@ -1698,6 +1698,101 @@ body {
   backdrop-filter: blur(20px);
 }
 
+/* Destination Output Folder Card (Pinned in Inspector) */
+.dest-folder-card {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: rgba(22, 25, 38, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+}
+
+.dfc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dfc-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-dfc-browse {
+  background: rgba(0, 221, 255, 0.12);
+  border: 1px solid rgba(0, 221, 255, 0.35);
+  color: #00ddff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-dfc-browse:hover {
+  background: rgba(0, 221, 255, 0.25);
+  border-color: #00ddff;
+  color: #ffffff;
+}
+
+.dfc-path-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dfc-path-input {
+  flex: 1;
+  background: #0f111a;
+  border: 1px solid #282a3c;
+  color: #cbd5e1;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  outline: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.dfc-path-input:hover {
+  border-color: #00ddff;
+  color: #ffffff;
+}
+
+.btn-dfc-open {
+  background: #232636;
+  border: 1px solid #36394e;
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+}
+
+.btn-dfc-open:hover {
+  background: #2d3148;
+  border-color: #525775;
+  color: #ffffff;
+}
+
 .btn-big-export {
   width: 100%;
   background: linear-gradient(135deg, #ff2a6d 0%, #ff5e62 100%);

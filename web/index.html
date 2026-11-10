@@ -1006,6 +1006,18 @@
 
       <!-- BIG QUICK EXPORT ACTION BUTTON (PINNED AT BOTTOM) -->
       <div class="quick-export-action-box pinned-export">
+        <!-- DESTINATION OUTPUT FOLDER SELECTOR (ALWAYS VISIBLE) -->
+        <div class="dest-folder-card" id="destFolderCard">
+          <div class="dfc-header">
+            <span class="dfc-title"><span class="dfc-icon">📁</span> Output Destination / โฟลเดอร์ปลายทาง</span>
+            <button class="btn-dfc-browse" id="btnBrowseOutputPinned" title="Select or Change Destination Folder">Change Folder...</button>
+          </div>
+          <div class="dfc-path-row">
+            <input type="text" class="dfc-path-input" id="inpOutputPathPinned" readonly value="/Users/siamratchongtong/Desktop/STD_VT/test_Exp" title="Click Change Folder to select destination">
+            <button class="btn-dfc-open" id="btnOpenDestinationPinned" title="Open Destination Folder in macOS Finder">📂 Open</button>
+          </div>
+        </div>
+
         <button class="btn-big-export" id="btnBigExport">
           🚀 1-Click Fast Vertical Export (All Clips)
         </button>
