@@ -811,8 +811,8 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     # Audio detection
     has_audio = False
     try:
-        probe_cmd = [FFMPEG_BIN, "-i", src]
-        p_res = subprocess.run(probe_cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True, errors="ignore")
+        probe_cmd = [FFMPEG_BIN, "-nostdin", "-i", src]
+        p_res = subprocess.run(probe_cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True, errors="ignore")
         if "Audio:" in p_res.stderr:
             has_audio = True
     except:
@@ -1058,7 +1058,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     is_webm = (ext == "webm" or codec_req == "vp9")
 
     def execute_ffmpeg(enc_codec):
-        cmd = [FFMPEG_BIN, "-y", "-i", src]
+        cmd = [FFMPEG_BIN, "-nostdin", "-y", "-i", src]
         if is_prores:
             prof = 2  # Standard ProRes 422
             if "hq" in codec_req: prof = 3
@@ -1117,7 +1117,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         proc = None
         try:
             proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
                 text=True, bufsize=1, universal_newlines=True
             )
             add_active_proc(proc)
@@ -1184,8 +1184,14 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         import gc
         gc.collect()
         return src
-
-    return None
+    else:
+        # Fallback counting so UI progress never freezes at 0%
+        with proc_lock:
+            if src not in p["completed_paths"]:
+                p["completed_paths"].append(src)
+                done_count = len(p["completed_paths"])
+                p["percent"] = (done_count / total) * 100.0
+        return None
 
 
 def run_batch_export(params):

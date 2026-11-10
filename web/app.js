@@ -918,15 +918,20 @@ function updateSelectionHeader() {
   }
 }
 
+let currentMonitorIdx = -1;
+
 // Update Monitor with selected preview clip
-function updateMonitorDisplay(idx) {
+function updateMonitorDisplay(idx, force = false) {
   if (idx < 0 || idx >= allClips.length) return;
+  if (!force && currentMonitorIdx === idx) return;
+  currentMonitorIdx = idx;
+
   const clip = allClips[idx];
   noClipMsg.style.display = "none";
 
   const thumbUrl = `/api/thumb?path=${encodeURIComponent(clip.path)}`;
 
-  if (monitorVideo) {
+  if (!isExporting && monitorVideo) {
     monitorVideo.pause();
     monitorVideo.src = `/api/video?path=${encodeURIComponent(clip.path)}`;
     monitorVideo.style.display = "none";
@@ -3116,6 +3121,7 @@ async function startBatchExport() {
   if (btnStopTop) btnStopTop.style.display = "inline-block";
 
   // Reset rendering classes on cards
+  completedPaths.clear();
   allClips.forEach((clip, i) => {
     const card = document.getElementById(`card-${i}`);
     if (card) {
@@ -3298,7 +3304,9 @@ async function pollExportStatus() {
         if (tlBlock) tlBlock.classList.add("rendering");
       }
 
-      updateMonitorDisplay(activeIdx);
+      if (activeIdx !== currentMonitorIdx) {
+        updateMonitorDisplay(activeIdx);
+      }
     } else if (st.status === "Completed") {
       clearInterval(exportPollTimer);
       isExporting = false;
@@ -3349,6 +3357,21 @@ async function pollExportStatus() {
       if (btnStopTop) btnStopTop.style.display = "none";
 
       showToast("🛑 Render stopped.");
+    } else if (!st.is_exporting) {
+      clearInterval(exportPollTimer);
+      isExporting = false;
+      if (btnQuickExport) {
+        btnQuickExport.disabled = false;
+        btnQuickExport.textContent = "🚀 Quick Export";
+      }
+      btnBigExport.disabled = false;
+      btnBigExport.textContent = "🚀 1-Click Fast Vertical Export (All Clips)";
+      const exportControlsRow = document.getElementById("exportControlsRow");
+      const btnPauseTop = document.getElementById("btnPauseTop");
+      const btnStopTop = document.getElementById("btnStopTop");
+      if (exportControlsRow) exportControlsRow.style.display = "none";
+      if (btnPauseTop) btnPauseTop.style.display = "none";
+      if (btnStopTop) btnStopTop.style.display = "none";
     }
   } catch (err) {
     console.error(err);
