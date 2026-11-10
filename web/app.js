@@ -204,6 +204,7 @@ function gatherCurrentSettings() {
     temperature: inspectorState.temperature || 0,
     tint: inspectorState.tint || 0,
     exportScope: (document.getElementById("selExportScope") ? document.getElementById("selExportScope").value : "all"),
+    conflictAction: (document.getElementById("selConflictAction") ? document.getElementById("selConflictAction").value : (document.getElementById("selConflictActionFileTab") ? document.getElementById("selConflictActionFileTab").value : "skip")),
     outputPath: inpOut ? inpOut.value.trim() : "",
     fileNamePattern: inpFn ? inpFn.value.trim() : "SourceName",
     format: selFmt ? selFmt.value : "mp4",
@@ -466,6 +467,12 @@ function syncDomWithSettings(s) {
     const el = document.getElementById("inpFileSubfolder");
     if (el) el.value = s.fileSubfolder;
   }
+  if (s.conflictAction !== undefined) {
+    const el1 = document.getElementById("selConflictAction");
+    if (el1) el1.value = s.conflictAction;
+    const el2 = document.getElementById("selConflictActionFileTab");
+    if (el2) el2.value = s.conflictAction;
+  }
   if (s.smartResume !== undefined) {
     const el = document.getElementById("chkSmartResume");
     if (el) el.checked = !!s.smartResume;
@@ -482,7 +489,8 @@ function syncDomWithSettings(s) {
 
 function setupAutoSettingsSync() {
   const deliverInputIds = [
-    "inpOutputPath", "inpFileNamePattern", "selFormat", "selCodec",
+    "inpOutputPath", "inpFileNamePattern", "selFormat", "selCodec", "selExportScope",
+    "selConflictAction", "selConflictActionFileTab",
     "selResolution", "inpResW", "inpResH", "chkVerticalRes", "inpBitrateKbps",
     "chkExportAudio", "selAudioCodec", "inpAudioBitrate", "selAudioChannels",
     "inpFileSubfolder", "chkSmartResume", "selWorkers", "selRenderSpeed"
@@ -494,6 +502,19 @@ function setupAutoSettingsSync() {
       el.addEventListener("input", triggerSaveSettings);
     }
   });
+
+  const selConflict1 = document.getElementById("selConflictAction");
+  const selConflict2 = document.getElementById("selConflictActionFileTab");
+  if (selConflict1 && selConflict2) {
+    selConflict1.addEventListener("change", () => {
+      selConflict2.value = selConflict1.value;
+      triggerSaveSettings();
+    });
+    selConflict2.addEventListener("change", () => {
+      selConflict1.value = selConflict2.value;
+      triggerSaveSettings();
+    });
+  }
 
   const selFormat = document.getElementById("selFormat");
   const selCodec = document.getElementById("selCodec");
@@ -659,17 +680,66 @@ function renderMediaPool() {
     mediaGrid.classList.remove("list-view");
   }
 
+  // Calculate duplicates in Media Pool (clips with same stem or same size)
+  const dupMap = new Map();
+  allClips.forEach((c, i) => {
+    const stem = c.name.replace(/\.[^/.]+$/, "").replace(/[\s_-]+(copy|\(\d+\)|\d+)$/i, "").toLowerCase();
+    const key = `${stem}_${c.size}`;
+    if (!dupMap.has(key)) dupMap.set(key, []);
+    dupMap.get(key).push(i);
+  });
+  const duplicateIndices = new Set();
+  dupMap.forEach(indices => {
+    if (indices.length > 1) {
+      indices.forEach(idx => duplicateIndices.add(idx));
+    }
+  });
+
   const fragment = document.createDocumentFragment();
+
+  if (currentRatingFilter === "duplicate") {
+    const dupBar = document.createElement("div");
+    dupBar.className = "dup-action-bar";
+    dupBar.style.gridColumn = "1 / -1";
+    dupBar.innerHTML = `
+      <span>♊︎ ตรวจพบภาพ/คลิปซ้ำ <strong>${duplicateIndices.size}</strong> คลิปใน Media Pool</span>
+      <button class="btn-dup-clean" id="btnDeduplicatePool" title="เก็บเฉพาะคลิปแรก ลบคลิปซ้ำออกจาก Pool">ข้าม/ลบคลิปซ้ำ (Deduplicate)</button>
+    `;
+    const btnDedup = dupBar.querySelector("#btnDeduplicatePool");
+    if (btnDedup) {
+      btnDedup.addEventListener("click", () => {
+        const toRemove = new Set();
+        dupMap.forEach(indices => {
+          if (indices.length > 1) {
+            for (let k = 1; k < indices.length; k++) {
+              toRemove.add(indices[k]);
+            }
+          }
+        });
+        allClips = allClips.filter((_, i) => !toRemove.has(i));
+        selectedIndices = new Set(allClips.map((_, i) => i));
+        renderMediaPool();
+        renderTimelineOverview();
+        updateSelectionHeader();
+        showToast(`✅ คัดกรองและลบคลิปซ้ำออกจาก Pool เรียบร้อย (${toRemove.size} คลิป)`);
+      });
+    }
+    fragment.appendChild(dupBar);
+  }
+
   allClips.forEach((clip, idx) => {
     const rInfo = clipRatings[clip.path] || { rating: 0, rejected: false };
 
-    // Rating Filter
+    // Rating & Duplicate Filter
     if (currentRatingFilter === "star3" && (rInfo.rating < 3 || rInfo.rejected)) return;
     if (currentRatingFilter === "star5" && (rInfo.rating !== 5 || rInfo.rejected)) return;
     if (currentRatingFilter === "rejected" && !rInfo.rejected) return;
+    if (currentRatingFilter === "duplicate" && !duplicateIndices.has(idx)) return;
 
     const isSelected = selectedIndices.has(idx);
     const isDone = completedPaths.has(clip.path);
+    const isDup = duplicateIndices.has(idx);
+    const dupBadge = isDup ? `<span class="clip-badge-dup" title="Duplicate Clip (ภาพ/คลิปซ้ำ)">♊︎ Dup</span>` : "";
     const card = document.createElement("div");
 
     const rBadge = rInfo.rejected
@@ -686,6 +756,7 @@ function renderMediaPool() {
           <span class="cli-icon">🎬</span>
           <span class="cli-name" title="${clip.name}">${clip.name}</span>
           ${rBadge}
+          ${dupBadge}
         </div>
         <div class="cli-right">
           <span class="cli-meta">${clip.fps} • ${clip.size_fmt}</span>
@@ -698,6 +769,7 @@ function renderMediaPool() {
       card.innerHTML = `
         ${isDone ? '<span class="clip-badge-done">✅ DONE</span>' : ''}
         ${rBadge}
+        ${dupBadge}
         <div class="clip-thumb-box">
           <span class="clip-thumb-placeholder">🎬</span>
           <img loading="lazy" src="/api/thumb?path=${encodeURIComponent(clip.path)}" alt="${clip.name}" onerror="this.style.display='none'">
@@ -2444,6 +2516,18 @@ function setupKeyboardShortcuts() {
       e.preventDefault();
       const btn = document.getElementById("btnImportFolderTop");
       if (btn) btn.click();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === "1") {
+      e.preventDefault();
+      const t = document.querySelector('.insp-tab[data-tab="transform"]');
+      if (t) t.click();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === "2") {
+      e.preventDefault();
+      const t = document.querySelector('.insp-tab[data-tab="color"]');
+      if (t) t.click();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === "3") {
+      e.preventDefault();
+      const t = document.querySelector('.insp-tab[data-tab="deliver"]');
+      if (t) t.click();
     } else if (e.code === "Space") {
       e.preventDefault();
       toggleVideoPlayback();
@@ -2730,6 +2814,8 @@ async function startBatchExport() {
 
   const selFormat = document.getElementById("selFormat");
   const selCodec = document.getElementById("selCodec");
+  const selConflict = document.getElementById("selConflictAction") || document.getElementById("selConflictActionFileTab");
+  const conflictAction = selConflict ? selConflict.value : "skip";
 
   const isCropBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.crop;
 
@@ -2743,6 +2829,8 @@ async function startBatchExport() {
     crop_bottom: isCropBypassed ? 0.0 : (inspectorState.cropB / 500),
     format: selFormat ? selFormat.value : "mp4",
     codec: selCodec ? selCodec.value : "h264",
+    conflict_action: conflictAction,
+    smart_resume: (conflictAction === "skip"),
     bitrate: (sliderBitrate ? sliderBitrate.value : 8000) + "k",
     resolution: selResolution ? selResolution.value : "1080x1920",
     workers: selWorkers ? parseInt(selWorkers.value) : 2,

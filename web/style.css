@@ -3180,5 +3180,52 @@ body {
   padding-right: 1px;
 }
 
+/* Duplicate Clips Badge & Notification Toolbar */
+.clip-badge-dup {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  background: rgba(230, 126, 34, 0.92);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+.dup-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(230, 126, 34, 0.15);
+  border: 1px solid rgba(230, 126, 34, 0.4);
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin: 6px 10px;
+  font-size: 11px;
+  color: #ffb74d;
+}
+
+.btn-dup-clean {
+  background: #e67e22;
+  color: #fff;
+  border: none;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background 0.15s;
+}
+
+.btn-dup-clean:hover {
+  background: #d35400;
+}
+
+
 
 

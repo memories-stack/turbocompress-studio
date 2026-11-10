@@ -72,11 +72,12 @@
                 <span class="search-lens">🔍</span>
                 <input type="text" class="search-input" id="searchInput" placeholder="Search clips...">
               </div>
-              <div class="rating-filter-pills" title="Filter clips by Star Rating or Rejection">
+              <div class="rating-filter-pills" title="Filter clips by Star Rating, Rejection, or Duplicates">
                 <button class="btn-rf active" data-filter="all" title="Show All Clips">All</button>
                 <button class="btn-rf" data-filter="star3" title="Show 3+ Stars">★ 3+</button>
                 <button class="btn-rf" data-filter="star5" title="Show 5 Stars Only">★ 5</button>
                 <button class="btn-rf" data-filter="rejected" title="Show Rejected Clips">✕</button>
+                <button class="btn-rf" data-filter="duplicate" title="Show Duplicate Clips (ตรวจหาภาพ/คลิปซ้ำ)">♊︎ Duplicates</button>
               </div>
             </div>
           </div>
@@ -752,6 +753,19 @@
                   </select>
                 </div>
               </div>
+
+              <!-- Existing Files / File Conflict (ระบบภาพซ้ำ) -->
+              <div class="dv-row deliver-row">
+                <label class="deliver-label">Duplicates</label>
+                <div class="deliver-controls">
+                  <select class="dv-select deliver-select" id="selConflictAction" title="ระบบจัดการเมื่อพบไฟล์หรือภาพซ้ำในโฟลเดอร์ปลายทาง">
+                    <option value="skip" selected>⏭️ Skip (ข้ามไฟล์เดิม / ไม่เรนเดอร์ซ้ำ)</option>
+                    <option value="overwrite">🔁 Overwrite (เขียนทับไฟล์เดิมทั้งหมด)</option>
+                    <option value="change_ext">🔄 Change Extension (เปลี่ยนนามสกุลอัตโนมัติ)</option>
+                    <option value="rename">🔢 Auto-Rename (เพิ่ม _01, _02 ต่อท้าย)</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <!-- Subtabs: Video | Audio | File -->
@@ -1123,10 +1137,17 @@
                 </div>
                 <div class="deliver-divider"></div>
 
-                <!-- Smart Resume & Parallel Engine -->
-                <div class="dv-chk-row sub-chk" style="margin-left: 110px;">
-                  <input type="checkbox" id="chkSmartResume" checked>
-                  <label for="chkSmartResume">Smart Resume (Skip Already Rendered Clips)</label>
+                <!-- File Conflict & Parallel Engine -->
+                <div class="dv-row deliver-row">
+                  <label class="deliver-label">Existing Files</label>
+                  <div class="deliver-controls">
+                    <select class="dv-select deliver-select" id="selConflictActionFileTab" title="File Conflict Handling">
+                      <option value="skip" selected>⏭️ Skip (ข้ามคลิปเดิม / ไม่เรนเดอร์ซ้ำ)</option>
+                      <option value="overwrite">🔁 Overwrite (เขียนทับไฟล์เดิม)</option>
+                      <option value="change_ext">🔄 Change Extension (เปลี่ยนนามสกุลอัตโนมัติ)</option>
+                      <option value="rename">🔢 Auto-Rename (เพิ่ม _01, _02)</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="dv-row deliver-row" style="margin-top: 6px;">
                   <label class="deliver-label">Parallel Engine</label>

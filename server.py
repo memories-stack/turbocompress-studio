@@ -650,36 +650,69 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     if ext not in ["mp4", "mov", "mkv", "webm", "m4v"]:
         ext = "mp4"
 
+    conflict = (params.get("conflict_action") or ("skip" if params.get("smart_resume", True) else "overwrite")).lower()
+
     naming = params.get("naming_pattern", "suffix_vertical")
     stem = Path(clip_info['name']).stem
     if naming == "prefix_reel":
-        out_name = f"Reel_{idx+1:03d}_{stem}.{ext}"
+        base_name = f"Reel_{idx+1:03d}_{stem}"
     elif naming == "original_same":
-        out_name = f"{stem}.{ext}"
+        base_name = f"{stem}"
     else:
-        out_name = f"{stem}_vertical.{ext}"
+        base_name = f"{stem}_vertical"
 
     out_dir = params.get("output_dir") or STATE.get("output_dir") or os.path.join(os.path.dirname(src), "_vertical_export")
     if params.get("subfolder"):
         out_dir = os.path.join(out_dir, params["subfolder"])
     os.makedirs(out_dir, exist_ok=True)
-    out_file = os.path.join(out_dir, out_name)
+    out_file = os.path.join(out_dir, f"{base_name}.{ext}")
 
-    # SMART RESUME: Check if destination file is already successfully exported (> 50KB)
-    smart_resume = params.get("smart_resume", True)
-    if smart_resume and os.path.exists(out_file) and os.path.getsize(out_file) > 50000:
-        with proc_lock:
-            if src not in p["completed_paths"]:
-                p["completed_paths"].append(src)
-                done_count = len(p["completed_paths"])
-                p["percent"] = (done_count / total) * 100.0
-                elapsed = time.time() - start_time
-                if done_count > 0:
-                    avg_time = elapsed / done_count
-                    rem_sec = int(avg_time * (total - done_count))
-                    p["remaining_str"] = f"{rem_sec // 60:02d}m {rem_sec % 60:02d}s"
-                    p["eta_str"] = time.strftime("%H:%M", time.localtime(time.time() + rem_sec))
-        return src
+    # DUPLICATE / EXISTING FILE CONFLICT SYSTEM:
+    # 1. Skip (ข้ามคลิปที่มีอยู่แล้ว)
+    # 2. Change Extension (เปลี่ยนนามสกุล เช่น .mp4 -> .mov / .mkv)
+    # 3. Rename (รันเลขต่อท้าย เช่น _01, _02)
+    # 4. Overwrite (เขียนทับไฟล์เดิมทั้งหมด)
+    if os.path.exists(out_file) and os.path.getsize(out_file) > 50000:
+        if conflict == "skip":
+            with proc_lock:
+                if src not in p["completed_paths"]:
+                    p["completed_paths"].append(src)
+                    done_count = len(p["completed_paths"])
+                    p["percent"] = (done_count / total) * 100.0
+                    elapsed = time.time() - start_time
+                    if done_count > 0:
+                        avg_time = elapsed / done_count
+                        rem_sec = int(avg_time * (total - done_count))
+                        p["remaining_str"] = f"{rem_sec // 60:02d}m {rem_sec % 60:02d}s"
+                        p["eta_str"] = time.strftime("%H:%M", time.localtime(time.time() + rem_sec))
+            return src
+        elif conflict == "change_ext":
+            alt_formats = ["mov", "mp4", "mkv", "webm", "m4v"]
+            found_alt = False
+            for alt_ext in alt_formats:
+                if alt_ext == ext:
+                    continue
+                test_file = os.path.join(out_dir, f"{base_name}.{alt_ext}")
+                if not os.path.exists(test_file):
+                    ext = alt_ext
+                    out_file = test_file
+                    found_alt = True
+                    break
+            if not found_alt:
+                counter = 1
+                while os.path.exists(os.path.join(out_dir, f"{base_name}_{counter:02d}.{ext}")):
+                    counter += 1
+                out_file = os.path.join(out_dir, f"{base_name}_{counter:02d}.{ext}")
+        elif conflict == "rename":
+            counter = 1
+            while os.path.exists(os.path.join(out_dir, f"{base_name}_{counter:02d}.{ext}")):
+                counter += 1
+            out_file = os.path.join(out_dir, f"{base_name}_{counter:02d}.{ext}")
+        elif conflict == "overwrite":
+            try:
+                os.remove(out_file)
+            except:
+                pass
 
     # Audio detection
     has_audio = False
