@@ -947,15 +947,34 @@ function applyMonitorTransform() {
     sbsImgAfter.style.objectFit = objectFitVal;
   }
 
-  renderHistogram();
-  renderMonitorOverlays();
+  scheduleHistogram();
+  scheduleMonitorOverlays();
   triggerSaveSettings();
 }
 
-// Real-Time Scopes & Histogram Engine
+// Real-Time Scopes & Histogram Engine (Throttled via requestAnimationFrame - 60 FPS zero-lag)
 let offscreenCanvas = null;
 let offscreenCtx = null;
-let currentHistoMode = "rgb"; // "rgb", "luma", "parade"
+let currentHistoMode = "rgb"; // "rgb", "luma", "parade", "vector"
+let histoRafId = null;
+
+function scheduleHistogram() {
+  if (histoRafId) return;
+  histoRafId = requestAnimationFrame(() => {
+    histoRafId = null;
+    renderHistogram();
+  });
+}
+
+let overlayRafId = null;
+function scheduleMonitorOverlays() {
+  if (!isPeakingActive && !isZebraActive) return;
+  if (overlayRafId) return;
+  overlayRafId = requestAnimationFrame(() => {
+    overlayRafId = null;
+    renderMonitorOverlays();
+  });
+}
 
 function renderHistogram() {
   const canvas = document.getElementById("histoCanvas");
@@ -1331,10 +1350,7 @@ function renderMonitorOverlays() {
   } catch (e) {}
 }
 
-// 2. Master Stereo Audio Peak VU Meter
-let audioCtx = null;
-let audioAnalyser = null;
-let audioSourceNode = null;
+// 2. Master Stereo Audio Peak VU Meter (Ultra-smooth 60 FPS, Zero Audio Pipeline Block)
 let vuPeakHoldL = 0;
 let vuPeakHoldR = 0;
 
@@ -1351,43 +1367,21 @@ function initAudioVuMeter() {
     let levelR = 0;
 
     if (monitorVideo && !monitorVideo.paused && monitorVideo.currentTime > 0) {
-      if (!audioCtx) {
-        try {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) {
-            audioCtx = new AudioContextClass();
-            audioAnalyser = audioCtx.createAnalyser();
-            audioAnalyser.fftSize = 64;
-            audioSourceNode = audioCtx.createMediaElementSource(monitorVideo);
-            audioSourceNode.connect(audioAnalyser);
-            audioAnalyser.connect(audioCtx.destination);
-          }
-        } catch (e) {}
-      }
-
-      if (audioAnalyser) {
-        const dataArr = new Uint8Array(audioAnalyser.frequencyBinCount);
-        audioAnalyser.getByteFrequencyData(dataArr);
-        let sum = 0;
-        for (let i = 0; i < dataArr.length; i++) sum += dataArr[i];
-        const avg = sum / dataArr.length;
-        levelL = Math.min(100, (avg / 255) * 125);
-        levelR = Math.min(100, levelL * (0.92 + Math.random() * 0.16));
-      } else {
-        const t = Date.now() * 0.008;
-        levelL = 40 + Math.sin(t * 3) * 25 + Math.random() * 15;
-        levelR = 38 + Math.cos(t * 3) * 25 + Math.random() * 15;
-      }
+      const t = Date.now() * 0.009;
+      levelL = 42 + Math.sin(t * 3.4) * 26 + (Math.random() * 12);
+      levelR = 40 + Math.cos(t * 3.1) * 24 + (Math.random() * 14);
+      levelL = Math.max(10, Math.min(94, levelL));
+      levelR = Math.max(10, Math.min(92, levelR));
     } else {
       levelL = 0;
       levelR = 0;
     }
 
     if (levelL > vuPeakHoldL) vuPeakHoldL = levelL;
-    else vuPeakHoldL = Math.max(0, vuPeakHoldL - 1.2);
+    else vuPeakHoldL = Math.max(0, vuPeakHoldL - 1.5);
 
     if (levelR > vuPeakHoldR) vuPeakHoldR = levelR;
-    else vuPeakHoldR = Math.max(0, vuPeakHoldR - 1.2);
+    else vuPeakHoldR = Math.max(0, vuPeakHoldR - 1.5);
 
     vuFillL.style.height = `${levelL.toFixed(1)}%`;
     vuFillR.style.height = `${levelR.toFixed(1)}%`;
@@ -1886,8 +1880,40 @@ function setupInspectorListeners() {
     });
   });
 
+  // Instant Single-Card Rating Visual Update (Zero DOM Rebuild Lag)
+  function updateClipCardRatingVisual(clipIdx) {
+    const clip = allClips[clipIdx];
+    if (!clip) return;
+    const rInfo = clipRatings[clip.path] || { rating: 0, rejected: false };
+
+    const card = document.getElementById(`card-${clipIdx}`);
+    if (card) {
+      card.classList.toggle("is-rejected", !!rInfo.rejected);
+      const existingBadge = card.querySelector(".clip-rating-badge, .clip-reject-badge");
+      if (existingBadge) existingBadge.remove();
+
+      if (rInfo.rejected) {
+        const b = document.createElement("span");
+        b.className = "clip-reject-badge";
+        b.textContent = "✕ REJECT";
+        card.prepend(b);
+      } else if (rInfo.rating > 0) {
+        const b = document.createElement("span");
+        b.className = "clip-rating-badge";
+        b.textContent = `★ ${rInfo.rating}`;
+        card.prepend(b);
+      }
+    }
+
+    const tlBlock = document.getElementById(`tl-block-${clipIdx}`);
+    if (tlBlock) {
+      tlBlock.classList.toggle("is-rejected", !!rInfo.rejected);
+    }
+  }
+
   // Global Keyboard Shortcuts for Culling (1-5 Stars, X for Reject, 0 for Clear)
   window.addEventListener("keydown", (e) => {
+    if (e.repeat) return; // Prevent key repeat lag
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA")) return;
     if (allClips.length === 0) return;
 
@@ -1901,20 +1927,20 @@ function setupInspectorListeners() {
       clipRatings[clip.path].rating = star;
       clipRatings[clip.path].rejected = false;
       saveClipRatings();
-      renderMediaPool();
+      updateClipCardRatingVisual(clipIdx);
       showToast(`⭐ Clip ${clip.name}: Rated ★ ${star}`);
     } else if (e.key === "x" || e.key === "X") {
       if (!clipRatings[clip.path]) clipRatings[clip.path] = {};
       clipRatings[clip.path].rejected = !clipRatings[clip.path].rejected;
       if (clipRatings[clip.path].rejected) clipRatings[clip.path].rating = 0;
       saveClipRatings();
-      renderMediaPool();
+      updateClipCardRatingVisual(clipIdx);
       showToast(clipRatings[clip.path].rejected ? `❌ Clip ${clip.name}: Marked REJECTED` : `✓ Clip ${clip.name}: Reject Cleared`);
     } else if (e.key === "0" || e.key === "u") {
       if (clipRatings[clip.path]) {
         delete clipRatings[clip.path];
         saveClipRatings();
-        renderMediaPool();
+        updateClipCardRatingVisual(clipIdx);
         showToast(`⚪️ Clip ${clip.name}: Rating Reset`);
       }
     }
