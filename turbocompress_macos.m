@@ -131,7 +131,7 @@ static void ensure_server_running(void) {
 // Support Cmd+R reload
 - (void)reloadPage:(id)sender {
     ensure_server_running();
-    [self.webView reload];
+    [self.webView reloadFromOrigin];
 }
 
 // Support JS alert and confirm panels in native app

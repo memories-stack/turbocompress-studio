@@ -4780,31 +4780,6 @@ body.theme-light .btn-davinci-pill.btn-empty-select:hover {
   border-color: #94a3b8 !important;
 }
 
-/* Guaranteed 100% Monochrome Filter on All UI Controls & Emojis in Light Mode */
-body.theme-light button,
-body.theme-light .insp-tab,
-body.theme-light .pill-dot,
-body.theme-light .brand-box,
-body.theme-light .engine-badge,
-body.theme-light .top-source-pill,
-body.theme-light .m-time-dur,
-body.theme-light .digital-timecode,
-body.theme-light .pinned-speed-pill-row,
-body.theme-light .speed-boost-panel,
-body.theme-light .nikon-profile-desc,
-body.theme-light .denoise-desc-pill,
-body.theme-light .wb-kelvin-badge,
-body.theme-light .empty-media-pool-zone,
-body.theme-light .media-pool-footer,
-body.theme-light .tl-header,
-body.theme-light .timeline-overview,
-body.theme-light .audio-vu-bar,
-body.theme-light .no-clip-msg,
-body.theme-light input,
-body.theme-light select {
-  filter: grayscale(1) !important;
-}
-
 
 
 /* ==========================================================================
@@ -5261,7 +5236,53 @@ body:not(.theme-light) .btn-big-export:hover {
   box-shadow: 0 6px 24px rgba(255, 255, 255, 0.24) !important;
 }
 
-/* Subtle desaturated studio icons in Dark Mode for aristocratic cohesion */
+body:not(.theme-light) #valBlackClip,
+body:not(.theme-light) #valMidGrey,
+body:not(.theme-light) #valWhiteClip {
+  color: #f8fafc !important;
+}
+
+
+
+/* ==========================================================================
+   UI REFINEMENT SPEC v2.0 — ELECTRIC BLUE (#0A84FF) + ANTIGRAVITY PURPLE (#AF52DE / #BF5AF2)
+   + EYE-CARE LIGHT MODE (#F5F5F7 / #FFFFFF / #6B7280) + NEGATIVE SPACE + 0.2s MICRO-INTERACTIONS
+   ========================================================================== */
+
+:root {
+  --accent-electric-blue: #0A84FF;
+  --accent-electric-blue-hover: #2492FF;
+  --accent-electric-blue-press: #0070E0;
+  --accent-ag-purple-light: #AF52DE;
+  --accent-ag-purple-dark: #BF5AF2;
+  --eyecare-bg-canvas: #F5F5F7;
+  --eyecare-card-surface: #FFFFFF;
+  --eyecare-disabled-text: #6B7280;
+  --eyecare-muted-text: #8E8E93;
+}
+
+/* Remove blanket grayscale filters so Electric Blue & Antigravity Purple render vividly */
+body.theme-light button,
+body.theme-light .insp-tab,
+body.theme-light .pill-dot,
+body.theme-light .brand-box,
+body.theme-light .engine-badge,
+body.theme-light .top-source-pill,
+body.theme-light .m-time-dur,
+body.theme-light .digital-timecode,
+body.theme-light .pinned-speed-pill-row,
+body.theme-light .speed-boost-panel,
+body.theme-light .nikon-profile-desc,
+body.theme-light .denoise-desc-pill,
+body.theme-light .wb-kelvin-badge,
+body.theme-light .empty-media-pool-zone,
+body.theme-light .media-pool-footer,
+body.theme-light .tl-header,
+body.theme-light .timeline-overview,
+body.theme-light .audio-vu-bar,
+body.theme-light .no-clip-msg,
+body.theme-light input,
+body.theme-light select,
 body:not(.theme-light) .brand-icon,
 body:not(.theme-light) .tab-icon,
 body:not(.theme-light) .pill-folder-icon,
@@ -5273,35 +5294,357 @@ body:not(.theme-light) .btn-bypass-cmp,
 body:not(.theme-light) .btn-mtool,
 body:not(.theme-light) .btn-quick-ang,
 body:not(.theme-light) .btn-wb-preset,
-body:not(.theme-light) .btn-color-preset {
-  filter: grayscale(0.85) !important;
-}
-
-
-
-/* Final Aristocratic Polish for Dark Mode */
-body:not(.theme-light) #valBlackClip,
-body:not(.theme-light) #valMidGrey,
-body:not(.theme-light) #valWhiteClip {
-  color: #f8fafc !important;
-}
-
+body:not(.theme-light) .btn-color-preset,
 body:not(.theme-light) input[type="checkbox"] {
-  accent-color: #f8fafc !important;
-  filter: grayscale(1) !important;
+  filter: none !important;
 }
 
-body:not(.theme-light) .empty-zone-icon,
-body:not(.theme-light) .no-clip-msg span,
-body:not(.theme-light) .search-lens,
-body:not(.theme-light) .seg-btn,
-body:not(.theme-light) .btn-rf,
-body:not(.theme-light) .btn-theme-pill,
-body:not(.theme-light) .btn-top-action,
+/* --------------------------------------------------------------------------
+   3. NEGATIVE SPACE & ERGONOMIC INPUT BOX HEIGHTS IN INSPECTOR
+   -------------------------------------------------------------------------- */
+.dv-card-body {
+  padding: 14px 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important; /* +6px breathing room between parameter rows */
+}
+
+.dv-row {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 30px !important;
+  height: auto !important;
+  gap: 6px !important;
+}
+
+.color-slider-row,
+.wb-slider-row,
+.dv-deliver-row {
+  min-height: 30px !important;
+  margin-bottom: 10px !important;
+}
+
+/* Upgraded 28px-30px Clickable Input Boxes & Dropdowns */
+.dv-num-box {
+  min-width: 62px !important;
+  height: 28px !important;
+  padding: 0 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.dv-select,
+.dv-deliver-input,
+#inpPreservedPath {
+  min-height: 30px !important;
+  height: 30px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.btn-rot-preset,
+.btn-quick-ang,
+.btn-flip,
+.btn-wb-preset,
+.btn-color-preset,
+.btn-soft-preset {
+  min-height: 28px !important;
+  padding: 4px 9px !important;
+  border-radius: 6px !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. MICRO-INTERACTIONS (0.2s ease-in-out + ~10% Brightness Shift)
+   -------------------------------------------------------------------------- */
+button,
+.insp-tab,
+.d-subtab,
+.btn-pool-import,
+.btn-empty-import,
+.btn-select-all,
+.btn-empty-select,
+.btn-big-export,
+.btn-davinci-browse,
+.btn-davinci-pill,
+.btn-rot-preset,
+.btn-quick-ang,
+.btn-wb-preset,
+.btn-color-preset,
+.btn-soft-preset,
+.seg-btn,
+.seg-cmp-btn,
+.btn-rf,
+.t-btn,
+.clip-card,
+.clip-list-item {
+  transition: background-color 0.2s ease-in-out,
+              background 0.2s ease-in-out,
+              border-color 0.2s ease-in-out,
+              color 0.2s ease-in-out,
+              box-shadow 0.2s ease-in-out,
+              transform 0.2s ease-in-out,
+              filter 0.2s ease-in-out !important;
+}
+
+/* Primary CTA Buttons: Electric Blue (#0A84FF) with 10% Hover Brightening */
+body.theme-light .btn-pool-import,
+body.theme-light .btn-empty-import,
+body.theme-light .btn-big-export,
+body:not(.theme-light) .btn-pool-import,
 body:not(.theme-light) .btn-empty-import,
-body:not(.theme-light) .btn-empty-select,
-body:not(.theme-light) .drop-hint,
-body:not(.theme-light) select {
-  filter: grayscale(1) !important;
+body:not(.theme-light) .btn-big-export {
+  background: linear-gradient(180deg, #1A8CFF 0%, #0A84FF 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid #0A84FF !important;
+  font-weight: 700 !important;
+  box-shadow: 0 3px 12px rgba(10, 132, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 }
 
+body.theme-light .btn-pool-import:hover,
+body.theme-light .btn-empty-import:hover,
+body.theme-light .btn-big-export:hover,
+body:not(.theme-light) .btn-pool-import:hover,
+body:not(.theme-light) .btn-empty-import:hover,
+body:not(.theme-light) .btn-big-export:hover {
+  background: linear-gradient(180deg, #3399FF 0%, #1F8FFF 100%) !important;
+  border-color: #3399FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 6px 18px rgba(10, 132, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+body.theme-light .btn-pool-import:active,
+body.theme-light .btn-empty-import:active,
+body.theme-light .btn-big-export:active,
+body:not(.theme-light) .btn-pool-import:active,
+body:not(.theme-light) .btn-empty-import:active,
+body:not(.theme-light) .btn-big-export:active {
+  background: #0070E0 !important;
+  transform: translateY(0) scale(0.985) !important;
+}
+
+/* --------------------------------------------------------------------------
+   1. VISUAL FOCUS: ELECTRIC BLUE (#0A84FF) + ANTIGRAVITY PURPLE (#AF52DE / #BF5AF2)
+   -------------------------------------------------------------------------- */
+
+/* Active Inspector Tabs, Deliver Subtabs & Active Preset Pills -> Electric Blue (#0A84FF) */
+body.theme-light .insp-tab.active,
+body:not(.theme-light) .insp-tab.active,
+body.theme-light .d-subtab.active,
+body:not(.theme-light) .d-subtab.active,
+body.theme-light .btn-wb-preset.active,
+body.theme-light .btn-color-preset.active,
+body.theme-light .btn-soft-preset.active,
+body.theme-light .btn-quick-ang.active,
+body.theme-light .btn-rot-preset.active,
+body.theme-light .seg-cmp-btn.active,
+body.theme-light .seg-btn.active,
+body.theme-light .btn-histo-mode.active,
+body.theme-light .btn-rf.active,
+body.theme-light .t-btn.play-btn,
+body.theme-light .btn-theme-pill.active,
+body:not(.theme-light) .btn-wb-preset.active,
+body:not(.theme-light) .btn-color-preset.active,
+body:not(.theme-light) .btn-soft-preset.active,
+body:not(.theme-light) .btn-quick-ang.active,
+body:not(.theme-light) .btn-rot-preset.active,
+body:not(.theme-light) .seg-cmp-btn.active,
+body:not(.theme-light) .seg-btn.active,
+body:not(.theme-light) .btn-histo-mode.active,
+body:not(.theme-light) .btn-rf.active,
+body:not(.theme-light) .t-btn.play-btn,
+body:not(.theme-light) .btn-theme-pill.active {
+  background: #0A84FF !important;
+  border-color: #0A84FF !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(10, 132, 255, 0.3) !important;
+}
+
+/* Focus Rings on Numeric Boxes, Inputs & Search -> Electric Blue (#0A84FF) */
+body.theme-light .dv-num-box:focus,
+body.theme-light input[type="text"]:not(.search-input):focus,
+body.theme-light input[type="number"]:focus,
+body.theme-light .dv-select:focus,
+body.theme-light select:focus,
+body.theme-light .search-wrapper:focus-within,
+body:not(.theme-light) .dv-num-box:focus,
+body:not(.theme-light) input[type="text"]:not(.search-input):focus,
+body:not(.theme-light) input[type="number"]:focus,
+body:not(.theme-light) .dv-select:focus,
+body:not(.theme-light) select:focus,
+body:not(.theme-light) .search-wrapper:focus-within {
+  border-color: #0A84FF !important;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2) !important;
+  outline: none !important;
+}
+
+/* Slider Thumbs & Checkboxes -> Electric Blue (#0A84FF) */
+body.theme-light input[type="checkbox"],
+body:not(.theme-light) input[type="checkbox"],
+body.theme-light .transport-scrub-slider,
+body:not(.theme-light) .transport-scrub-slider {
+  accent-color: #0A84FF !important;
+}
+
+body.theme-light .dv-slider::-webkit-slider-thumb {
+  background: #FFFFFF !important;
+  border: 2px solid #0A84FF !important;
+  box-shadow: 0 1px 4px rgba(10, 132, 255, 0.3) !important;
+}
+
+body:not(.theme-light) .dv-slider::-webkit-slider-thumb {
+  background: #0A84FF !important;
+  border: 2px solid #FFFFFF !important;
+  box-shadow: 0 1px 6px rgba(10, 132, 255, 0.45) !important;
+}
+
+/* Antigravity Purple (#AF52DE / #BF5AF2) -> Active Switch Dots, Selected Footage Borders & Pro Badges */
+body.theme-light .pill-dot.active {
+  background: #AF52DE !important;
+  box-shadow: 0 0 8px rgba(175, 82, 222, 0.5) !important;
+}
+
+body:not(.theme-light) .pill-dot.active {
+  background: #BF5AF2 !important;
+  box-shadow: 0 0 10px rgba(191, 90, 242, 0.65) !important;
+}
+
+body.theme-light .clip-card.selected,
+body.theme-light .clip-list-item.selected,
+body.theme-light .tl-clip-block.selected {
+  border: 2px solid #AF52DE !important;
+  box-shadow: 0 4px 14px rgba(175, 82, 222, 0.22) !important;
+}
+
+body:not(.theme-light) .clip-card.selected,
+body:not(.theme-light) .clip-list-item.selected,
+body:not(.theme-light) .tl-clip-block.selected {
+  border: 2px solid #BF5AF2 !important;
+  box-shadow: 0 4px 16px rgba(191, 90, 242, 0.32) !important;
+}
+
+body.theme-light .batch-apply-tag,
+body.theme-light .speed-boost-badge {
+  background: rgba(175, 82, 222, 0.1) !important;
+  border: 1px solid rgba(175, 82, 222, 0.3) !important;
+  color: #8931B8 !important;
+  font-weight: 700 !important;
+}
+
+body:not(.theme-light) .batch-apply-tag,
+body:not(.theme-light) .speed-boost-badge {
+  background: rgba(191, 90, 242, 0.14) !important;
+  border: 1px solid rgba(191, 90, 242, 0.38) !important;
+  color: #E2B6FF !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light .btn-link-icon:hover,
+body.theme-light .btn-mtool.active {
+  color: #AF52DE !important;
+}
+
+body:not(.theme-light) .btn-link-icon:hover,
+body:not(.theme-light) .btn-mtool.active {
+  color: #BF5AF2 !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. EYE-CARE LIGHT MODE (#F5F5F7 Canvas + #FFFFFF Elevated Bento Cards + #6B7280 / #8E8E93 Text)
+   -------------------------------------------------------------------------- */
+body.theme-light {
+  background-color: #F5F5F7 !important;
+  background-image: none !important;
+  color: #1D1D1F !important;
+}
+
+/* Bento Grid Panels & Inspector Cards on #FFFFFF with clear Elevation Drop Shadows */
+body.theme-light .media-pool-panel,
+body.theme-light .monitor-panel,
+body.theme-light .dv-inspector,
+body.theme-light .timeline-panel,
+body.theme-light .dv-timeline {
+  background: #F5F5F7 !important;
+  border: 1px solid #E5E5EA !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.theme-light .dv-card,
+body.theme-light .dv-deliver-card,
+body.theme-light .clip-card,
+body.theme-light .empty-media-pool-zone {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5EA !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.theme-light .dv-card-header {
+  background: #FAFAFC !important;
+  border-bottom: 1px solid #ECECEF !important;
+}
+
+/* Accessible Inactive / Disabled / Secondary Text (#6B7280 & #8E8E93) */
+body.theme-light .insp-tab:not(.active),
+body.theme-light .d-subtab:not(.active),
+body.theme-light .no-clip-msg,
+body.theme-light #inspectorClipTitle,
+body.theme-light #deliverClipStatus,
+body.theme-light .deliver-status-right,
+body.theme-light .empty-zone-desc,
+body.theme-light .export-note,
+body.theme-light .ps-label,
+body.theme-light .vu-scale {
+  color: #6B7280 !important;
+  font-weight: 600 !important;
+}
+
+body.theme-light button:disabled,
+body.theme-light input:disabled,
+body.theme-light select:disabled,
+body.theme-light .axis-label,
+body.theme-light .unit-tag {
+  color: #8E8E93 !important;
+}
+
+/* Ensure workspace grid gaps & dividers in Eye-Care Light Mode are soft #E5E5EA (no dark seams) */
+html:has(body.theme-light),
+body.theme-light,
+body.theme-light .app-layout,
+body.theme-light .upper-workspace,
+body.theme-light .lower-workspace,
+body.theme-light .main-workspace,
+body.theme-light .workspace-grid {
+  background: #E5E5EA !important;
+  background-color: #E5E5EA !important;
+}
+
+body.theme-light .media-pool-panel,
+body.theme-light .monitor-panel,
+body.theme-light .dv-inspector,
+body.theme-light .timeline-panel,
+body.theme-light .dv-timeline {
+  background: #F5F5F7 !important;
+  border: 1px solid #DCDCE2 !important;
+}
+
+/* Electric Blue Slider Thumbs in both Light & Dark Mode */
+body.theme-light input[type="range"]::-webkit-slider-thumb,
+body.theme-light .dv-slider::-webkit-slider-thumb {
+  background: #FFFFFF !important;
+  border: 2px solid #0A84FF !important;
+  box-shadow: 0 1px 5px rgba(10, 132, 255, 0.35) !important;
+}
+
+body:not(.theme-light) input[type="range"]::-webkit-slider-thumb,
+body:not(.theme-light) .dv-slider::-webkit-slider-thumb {
+  background: #0A84FF !important;
+  border: 2px solid #FFFFFF !important;
+  box-shadow: 0 1px 6px rgba(10, 132, 255, 0.5) !important;
+}

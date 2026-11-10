@@ -398,6 +398,13 @@ class StudioHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=WEB_DIR, **kwargs)
 
+    def end_headers(self):
+        if not self.path.startswith("/api/video") and not self.path.startswith("/api/thumb"):
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        super().end_headers()
+
     def do_HEAD(self):
         url = urllib.parse.urlparse(self.path)
         qs = urllib.parse.parse_qs(url.query)
