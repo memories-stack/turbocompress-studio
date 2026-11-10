@@ -112,7 +112,7 @@ DEFAULT_SETTINGS = {
     "denoiseMode": "off",
     "denoiseSpatial": 0.0,
     "denoiseTemporal": 0.0,
-    "conflictAction": "skip",
+    "conflictAction": "overwrite",
     "outputPath": "/Users/siamratchongtong/Desktop/STD_VT/test_Exp",
     "fileNamePattern": "SourceName",
     "renderMode": "individual",
@@ -945,17 +945,18 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         user_shadows = float(params.get("shadows", 0.0))
         user_saturation = float(params.get("saturation", 1.0))
 
-        tot_contrast = user_contrast
-        tot_saturation = user_saturation
-        tot_brightness = user_brightness
-        tot_gamma = 1.0 + (user_shadows * 0.8)
+        # Calibrated to match sRGB Monitor Preview (applyMonitorTransform in app.js) 1:1
+        tot_contrast = 1.0 + (user_contrast - 1.0) * 1.35
+        tot_saturation = 1.0 + (user_saturation - 1.0) * 1.35
+        tot_brightness = (user_brightness * 1.15) + (user_shadows * 0.16)
+        tot_gamma = 1.0 + (user_shadows * 0.90)
 
         temp = float(params.get("temperature", 0.0))
         tint = float(params.get("tint", 0.0))
-        # Precise, natural white balance temperature scaling (gentle ±10% range at max -50/+50)
-        r_mult = 1.0 + (temp * 0.002) + (tint * 0.002)
-        b_mult = 1.0 - (temp * 0.002) + (tint * 0.002)
-        g_mult = 1.0 - (tint * 0.003)
+        # Calibrated white balance temperature & tint scaling to match Monitor preview
+        r_mult = 1.0 + (temp * 0.0032) + (tint * 0.0022)
+        b_mult = 1.0 - (temp * 0.0032) + (tint * 0.0022)
+        g_mult = 1.0 - (tint * 0.0032)
 
     is_mono = False
 

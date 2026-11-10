@@ -392,6 +392,7 @@ async function loadSavedSettings() {
   }
 
   syncDomWithSettings(settings);
+  applyMonitorTransform();
 }
 
 function updateWhitebalanceBadge() {
@@ -2392,12 +2393,12 @@ function setupInspectorListeners() {
   // Initialize Master Audio VU Meter
   initAudioVuMeter();
 
-  // Color Presets
+  // Color Presets (Master Exposure & Primaries only — preserves White Balance & Portrait Hue)
   const colorPresets = {
-    normal: { brightness: 0.0, contrast: 1.0, shadows: 0.0, saturation: 1.0, temperature: 0, tint: 0, portraitHue: 0 },
-    shadows: { brightness: 0.05, contrast: 1.05, shadows: 0.40, saturation: 1.10, temperature: 0, tint: 0, portraitHue: 0 },
-    cinematic: { brightness: -0.02, contrast: 1.25, shadows: 0.05, saturation: 1.20, temperature: 0, tint: 0, portraitHue: 0 },
-    vibrant: { brightness: 0.04, contrast: 1.15, shadows: 0.20, saturation: 1.35, temperature: 0, tint: 0, portraitHue: 0 }
+    normal: { brightness: 0.0, contrast: 1.0, shadows: 0.0, saturation: 1.0 },
+    shadows: { brightness: 0.05, contrast: 1.05, shadows: 0.40, saturation: 1.10 },
+    cinematic: { brightness: -0.02, contrast: 1.25, shadows: 0.05, saturation: 1.20 },
+    vibrant: { brightness: 0.04, contrast: 1.15, shadows: 0.20, saturation: 1.35 }
   };
 
   function applyColorPreset(name) {
@@ -2406,9 +2407,6 @@ function setupInspectorListeners() {
     inspectorState.contrast = p.contrast;
     inspectorState.shadows = p.shadows;
     inspectorState.saturation = p.saturation;
-    inspectorState.temperature = p.temperature !== undefined ? p.temperature : 0;
-    inspectorState.tint = p.tint !== undefined ? p.tint : 0;
-    inspectorState.portraitHue = p.portraitHue !== undefined ? p.portraitHue : 0;
 
     if (sliderBrightness) sliderBrightness.value = p.brightness;
     if (inpBrightness) inpBrightness.value = p.brightness.toFixed(3);
@@ -2418,22 +2416,6 @@ function setupInspectorListeners() {
     if (inpShadows) inpShadows.value = p.shadows.toFixed(3);
     if (sliderSaturation) sliderSaturation.value = p.saturation;
     if (inpSaturation) inpSaturation.value = p.saturation.toFixed(3);
-
-    const slTemp = document.getElementById("sliderTemp");
-    const inpTmp = document.getElementById("inpTemp");
-    if (slTemp) slTemp.value = inspectorState.temperature;
-    if (inpTmp) inpTmp.value = inspectorState.temperature;
-
-    const slTint = document.getElementById("sliderTint");
-    const inpTnt = document.getElementById("inpTint");
-    if (slTint) slTint.value = inspectorState.tint;
-    if (inpTnt) inpTnt.value = inspectorState.tint;
-    updateWhitebalanceBadge();
-
-    const slPortHue = document.getElementById("sliderPortraitHue");
-    const inpPortHue = document.getElementById("inpPortraitHue");
-    if (slPortHue) slPortHue.value = inspectorState.portraitHue;
-    if (inpPortHue) inpPortHue.value = inspectorState.portraitHue;
 
     document.querySelectorAll(".btn-color-preset").forEach(b => {
       b.classList.toggle("active", b.getAttribute("data-preset") === name);
@@ -3422,8 +3404,28 @@ async function startBatchExport() {
   const isCropBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.crop;
   const isSpdBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.speed;
   const isWbBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.whiteBalance;
+  const isPrimariesBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.primaries;
   const chkTimelineEffects = document.getElementById("chkTimelineEffects");
   const renderTimelineEffects = chkTimelineEffects ? chkTimelineEffects.checked : true;
+
+  // Always read latest live values from DOM sliders/inputs right before export
+  const slBr = document.getElementById("sliderBrightness");
+  const slCt = document.getElementById("sliderContrast");
+  const slSh = document.getElementById("sliderShadows");
+  const slSat = document.getElementById("sliderSaturation");
+  const slTmp = document.getElementById("sliderTemp");
+  const slTnt = document.getElementById("sliderTint");
+  const selNik = document.getElementById("selNikonProfile");
+  const slNikStr = document.getElementById("sliderNikonStrength");
+
+  if (slBr) inspectorState.brightness = parseFloat(slBr.value);
+  if (slCt) inspectorState.contrast = parseFloat(slCt.value);
+  if (slSh) inspectorState.shadows = parseFloat(slSh.value);
+  if (slSat) inspectorState.saturation = parseFloat(slSat.value);
+  if (slTmp) inspectorState.temperature = parseFloat(slTmp.value);
+  if (slTnt) inspectorState.tint = parseFloat(slTnt.value);
+  if (selNik && selNik.value) inspectorState.nikonProfile = selNik.value;
+  if (slNikStr) inspectorState.nikonStrength = parseFloat(slNikStr.value);
 
   const inpBps = document.getElementById("inpBitrateKbps");
   const qModeEl = document.querySelector('input[name="qualityMode"]:checked');
@@ -3470,10 +3472,10 @@ async function startBatchExport() {
     denoise_temporal: inspectorState.denoiseTemporal || 0,
     nlog_normalize: (inspectorState.nikonProfile === "nlog_rec709"),
     naming_pattern: selNamingPattern ? selNamingPattern.value : "suffix_vertical",
-    brightness: inspectorState.brightness,
-    contrast: inspectorState.contrast,
-    shadows: inspectorState.shadows,
-    saturation: inspectorState.saturation,
+    brightness: isPrimariesBypassed ? 0.0 : inspectorState.brightness,
+    contrast: isPrimariesBypassed ? 1.0 : inspectorState.contrast,
+    shadows: isPrimariesBypassed ? 0.0 : inspectorState.shadows,
+    saturation: isPrimariesBypassed ? 1.0 : inspectorState.saturation,
     temperature: isWbBypassed ? 0 : (inspectorState.temperature || 0),
     tint: isWbBypassed ? 0 : (inspectorState.tint || 0),
     export_audio: chkExportAudio ? chkExportAudio.checked : true,
