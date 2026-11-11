@@ -5431,10 +5431,6 @@ function applyWorkspaceLayout(layoutKey, showNotification = true) {
     opt.classList.toggle("active", opt.dataset.layout === layoutKey);
   });
 
-  // Update top bar quick indicator
-  const lqActiveName = document.getElementById("lqActiveName");
-  if (lqActiveName) lqActiveName.textContent = cfg.name;
-
   if (showNotification) {
     showToast(`🪟 Layout: ${cfg.name}`);
   }
@@ -5449,7 +5445,6 @@ function setupAppMenuAndLayouts() {
   const btnTrigger = document.getElementById("btnAppMenuTrigger");
   const flyout = document.getElementById("appMenuFlyout");
   const wrapper = document.getElementById("appMenuWrapper");
-  const quickPill = document.getElementById("layoutQuickPill");
 
   if (!btnTrigger || !flyout) return;
 
@@ -5462,17 +5457,9 @@ function setupAppMenuAndLayouts() {
 
   btnTrigger.addEventListener("click", toggleMenu);
 
-  if (quickPill) {
-    quickPill.addEventListener("click", (e) => {
-      e.stopPropagation();
-      flyout.style.display = "block";
-      btnTrigger.classList.add("active");
-    });
-  }
-
   // Close when clicking outside
   document.addEventListener("click", (e) => {
-    if (flyout.style.display === "block" && wrapper && !wrapper.contains(e.target) && (!quickPill || !quickPill.contains(e.target))) {
+    if (flyout.style.display === "block" && wrapper && !wrapper.contains(e.target)) {
       flyout.style.display = "none";
       btnTrigger.classList.remove("active");
     }
