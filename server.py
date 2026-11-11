@@ -1477,7 +1477,26 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
                 "-pix_fmt", "yuv420p",
                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"
             ])
-            if enc_codec == "libx264":
+            if enc_codec == "h264_videotoolbox":
+                # Apple VideoToolbox rate-control calibration: caps bitrate on high-motion clips so file size doesn't blow up
+                try:
+                    num_k = int("".join([c for c in str(bitrate) if c.isdigit()]))
+                except Exception:
+                    num_k = 8000
+                if num_k <= 4500:
+                    vt_q = 50
+                elif num_k <= 6500:
+                    vt_q = 55
+                elif num_k <= 9000:
+                    vt_q = 58
+                elif num_k <= 12000:
+                    vt_q = 60
+                elif num_k <= 16000:
+                    vt_q = 62
+                else:
+                    vt_q = 65
+                cmd.extend(["-q:v", str(vt_q)])
+            elif enc_codec == "libx264":
                 cmd.extend(["-preset", "ultrafast"])
 
         if ext in ["mp4", "mov", "m4v"]:
