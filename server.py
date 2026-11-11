@@ -484,22 +484,26 @@ class StudioHandler(SimpleHTTPRequestHandler):
 
         elif url.path == "/api/thumb":
             fpath = qs.get("path", [""])[0]
+            hi_res = qs.get("hi", ["0"])[0] == "1"
             if not fpath or not os.path.exists(fpath):
                 self.send_error(404, "File not found")
                 return
             thumb_cache_dir = "/tmp/tc_thumbs"
             os.makedirs(thumb_cache_dir, exist_ok=True)
-            t_path = os.path.join(thumb_cache_dir, f"{os.path.basename(fpath)}.jpg")
+            prefix = "hi_" if hi_res else ""
+            scale_vf = "scale=640:-2" if hi_res else "scale=240:-2"
+            qv = "3" if hi_res else "5"
+            t_path = os.path.join(thumb_cache_dir, f"{prefix}{os.path.basename(fpath)}.jpg")
             if not os.path.exists(t_path):
                 subprocess.run([
                     FFMPEG_BIN, "-ss", "00:00:00.5", "-i", fpath,
-                    "-vframes", "1", "-vf", "scale=240:-2", "-q:v", "5",
+                    "-vframes", "1", "-vf", scale_vf, "-q:v", qv,
                     "-y", t_path
                 ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if not os.path.exists(t_path):
                     subprocess.run([
                         FFMPEG_BIN, "-i", fpath,
-                        "-vframes", "1", "-vf", "scale=240:-2", "-q:v", "6",
+                        "-vframes", "1", "-vf", scale_vf, "-q:v", qv,
                         "-y", t_path
                     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -877,26 +881,27 @@ def bake_davinci_grade_lut(cs, pb, skin_hue=0.0, skin_bright=0.0):
         pb_tint = float(t.get("tint", 0.0)) / 100.0
         pb_cont = float(t.get("cont", 1.0))
         pb_pivot = max(0.05, min(0.95, float(t.get("pivot", 0.435))))
+        pb_md = float(t.get("md", 0.0)) / 100.0
         pb_colboost = float(b.get("colBoost", 0.0)) / 100.0
         pb_shad = float(b.get("shad", 0.0)) / 100.0
         pb_hilight = float(b.get("hiLight", 0.0)) / 100.0
         pb_sat = float(b.get("sat", 50.0)) / 50.0
-        pb_hue_deg = ((float(b.get("hue", 50.0)) - 50.0) / 50.0) * 30.0
+        pb_hue_deg = ((float(b.get("hue", 50.0)) - 50.0) / 50.0) * 36.0
 
         lift_rgb = [
-            float(lf.get("y", 0.0)) + float(lf.get("r", 0.0)) + (float(of.get("r", 25.0)) - 25.0) * 0.006,
-            float(lf.get("y", 0.0)) + float(lf.get("g", 0.0)) + (float(of.get("g", 25.0)) - 25.0) * 0.006,
-            float(lf.get("y", 0.0)) + float(lf.get("b", 0.0)) + (float(of.get("b", 25.0)) - 25.0) * 0.006
+            float(lf.get("y", 0.0)) + float(lf.get("r", 0.0)) * 0.85 + (float(of.get("r", 25.0)) - 25.0) * 0.014,
+            float(lf.get("y", 0.0)) + float(lf.get("g", 0.0)) * 0.85 + (float(of.get("g", 25.0)) - 25.0) * 0.014,
+            float(lf.get("y", 0.0)) + float(lf.get("b", 0.0)) * 0.85 + (float(of.get("b", 25.0)) - 25.0) * 0.014
         ]
         gain_rgb = [
-            float(gn.get("y", 1.0)) * float(gn.get("r", 1.0)) * (1.0 + pb_temp * 0.12 + pb_tint * 0.05),
-            float(gn.get("y", 1.0)) * float(gn.get("g", 1.0)) * (1.0 - pb_tint * 0.07),
-            float(gn.get("y", 1.0)) * float(gn.get("b", 1.0)) * (1.0 - pb_temp * 0.12 + pb_tint * 0.05)
+            float(gn.get("y", 1.0)) * float(gn.get("r", 1.0)) * (1.0 + pb_temp * 0.22 + pb_tint * 0.10),
+            float(gn.get("y", 1.0)) * float(gn.get("g", 1.0)) * (1.0 - pb_tint * 0.14),
+            float(gn.get("y", 1.0)) * float(gn.get("b", 1.0)) * (1.0 - pb_temp * 0.22 + pb_tint * 0.10)
         ]
         gamma_rgb = [
-            max(0.25, min(4.0, 1.0 / max(0.2, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("r", 0.0))) * 1.35))),
-            max(0.25, min(4.0, 1.0 / max(0.2, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("g", 0.0))) * 1.35))),
-            max(0.25, min(4.0, 1.0 / max(0.2, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("b", 0.0))) * 1.35)))
+            max(0.20, min(4.5, 1.0 / max(0.18, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("r", 0.0))) * 1.45))),
+            max(0.20, min(4.5, 1.0 / max(0.18, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("g", 0.0))) * 1.45))),
+            max(0.20, min(4.5, 1.0 / max(0.18, 1.0 + (float(gm.get("y", 0.0)) + float(gm.get("b", 0.0))) * 1.45)))
         ]
 
     # Pre-extract ColorSlice parameters (merging dedicated Skin Tone & Radiance sliders into the 'skin' slice!)
@@ -956,9 +961,12 @@ def bake_davinci_grade_lut(cs, pb, skin_hue=0.0, skin_bright=0.0):
                             v = v ** gamma_rgb[ch_i]
                         # Shadow & Highlight recovery
                         if abs(pb_shad) > 0.002:
-                            v += pb_shad * 0.22 * ((1.0 - v) ** 2) * (v ** 0.5)
+                            v += pb_shad * 0.28 * ((1.0 - v) ** 2) * (v ** 0.5)
                         if abs(pb_hilight) > 0.002:
-                            v += pb_hilight * 0.22 * (v ** 2) * ((1.0 - v) ** 0.5)
+                            v += pb_hilight * 0.28 * (v ** 2) * ((1.0 - v) ** 0.5)
+                        # Midtone Detail (MD) contrast curve
+                        if abs(pb_md) > 0.002:
+                            v += pb_md * 0.22 * math.sin((v - 0.5) * math.pi) * (4.0 * v * (1.0 - v))
                         # Contrast around Pivot
                         if abs(pb_cont - 1.0) > 0.002:
                             v = pb_pivot + (v - pb_pivot) * pb_cont
@@ -973,7 +981,7 @@ def bake_davinci_grade_lut(cs, pb, skin_hue=0.0, skin_bright=0.0):
                         eff_s = s * pb_sat
                         if abs(pb_colboost) > 0.003:
                             # Color Boost boosts low-to-mid saturation more than already-saturated pixels
-                            eff_s += pb_colboost * s * (1.0 - s) * 1.4
+                            eff_s += pb_colboost * s * (1.0 - s) * 1.55
                         s = max(0.0, min(1.0, eff_s))
                         r, g, b = colorsys.hls_to_rgb(h, l, s)
 
@@ -982,7 +990,7 @@ def bake_davinci_grade_lut(cs, pb, skin_hue=0.0, skin_bright=0.0):
                     c_max = max(r, g, b)
                     c_min = min(r, g, b)
                     chroma = c_max - c_min
-                    # Smooth chroma gate: neutral greys/whites/roads (chroma < 0.04) are 0% affected!
+                    # Smooth chroma gate: neutral greys/whites/roads (chroma < 0.02) are 0% affected!
                     if chroma > 0.02:
                         sat_gate = min(1.0, max(0.0, (chroma - 0.02) / 0.14))
                         h, l, s = colorsys.rgb_to_hls(r, g, b)
@@ -1010,11 +1018,11 @@ def bake_davinci_grade_lut(cs, pb, skin_hue=0.0, skin_bright=0.0):
                         s_new = max(0.0, min(1.0, s * tot_sat_mult))
                         # Subtractive Film Density: positive density deepens luminance of saturated colors; negative density lifts midtone glow!
                         if tot_den >= 0:
-                            l_new = l * (1.0 - tot_den * 0.42 * min(1.0, s_new * 1.4))
+                            l_new = l * (1.0 - tot_den * 0.52 * min(1.0, max(0.35, s_new * 1.6)))
                         else:
                             # Negative density lifts luminance smoothly with highlight roll-off protection
-                            lift_amt = abs(tot_den) * 0.45
-                            l_new = l + lift_amt * l * (1.0 - l) * 1.8
+                            lift_amt = abs(tot_den) * 0.55
+                            l_new = l + lift_amt * l * (1.0 - l) * 2.1
                         l_new = max(0.0, min(1.0, l_new))
                         r, g, b = colorsys.hls_to_rgb(h_new, l_new, s_new)
 

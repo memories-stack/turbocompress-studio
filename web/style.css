@@ -992,7 +992,8 @@ body {
 }
 
 .split-layer img,
-.split-layer video {
+.split-layer video,
+.split-layer canvas {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -1125,14 +1126,16 @@ body {
 }
 
 .sbs-media-wrap img,
-.sbs-media-wrap video {
+.sbs-media-wrap video,
+.sbs-media-wrap canvas {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
 .screen-box img,
-.screen-box video {
+.screen-box video,
+.screen-box canvas {
   width: 100%;
   height: 100%;
   object-fit: contain;

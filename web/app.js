@@ -86,6 +86,379 @@ function isPrimariesBarsModified(pb) {
   return false;
 }
 
+// =========================================================================
+// REAL-TIME JAVASCRIPT 3D LUT PIXEL ENGINE (1:1 MATCH WITH SERVER.PY .CUBE)
+// =========================================================================
+const COLORSLICE_HUE_WINDOWS = {
+  red:     [0.0,   26.0],
+  skin:    [22.0,  24.0], // Human skin tone I-Line (~8° to 46° orange-peach)
+  yellow:  [58.0,  26.0],
+  green:   [112.0, 42.0], // Foliage & grass (70° to 154°)
+  cyan:    [180.0, 34.0],
+  blue:    [228.0, 38.0], // Sky & blue apparel (190° to 266°)
+  magenta: [305.0, 36.0]
+};
+
+function _hueDiffDeg(h1, h2) {
+  return ((h1 - h2 + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+}
+
+function _rgbToHls(r, g, b) {
+  const maxc = Math.max(r, g, b);
+  const minc = Math.min(r, g, b);
+  const sumc = maxc + minc;
+  const l = sumc * 0.5;
+  if (minc === maxc) return [0.0, l, 0.0];
+  const rangec = maxc - minc;
+  const s = l <= 0.5 ? rangec / sumc : rangec / (2.0 - maxc - minc);
+  const rc = (maxc - r) / rangec;
+  const gc = (maxc - g) / rangec;
+  const bc = (maxc - b) / rangec;
+  let h;
+  if (r === maxc) h = bc - gc;
+  else if (g === maxc) h = 2.0 + rc - bc;
+  else h = 4.0 + gc - rc;
+  h = ((h / 6.0) % 1.0 + 1.0) % 1.0;
+  return [h, l, s];
+}
+
+function _hlsVal(m1, m2, hue) {
+  const h = ((hue % 1.0) + 1.0) % 1.0;
+  if (h < 1.0 / 6.0) return m1 + (m2 - m1) * h * 6.0;
+  if (h < 0.5) return m2;
+  if (h < 2.0 / 3.0) return m1 + (m2 - m1) * (2.0 / 3.0 - h) * 6.0;
+  return m1;
+}
+
+function _hlsToRgb(h, l, s) {
+  if (s <= 0.0) return [l, l, l];
+  const m2 = l <= 0.5 ? l * (1.0 + s) : l + s - (l * s);
+  const m1 = 2.0 * l - m2;
+  return [
+    _hlsVal(m1, m2, h + 1.0 / 3.0),
+    _hlsVal(m1, m2, h),
+    _hlsVal(m1, m2, h - 1.0 / 3.0)
+  ];
+}
+
+let _jsLutCache = { key: "", active: false, lut: null };
+
+function buildJs3DLut() {
+  if (isBypassed) return { active: false, lut: null };
+  const cs = inspectorState.colorSlice;
+  const pb = inspectorState.primariesBars;
+  const isCsBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.colorSlice;
+  const isPbBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.primariesBars;
+  const isNikonBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor;
+
+  const csActive = !isCsBypassed && isColorSliceModified(cs);
+  const pbActive = !isPbBypassed && isPrimariesBarsModified(pb);
+  const skinHue = isNikonBypassed ? 0.0 : (inspectorState.portraitHue || 0.0);
+  const skinBright = isNikonBypassed ? 0.0 : (inspectorState.portraitBrightness || 0.0);
+  const skinActive = Math.abs(skinHue) > 0.2 || Math.abs(skinBright) > 0.2;
+
+  if (!csActive && !pbActive && !skinActive) {
+    return { active: false, lut: null };
+  }
+
+  const stateKey = JSON.stringify({
+    cs: csActive ? cs : null,
+    pb: pbActive ? pb : null,
+    sh: Math.round(skinHue * 100) / 100,
+    sb: Math.round(skinBright * 100) / 100
+  });
+  if (_jsLutCache.key === stateKey && _jsLutCache.lut) {
+    return _jsLutCache;
+  }
+
+  let pbTemp = 0, pbTint = 0, pbCont = 1, pbPivot = 0.435, pbMd = 0;
+  let pbColBoost = 0, pbShad = 0, pbHiLight = 0, pbSat = 1, pbHueDeg = 0;
+  let liftRgb = [0, 0, 0], gainRgb = [1, 1, 1], gammaRgb = [1, 1, 1];
+
+  if (pbActive && pb) {
+    const t = pb.top || {};
+    const b = pb.bot || {};
+    const lf = pb.lift || {};
+    const gm = pb.gamma || {};
+    const gn = pb.gain || {};
+    const of = pb.offset || {};
+    pbTemp = Number(t.temp || 0) / 100.0;
+    pbTint = Number(t.tint || 0) / 100.0;
+    pbCont = t.cont !== undefined ? Number(t.cont) : 1.0;
+    pbPivot = Math.max(0.05, Math.min(0.95, t.pivot !== undefined ? Number(t.pivot) : 0.435));
+    pbMd = Number(t.md || 0) / 100.0;
+    pbColBoost = Number(b.colBoost || 0) / 100.0;
+    pbShad = Number(b.shad || 0) / 100.0;
+    pbHiLight = Number(b.hiLight || 0) / 100.0;
+    pbSat = (b.sat !== undefined ? Number(b.sat) : 50.0) / 50.0;
+    pbHueDeg = (((b.hue !== undefined ? Number(b.hue) : 50.0) - 50.0) / 50.0) * 36.0;
+
+    liftRgb = [
+      Number(lf.y || 0) + Number(lf.r || 0) * 0.85 + ((of.r !== undefined ? Number(of.r) : 25) - 25) * 0.014,
+      Number(lf.y || 0) + Number(lf.g || 0) * 0.85 + ((of.g !== undefined ? Number(of.g) : 25) - 25) * 0.014,
+      Number(lf.y || 0) + Number(lf.b || 0) * 0.85 + ((of.b !== undefined ? Number(of.b) : 25) - 25) * 0.014
+    ];
+    gainRgb = [
+      (gn.y !== undefined ? Number(gn.y) : 1) * (gn.r !== undefined ? Number(gn.r) : 1) * (1.0 + pbTemp * 0.22 + pbTint * 0.10),
+      (gn.y !== undefined ? Number(gn.y) : 1) * (gn.g !== undefined ? Number(gn.g) : 1) * (1.0 - pbTint * 0.14),
+      (gn.y !== undefined ? Number(gn.y) : 1) * (gn.b !== undefined ? Number(gn.b) : 1) * (1.0 - pbTemp * 0.22 + pbTint * 0.10)
+    ];
+    gammaRgb = [
+      Math.max(0.20, Math.min(4.5, 1.0 / Math.max(0.18, 1.0 + (Number(gm.y || 0) + Number(gm.r || 0)) * 1.45))),
+      Math.max(0.20, Math.min(4.5, 1.0 / Math.max(0.18, 1.0 + (Number(gm.y || 0) + Number(gm.g || 0)) * 1.45))),
+      Math.max(0.20, Math.min(4.5, 1.0 / Math.max(0.18, 1.0 + (Number(gm.y || 0) + Number(gm.b || 0)) * 1.45)))
+    ];
+  }
+
+  let gDen = 0.0, gSat = 1.0, gHueDeg = 0.0;
+  if (csActive && cs) {
+    const m = cs.master || {};
+    gDen = Number(m.den || 0) + Number(m.denDepth || 0) * 0.35;
+    gSat = (m.sat !== undefined ? Number(m.sat) : 1.0) + Number(m.satBal || 0) * 0.25 + Number(m.satDepth || 0) * 0.20;
+    gHueDeg = Number(m.hue || 0) * 30.0;
+  }
+
+  const activeSlices = [];
+  Object.keys(COLORSLICE_HUE_WINDOWS).forEach(k => {
+    const [baseC, halfW] = COLORSLICE_HUE_WINDOWS[k];
+    const sl = (csActive && cs && cs[k]) ? cs[k] : {};
+    const cShift = Number(sl.center || 0) * 14.0;
+    const rawHue = Number(sl.hue || 0);
+    let hShift = (k === "skin") ? (-rawHue * 18.0) : (rawHue * 24.0);
+    let den = Number(sl.den || 0);
+    let sat = sl.sat !== undefined ? Number(sl.sat) : 1.0;
+
+    if (k === "skin" && skinActive) {
+      hShift -= (skinHue / 50.0) * 14.0;
+      den -= (skinBright / 50.0) * 0.38;
+      sat *= (1.0 + Math.abs(skinHue) / 50.0 * 0.12);
+    }
+
+    if (Math.abs(cShift) > 0.05 || Math.abs(hShift) > 0.05 || Math.abs(den) > 0.003 || Math.abs(sat - 1.0) > 0.003) {
+      activeSlices.push([k, ((baseC + cShift) % 360.0 + 360.0) % 360.0, halfW, hShift, den, sat]);
+    }
+  });
+
+  const size = 17;
+  const inv = 1.0 / 16.0;
+  const lut = new Uint8Array(size * size * size * 3);
+  let ptr = 0;
+
+  for (let bi = 0; bi < size; bi++) {
+    const bIn = bi * inv;
+    for (let gi = 0; gi < size; gi++) {
+      const gIn = gi * inv;
+      for (let ri = 0; ri < size; ri++) {
+        let r = ri * inv, g = gIn, b = bIn;
+
+        if (pbActive) {
+          const rgb = [r, g, b];
+          for (let ch = 0; ch < 3; ch++) {
+            let v = rgb[ch];
+            v = v * gainRgb[ch] + liftRgb[ch] * (1.0 - v);
+            v = Math.max(0.0, Math.min(1.0, v));
+            if (v > 0.0) v = Math.pow(v, gammaRgb[ch]);
+            if (Math.abs(pbShad) > 0.002) v += pbShad * 0.28 * Math.pow(1.0 - v, 2) * Math.sqrt(v);
+            if (Math.abs(pbHiLight) > 0.002) v += pbHiLight * 0.28 * Math.pow(v, 2) * Math.sqrt(1.0 - v);
+            if (Math.abs(pbMd) > 0.002) v += pbMd * 0.22 * Math.sin((v - 0.5) * Math.PI) * (4.0 * v * (1.0 - v));
+            if (Math.abs(pbCont - 1.0) > 0.002) v = pbPivot + (v - pbPivot) * pbCont;
+            rgb[ch] = Math.max(0.0, Math.min(1.0, v));
+          }
+          r = rgb[0]; g = rgb[1]; b = rgb[2];
+
+          if (Math.abs(pbSat - 1.0) > 0.003 || Math.abs(pbColBoost) > 0.003 || Math.abs(pbHueDeg) > 0.05) {
+            let [h, l, s] = _rgbToHls(r, g, b);
+            if (Math.abs(pbHueDeg) > 0.05) h = ((h + pbHueDeg / 360.0) % 1.0 + 1.0) % 1.0;
+            let effS = s * pbSat;
+            if (Math.abs(pbColBoost) > 0.003) effS += pbColBoost * s * (1.0 - s) * 1.55;
+            s = Math.max(0.0, Math.min(1.0, effS));
+            [r, g, b] = _hlsToRgb(h, l, s);
+          }
+        }
+
+        if (csActive || activeSlices.length > 0) {
+          const cMax = Math.max(r, g, b);
+          const cMin = Math.min(r, g, b);
+          const chroma = cMax - cMin;
+          if (chroma > 0.02) {
+            const satGate = Math.min(1.0, Math.max(0.0, (chroma - 0.02) / 0.14));
+            const [h, l, s] = _rgbToHls(r, g, b);
+            const hDeg = h * 360.0;
+
+            let totHShift = gHueDeg;
+            let totDen = gDen * satGate;
+            let totSatMult = gSat;
+
+            for (let si = 0; si < activeSlices.length; si++) {
+              const [sName, centerDeg, halfW, hSh, denVal, satVal] = activeSlices[si];
+              const dDeg = Math.abs(_hueDiffDeg(hDeg, centerDeg));
+              if (dDeg < halfW) {
+                const cosV = Math.cos((dDeg / halfW) * (Math.PI * 0.5));
+                let w = (cosV * cosV) * satGate;
+                if (sName === "skin") {
+                  const lumaGate = 4.0 * l * (1.0 - l);
+                  w *= Math.max(0.25, lumaGate);
+                }
+                totHShift += hSh * w;
+                totDen += denVal * w;
+                totSatMult *= (1.0 + (satVal - 1.0) * w);
+              }
+            }
+
+            const hNew = (((hDeg + totHShift) % 360.0 + 360.0) % 360.0) / 360.0;
+            const sNew = Math.max(0.0, Math.min(1.0, s * totSatMult));
+            let lNew;
+            if (totDen >= 0) {
+              lNew = l * (1.0 - totDen * 0.52 * Math.min(1.0, Math.max(0.35, sNew * 1.6)));
+            } else {
+              const liftAmt = Math.abs(totDen) * 0.55;
+              lNew = l + liftAmt * l * (1.0 - l) * 2.1;
+            }
+            lNew = Math.max(0.0, Math.min(1.0, lNew));
+            [r, g, b] = _hlsToRgb(hNew, lNew, sNew);
+          }
+        }
+
+        lut[ptr++] = Math.max(0, Math.min(255, Math.round(r * 255.0)));
+        lut[ptr++] = Math.max(0, Math.min(255, Math.round(g * 255.0)));
+        lut[ptr++] = Math.max(0, Math.min(255, Math.round(b * 255.0)));
+      }
+    }
+  }
+
+  _jsLutCache = { key: stateKey, active: true, lut };
+  return _jsLutCache;
+}
+
+function applyJs3DLutToPixels(data, lut) {
+  if (!lut) return;
+  const scale = 16.0 / 255.0;
+  for (let i = 0, len = data.length; i < len; i += 4) {
+    const rf = data[i] * scale;
+    const gf = data[i + 1] * scale;
+    const bf = data[i + 2] * scale;
+    const r0 = rf | 0, g0 = gf | 0, b0 = bf | 0;
+    const r1 = r0 < 16 ? r0 + 1 : 16;
+    const g1 = g0 < 16 ? g0 + 1 : 16;
+    const b1 = b0 < 16 ? b0 + 1 : 16;
+    const dr = rf - r0, dg = gf - g0, db = bf - b0;
+    const omr = 1.0 - dr, omg = 1.0 - dg, omb = 1.0 - db;
+
+    const w000 = omb * omg * omr;
+    const w001 = omb * omg * dr;
+    const w010 = omb * dg * omr;
+    const w011 = omb * dg * dr;
+    const w100 = db * omg * omr;
+    const w101 = db * omg * dr;
+    const w110 = db * dg * omr;
+    const w111 = db * dg * dr;
+
+    const b0g0 = (b0 * 289 + g0 * 17) * 3;
+    const b0g1 = (b0 * 289 + g1 * 17) * 3;
+    const b1g0 = (b1 * 289 + g0 * 17) * 3;
+    const b1g1 = (b1 * 289 + g1 * 17) * 3;
+
+    const i000 = b0g0 + r0 * 3, i001 = b0g0 + r1 * 3;
+    const i010 = b0g1 + r0 * 3, i011 = b0g1 + r1 * 3;
+    const i100 = b1g0 + r0 * 3, i101 = b1g0 + r1 * 3;
+    const i110 = b1g1 + r0 * 3, i111 = b1g1 + r1 * 3;
+
+    data[i]     = (lut[i000]*w000 + lut[i001]*w001 + lut[i010]*w010 + lut[i011]*w011 + lut[i100]*w100 + lut[i101]*w101 + lut[i110]*w110 + lut[i111]*w111 + 0.5) | 0;
+    data[i + 1] = (lut[i000+1]*w000 + lut[i001+1]*w001 + lut[i010+1]*w010 + lut[i011+1]*w011 + lut[i100+1]*w100 + lut[i101+1]*w101 + lut[i110+1]*w110 + lut[i111+1]*w111 + 0.5) | 0;
+    data[i + 2] = (lut[i000+2]*w000 + lut[i001+2]*w001 + lut[i010+2]*w010 + lut[i011+2]*w011 + lut[i100+2]*w100 + lut[i101+2]*w101 + lut[i110+2]*w110 + lut[i111+2]*w111 + 0.5) | 0;
+  }
+}
+
+let _lutRenderRafId = null;
+let _videoLutLoopId = null;
+let _monitorLutCtx = null;
+let _sbsLutCtx = null;
+
+function scheduleMonitorLutRender() {
+  if (_lutRenderRafId) return;
+  _lutRenderRafId = requestAnimationFrame(() => {
+    _lutRenderRafId = null;
+    renderMonitorLutCanvas();
+  });
+}
+
+function renderMonitorLutCanvas() {
+  const mCanvas = document.getElementById("monitorLutCanvas");
+  const sCanvas = document.getElementById("sbsLutCanvas");
+  if (!mCanvas) return;
+
+  const lutState = buildJs3DLut();
+  if (!lutState.active || !lutState.lut) {
+    mCanvas.style.display = "none";
+    if (sCanvas) sCanvas.style.display = "none";
+    return;
+  }
+
+  const isVidActive = monitorVideo && monitorVideo.style.display !== "none" && monitorVideo.readyState >= 2 && monitorVideo.videoWidth > 0;
+  const isImgActive = monitorImg && monitorImg.src && monitorImg.complete && monitorImg.naturalWidth > 0;
+  const sourceEl = isVidActive ? monitorVideo : (isImgActive ? monitorImg : null);
+
+  if (!sourceEl) {
+    mCanvas.style.display = "none";
+    if (sCanvas) sCanvas.style.display = "none";
+    return;
+  }
+
+  const rawW = isVidActive ? monitorVideo.videoWidth : monitorImg.naturalWidth;
+  const rawH = isVidActive ? monitorVideo.videoHeight : monitorImg.naturalHeight;
+  const maxDim = 640;
+  const scaleFactor = Math.min(1.0, maxDim / Math.max(rawW || 640, rawH || 360));
+  const cw = Math.max(16, Math.round(rawW * scaleFactor));
+  const ch = Math.max(16, Math.round(rawH * scaleFactor));
+
+  if (mCanvas.width !== cw || mCanvas.height !== ch) {
+    mCanvas.width = cw;
+    mCanvas.height = ch;
+    _monitorLutCtx = null;
+  }
+  if (!_monitorLutCtx) {
+    _monitorLutCtx = mCanvas.getContext("2d", { willReadFrequently: true });
+  }
+
+  try {
+    _monitorLutCtx.drawImage(sourceEl, 0, 0, cw, ch);
+    const imgData = _monitorLutCtx.getImageData(0, 0, cw, ch);
+    applyJs3DLutToPixels(imgData.data, lutState.lut);
+    _monitorLutCtx.putImageData(imgData, 0, 0);
+    mCanvas.style.display = "block";
+
+    if (sCanvas && sideBySideContainer && sideBySideContainer.style.display !== "none") {
+      if (sCanvas.width !== cw || sCanvas.height !== ch) {
+        sCanvas.width = cw;
+        sCanvas.height = ch;
+        _sbsLutCtx = null;
+      }
+      if (!_sbsLutCtx) {
+        _sbsLutCtx = sCanvas.getContext("2d");
+      }
+      _sbsLutCtx.putImageData(imgData, 0, 0);
+      sCanvas.style.display = "block";
+    } else if (sCanvas) {
+      sCanvas.style.display = "none";
+    }
+  } catch (err) {
+    mCanvas.style.display = "none";
+  }
+}
+
+function startVideoLutLoop() {
+  if (_videoLutLoopId) return;
+  const tick = () => {
+    if (monitorVideo && !monitorVideo.paused && !monitorVideo.ended && monitorVideo.style.display !== "none") {
+      renderMonitorLutCanvas();
+      _videoLutLoopId = requestAnimationFrame(tick);
+    } else {
+      _videoLutLoopId = null;
+    }
+  };
+  _videoLutLoopId = requestAnimationFrame(tick);
+}
+
 function updateColorSliceSvgFilter() {
   const feMatrix = document.getElementById("csFeMatrix");
   const fnR = document.getElementById("csFuncR");
@@ -1390,7 +1763,7 @@ function updateMonitorDisplay(idx, force = false) {
   const clip = allClips[idx];
   noClipMsg.style.display = "none";
 
-  const thumbUrl = `/api/thumb?path=${encodeURIComponent(clip.path)}`;
+  const thumbUrl = `/api/thumb?path=${encodeURIComponent(clip.path)}&hi=1`;
 
   if (!isExporting && monitorVideo) {
     monitorVideo.pause();
@@ -1404,6 +1777,7 @@ function updateMonitorDisplay(idx, force = false) {
   monitorImg.style.display = "block";
   monitorImg.onload = () => {
     applyMonitorTransform();
+    renderMonitorLutCanvas();
   };
   monitorImg.src = thumbUrl;
 
@@ -1569,26 +1943,85 @@ function applyMonitorTransform() {
     transformStr += ` scale(${1 + inspectorState.distortion * 0.12})`;
   }
 
-  // Skin Radiance (Midtone Aura Lift) & Skin Tone adjustments before building filterStr
+  // Base filter string (for monitorLutCanvas and sbsLutCanvas, which already have Primaries Bars, ColorSlice & Skin Tone baked into their RGB pixels via the 3D LUT!)
+  let baseFilterStr = isBypassed ? "none" : `brightness(${br.toFixed(3)}) contrast(${ct.toFixed(3)}) saturate(${sat.toFixed(3)})`;
+  if (!isBypassed) {
+    if (sepiaVal > 0) baseFilterStr += ` sepia(${sepiaVal.toFixed(1)}%)`;
+    if (grayscaleVal > 0) baseFilterStr += ` grayscale(${grayscaleVal.toFixed(1)}%)`;
+
+    // White Balance: Temperature & Tint
+    const isWbBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.whiteBalance;
+    const tempVal = isWbBypassed ? 0 : (inspectorState.temperature || 0);
+    const tintVal = isWbBypassed ? 0 : (inspectorState.tint || 0);
+    if (tempVal > 0) {
+      baseFilterStr += ` sepia(${(tempVal * 0.45).toFixed(1)}%)`;
+    } else if (tempVal < 0) {
+      const coolAmt = Math.min(50, Math.abs(tempVal) * 0.5);
+      baseFilterStr += ` hue-rotate(180deg) sepia(${coolAmt.toFixed(1)}%) hue-rotate(180deg)`;
+    }
+    if (tintVal !== 0) {
+      baseFilterStr += ` hue-rotate(${(tintVal * 0.25).toFixed(1)}deg)`;
+    }
+
+    // Skin Softening preview
+    const skinSoftVal = isNikonBypassed ? 0 : (inspectorState.skinSoftening || 0);
+    if (skinSoftVal > 5) {
+      baseFilterStr += ` blur(${(skinSoftVal * 0.006).toFixed(2)}px)`;
+    }
+  }
+
+  // Fallback CSS filter for monitorImg & monitorVideo (also folds Primaries Bars, ColorSlice & Skin Tone into native WebKit CSS filters!)
+  let fbBr = br, fbCt = ct, fbSat = sat, fbSepia = sepiaVal, fbHueDeg = 0.0;
   const portHue = isNikonBypassed ? 0 : (inspectorState.portraitHue || 0);
   const portBright = isNikonBypassed ? 0 : (inspectorState.portraitBrightness || 0);
   if (portBright !== 0) {
-    br += (portBright / 100) * 0.28;
-    ct *= 1.0 - (portBright / 100) * 0.06;
+    fbBr += (portBright / 100) * 0.28;
+    fbCt *= 1.0 - (portBright / 100) * 0.06;
   }
   if (portHue > 0) {
-    sat *= 1.0 + (portHue / 100) * 0.14;
+    fbSat *= 1.0 + (portHue / 100) * 0.14;
+    fbHueDeg -= portHue * 0.36;
   } else if (portHue < 0) {
-    sepiaVal += Math.abs(portHue) * 0.28;
-    sat *= 1.0 + (Math.abs(portHue) / 100) * 0.12;
+    fbSepia += Math.abs(portHue) * 0.28;
+    fbSat *= 1.0 + (Math.abs(portHue) / 100) * 0.12;
+    fbHueDeg -= portHue * 0.36;
   }
 
-  let filterStr = isBypassed ? "none" : `brightness(${br.toFixed(3)}) contrast(${ct.toFixed(3)}) saturate(${sat.toFixed(3)})`;
-  if (!isBypassed) {
-    if (sepiaVal > 0) filterStr += ` sepia(${sepiaVal.toFixed(1)}%)`;
-    if (grayscaleVal > 0) filterStr += ` grayscale(${grayscaleVal.toFixed(1)}%)`;
+  const isPbByp = isBypassed || (inspectorState.bypassedCards && inspectorState.bypassedCards.primariesBars);
+  if (!isPbByp && inspectorState.primariesBars && isPrimariesBarsModified(inspectorState.primariesBars)) {
+    const pb = inspectorState.primariesBars;
+    const t = pb.top || {}, b = pb.bot || {}, lf = pb.lift || {}, gm = pb.gamma || {}, gn = pb.gain || {}, of = pb.offset || {};
+    const avgOff = (((of.r !== undefined ? of.r : 25) - 25) + ((of.g !== undefined ? of.g : 25) - 25) + ((of.b !== undefined ? of.b : 25) - 25)) / 3.0;
+    const avgLift = (lf.y || 0) + ((lf.r || 0) + (lf.g || 0) + (lf.b || 0)) / 3.0;
+    const avgGam = (gm.y || 0) + ((gm.r || 0) + (gm.g || 0) + (gm.b || 0)) / 3.0;
+    const avgGain = ((gn.y !== undefined ? gn.y : 1) * (((gn.r !== undefined ? gn.r : 1) + (gn.g !== undefined ? gn.g : 1) + (gn.b !== undefined ? gn.b : 1)) / 3.0)) - 1.0;
+    fbBr += avgLift * 0.45 + avgGam * 0.55 + avgGain * 0.50 + avgOff * 0.012 + ((b.shad || 0) / 100) * 0.18 + ((b.hiLight || 0) / 100) * 0.18;
+    fbCt *= (t.cont !== undefined ? t.cont : 1.0) * (1.0 + ((t.md || 0) / 100) * 0.20);
+    fbSat *= ((b.sat !== undefined ? b.sat : 50) / 50) * (1.0 + ((b.colBoost || 0) / 100) * 0.45);
+    fbHueDeg += (((b.hue !== undefined ? b.hue : 50) - 50) / 50) * 36.0 + ((t.tint || 0) * 0.25);
+    if ((t.temp || 0) > 0) fbSepia += (t.temp || 0) * 0.35;
+  }
 
-    // White Balance: Temperature & Tint
+  const isCsByp = isBypassed || (inspectorState.bypassedCards && inspectorState.bypassedCards.colorSlice);
+  if (!isCsByp && inspectorState.colorSlice && isColorSliceModified(inspectorState.colorSlice)) {
+    const cs = inspectorState.colorSlice;
+    const m = cs.master || {};
+    fbBr -= ((m.den || 0) + (m.denDepth || 0) * 0.35) * 0.25;
+    fbSat *= ((m.sat !== undefined ? m.sat : 1.0) + (m.satBal || 0) * 0.25 + (m.satDepth || 0) * 0.20);
+    fbHueDeg += (m.hue || 0) * 30.0;
+    ["red", "skin", "yellow", "green", "cyan", "blue", "magenta"].forEach(k => {
+      const sl = cs[k] || {};
+      const w = (k === "skin" || k === "green" || k === "blue") ? 0.35 : 0.22;
+      fbBr -= (sl.den || 0) * 0.28 * w;
+      fbSat *= 1.0 + ((sl.sat !== undefined ? sl.sat : 1.0) - 1.0) * w;
+      fbHueDeg += ((sl.hue || 0) * 20.0 + (sl.center || 0) * 10.0) * w * (k === "skin" ? -1 : 1);
+    });
+  }
+
+  let filterStr = isBypassed ? "none" : `brightness(${Math.max(0.2, fbBr).toFixed(3)}) contrast(${Math.max(0.2, fbCt).toFixed(3)}) saturate(${Math.max(0.0, fbSat).toFixed(3)})`;
+  if (!isBypassed) {
+    if (fbSepia > 0) filterStr += ` sepia(${Math.min(100, fbSepia).toFixed(1)}%)`;
+    if (grayscaleVal > 0) filterStr += ` grayscale(${grayscaleVal.toFixed(1)}%)`;
     const isWbBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.whiteBalance;
     const tempVal = isWbBypassed ? 0 : (inspectorState.temperature || 0);
     const tintVal = isWbBypassed ? 0 : (inspectorState.tint || 0);
@@ -1598,28 +2031,21 @@ function applyMonitorTransform() {
       const coolAmt = Math.min(50, Math.abs(tempVal) * 0.5);
       filterStr += ` hue-rotate(180deg) sepia(${coolAmt.toFixed(1)}%) hue-rotate(180deg)`;
     }
-    if (tintVal !== 0) {
-      filterStr += ` hue-rotate(${(tintVal * 0.25).toFixed(1)}deg)`;
+    const totHue = (tintVal * 0.25) + fbHueDeg;
+    if (Math.abs(totHue) > 0.05) {
+      filterStr += ` hue-rotate(${totHue.toFixed(1)}deg)`;
     }
-
-    // Skin Tone Hue (Amber -50 ↔ Rosy Pink +50; positive shifts skin counter-clockwise toward Rosy Pink)
-    if (portHue !== 0) {
-      filterStr += ` hue-rotate(${(-portHue * 0.36).toFixed(1)}deg)`;
-    }
-
-    // Skin Softening preview
     const skinSoftVal = isNikonBypassed ? 0 : (inspectorState.skinSoftening || 0);
     if (skinSoftVal > 5) {
       filterStr += ` blur(${(skinSoftVal * 0.006).toFixed(2)}px)`;
     }
-
-    // DaVinci ColorSlice 7-Vector Hardware SVG Filter
-    if (updateColorSliceSvgFilter()) {
-      filterStr += ` url(#zcutColorSliceFilter)`;
-    }
+    updateColorSliceSvgFilter();
   }
 
-  [monitorImg, monitorVideo].forEach(el => {
+  const monitorLutCanvas = document.getElementById("monitorLutCanvas");
+  const sbsLutCanvas = document.getElementById("sbsLutCanvas");
+
+  [monitorImg, monitorVideo, monitorLutCanvas].forEach(el => {
     if (!el) return;
     if (isTransposed) {
       el.style.width = "calc(100% * 16 / 9)";
@@ -1632,7 +2058,7 @@ function applyMonitorTransform() {
       el.style.height = "100%";
       el.style.maxWidth = "";
       el.style.maxHeight = "";
-      el.style.position = "";
+      el.style.position = el === monitorLutCanvas ? "absolute" : "";
     }
     el.style.transform = transformStr;
     el.style.transformOrigin = originStr;
@@ -1640,7 +2066,7 @@ function applyMonitorTransform() {
     el.style.opacity = opacityVal;
     el.style.mixBlendMode = blendModeVal;
     el.style.objectFit = objectFitVal;
-    el.style.filter = filterStr;
+    el.style.filter = (el === monitorLutCanvas) ? baseFilterStr : filterStr;
   });
 
   // Video Playback Speed
@@ -1651,27 +2077,29 @@ function applyMonitorTransform() {
   }
 
   // Update Side-by-Side (2-Up) After preview (100% Full Frame Uncropped)
-  if (sbsImgAfter) {
+  [sbsImgAfter, sbsLutCanvas].forEach(el => {
+    if (!el) return;
     if (isTransposed) {
-      sbsImgAfter.style.width = "calc(100% * 16 / 9)";
-      sbsImgAfter.style.height = "calc(100% * 9 / 16)";
-      sbsImgAfter.style.maxWidth = "none";
-      sbsImgAfter.style.maxHeight = "none";
-      sbsImgAfter.style.position = "absolute";
+      el.style.width = "calc(100% * 16 / 9)";
+      el.style.height = "calc(100% * 9 / 16)";
+      el.style.maxWidth = "none";
+      el.style.maxHeight = "none";
+      el.style.position = "absolute";
     } else {
-      sbsImgAfter.style.width = "100%";
-      sbsImgAfter.style.height = "100%";
-      sbsImgAfter.style.maxWidth = "";
-      sbsImgAfter.style.maxHeight = "";
-      sbsImgAfter.style.position = "";
+      el.style.width = "100%";
+      el.style.height = "100%";
+      el.style.maxWidth = "";
+      el.style.maxHeight = "";
+      el.style.position = el === sbsLutCanvas ? "absolute" : "";
     }
-    sbsImgAfter.style.transform = isBypassed ? "none" : `rotate(${inspectorState.rotation}deg) scale(${inspectorState.zoomX * (inspectorState.flipH ? -1 : 1)}, ${inspectorState.zoomY * (inspectorState.flipV ? -1 : 1)})`;
-    sbsImgAfter.style.filter = isBypassed ? "none" : filterStr;
-    sbsImgAfter.style.clipPath = clipPathStr;
-    sbsImgAfter.style.opacity = opacityVal;
-    sbsImgAfter.style.objectFit = objectFitVal;
-  }
+    el.style.transform = isBypassed ? "none" : `rotate(${inspectorState.rotation}deg) scale(${inspectorState.zoomX * (inspectorState.flipH ? -1 : 1)}, ${inspectorState.zoomY * (inspectorState.flipV ? -1 : 1)})`;
+    el.style.filter = isBypassed ? "none" : (el === sbsLutCanvas ? baseFilterStr : filterStr);
+    el.style.clipPath = clipPathStr;
+    el.style.opacity = opacityVal;
+    el.style.objectFit = objectFitVal;
+  });
 
+  scheduleMonitorLutRender();
   scheduleHistogram();
   triggerSaveSettings();
 }
@@ -1760,22 +2188,7 @@ function renderHistogram() {
           br -= 0.02 * nikonFactor;
         }
       }
-      const pHue = isNikonBypassed ? 0 : (inspectorState.portraitHue || 0);
-      const pBright = isNikonBypassed ? 0 : (inspectorState.portraitBrightness || 0);
-      if (pBright !== 0) {
-        br += (pBright / 100) * 0.28;
-        ct *= 1.0 - (pBright / 100) * 0.06;
-      }
       let histFilter = `brightness(${br.toFixed(3)}) contrast(${ct.toFixed(3)}) saturate(${sat.toFixed(3)})`;
-      if (pHue < 0) {
-        histFilter += ` sepia(${(Math.abs(pHue) * 0.28).toFixed(1)}%)`;
-      }
-      if (pHue !== 0) {
-        histFilter += ` hue-rotate(${(-pHue * 0.36).toFixed(1)}deg)`;
-      }
-      if (updateColorSliceSvgFilter()) {
-        histFilter += ` url(#zcutColorSliceFilter)`;
-      }
       offscreenCtx.filter = histFilter;
     } else {
       offscreenCtx.filter = "none";
@@ -1783,6 +2196,10 @@ function renderHistogram() {
 
     offscreenCtx.drawImage(sourceEl, 0, 0, 160, 90);
     const imgData = offscreenCtx.getImageData(0, 0, 160, 90);
+    const lutState = buildJs3DLut();
+    if (!isColBypassed && lutState.active && lutState.lut) {
+      applyJs3DLutToPixels(imgData.data, lutState.lut);
+    }
     const data = imgData.data;
     const numPixels = 160 * 90;
 
@@ -3617,10 +4034,14 @@ function toggleVideoPlayback() {
   if (monitorVideo.paused) {
     if (monitorImg) monitorImg.style.display = "none";
     monitorVideo.style.display = "block";
-    monitorVideo.play().catch(e => console.log("Play error:", e));
+    monitorVideo.play().then(() => {
+      startVideoLutLoop();
+    }).catch(e => console.log("Play error:", e));
+    startVideoLutLoop();
     if (btnPlay) btnPlay.textContent = "⏸";
   } else {
     monitorVideo.pause();
+    renderMonitorLutCanvas();
     if (btnPlay) btnPlay.textContent = "▶";
   }
 }
@@ -3676,9 +4097,23 @@ function setupTransport() {
         const pct = (monitorVideo.currentTime / monitorVideo.duration) * 100;
         if (scrubSlider) scrubSlider.value = pct;
         if (digitalTimecode) digitalTimecode.textContent = formatTimecode(monitorVideo.currentTime);
+        scheduleMonitorLutRender();
         const pCol = document.getElementById("paneColor");
         if (pCol && pCol.style.display !== "none") renderHistogram();
       }
+    });
+
+    monitorVideo.addEventListener("seeked", () => {
+      renderMonitorLutCanvas();
+      scheduleHistogram();
+    });
+
+    monitorVideo.addEventListener("loadeddata", () => {
+      scheduleMonitorLutRender();
+    });
+
+    monitorVideo.addEventListener("play", () => {
+      startVideoLutLoop();
     });
 
     monitorVideo.addEventListener("ended", () => {
@@ -3689,6 +4124,8 @@ function setupTransport() {
   if (scrubSlider && monitorVideo) {
     scrubSlider.addEventListener("input", (e) => {
       if (monitorVideo.duration) {
+        if (monitorImg) monitorImg.style.display = "none";
+        monitorVideo.style.display = "block";
         monitorVideo.currentTime = (e.target.value / 100) * monitorVideo.duration;
       }
     });
@@ -4336,21 +4773,22 @@ function setupColorSliceControls() {
       if (!wasActive) {
         btn.classList.add("active");
         if (p === "skin_pop") {
-          cs.skin = { center: 0.0, hue: 0.22, den: -0.26, sat: 1.18 };
-          cs.green = { center: 0.0, hue: 0.10, den: 0.20, sat: 0.78 };
-          cs.yellow = { center: 0.0, hue: 0.06, den: 0.12, sat: 0.86 };
+          cs.skin = { center: 0.0, hue: 0.35, den: -0.45, sat: 1.28 };
+          cs.red = { center: 0.0, hue: 0.12, den: -0.20, sat: 1.18 };
+          cs.green = { center: 0.0, hue: 0.18, den: 0.35, sat: 0.72 };
+          cs.yellow = { center: 0.0, hue: 0.10, den: 0.22, sat: 0.80 };
         } else if (p === "outdoor") {
-          cs.skin = { center: 0.0, hue: 0.16, den: -0.20, sat: 1.14 };
-          cs.green = { center: 0.0, hue: 0.16, den: 0.28, sat: 0.72 };
-          cs.yellow = { center: 0.0, hue: 0.08, den: 0.14, sat: 0.82 };
-          cs.blue = { center: 0.0, hue: 0.0, den: 0.24, sat: 1.22 };
-          cs.cyan = { center: 0.0, hue: 0.0, den: 0.16, sat: 1.16 };
+          cs.skin = { center: 0.0, hue: 0.24, den: -0.32, sat: 1.20 };
+          cs.green = { center: 0.0, hue: 0.28, den: 0.45, sat: 1.25 };
+          cs.yellow = { center: 0.0, hue: 0.14, den: 0.25, sat: 1.10 };
+          cs.blue = { center: 0.0, hue: -0.08, den: 0.42, sat: 1.38 };
+          cs.cyan = { center: 0.0, hue: 0.0, den: 0.30, sat: 1.28 };
         } else if (p === "film") {
-          cs.master = { den: 0.14, denDepth: 0.12, sat: 1.08, satBal: 0.08, satDepth: 0.08, hue: 0.0 };
-          cs.skin = { center: 0.0, hue: 0.10, den: -0.14, sat: 1.10 };
-          cs.red = { center: 0.0, hue: 0.04, den: 0.22, sat: 1.15 };
-          cs.blue = { center: 0.0, hue: -0.04, den: 0.24, sat: 1.14 };
-          cs.green = { center: 0.0, hue: 0.12, den: 0.22, sat: 0.84 };
+          cs.master = { den: 0.26, denDepth: 0.20, sat: 1.14, satBal: 0.15, satDepth: 0.12, hue: 0.0 };
+          cs.skin = { center: 0.0, hue: 0.18, den: -0.25, sat: 1.16 };
+          cs.red = { center: 0.0, hue: 0.08, den: 0.38, sat: 1.24 };
+          cs.blue = { center: 0.0, hue: -0.12, den: 0.44, sat: 1.26 };
+          cs.green = { center: 0.0, hue: 0.22, den: 0.38, sat: 0.76 };
         }
       }
       inspectorState.colorSlice = cs;
@@ -4621,23 +5059,23 @@ function setupPrimariesBarsControls() {
   const applyPbPreset = (p) => {
     const pb = createDefaultPrimariesBars();
     if (p === "auto_balance") {
-      pb.top = { temp: 6.0, tint: 2.5, cont: 1.06, pivot: 0.435, md: 8.0 };
-      pb.bot = { colBoost: 10.0, shad: 12.0, hiLight: -6.0, sat: 54.0, hue: 50.0, lMix: 100.0 };
-      pb.lift = { y: -0.02, r: 0.0, g: 0.0, b: 0.01 };
-      pb.gamma = { y: 0.06, r: 0.03, g: -0.02, b: 0.02 };
-      pb.gain = { y: 1.02, r: 1.01, g: 1.0, b: 1.0 };
+      pb.top = { temp: 12.0, tint: 5.0, cont: 1.12, pivot: 0.435, md: 15.0 };
+      pb.bot = { colBoost: 18.0, shad: 22.0, hiLight: -12.0, sat: 58.0, hue: 50.0, lMix: 100.0 };
+      pb.lift = { y: -0.04, r: 0.0, g: 0.0, b: 0.02 };
+      pb.gamma = { y: 0.12, r: 0.06, g: -0.03, b: 0.03 };
+      pb.gain = { y: 1.06, r: 1.03, g: 1.0, b: 1.0 };
     } else if (p === "clean_skin") {
-      pb.top = { temp: 4.0, tint: 4.0, cont: 1.04, pivot: 0.435, md: 5.0 };
-      pb.bot = { colBoost: 8.0, shad: 15.0, hiLight: -8.0, sat: 53.0, hue: 50.0, lMix: 100.0 };
-      pb.lift = { y: -0.02, r: 0.01, g: 0.0, b: 0.01 };
-      pb.gamma = { y: 0.10, r: 0.06, g: -0.03, b: 0.04 };
-      pb.gain = { y: 1.02, r: 1.02, g: 1.0, b: 1.01 };
+      pb.top = { temp: 8.0, tint: 10.0, cont: 1.06, pivot: 0.435, md: -8.0 };
+      pb.bot = { colBoost: 14.0, shad: 26.0, hiLight: -14.0, sat: 56.0, hue: 50.0, lMix: 100.0 };
+      pb.lift = { y: 0.02, r: 0.03, g: 0.0, b: 0.02 };
+      pb.gamma = { y: 0.18, r: 0.10, g: -0.04, b: 0.06 };
+      pb.gain = { y: 1.05, r: 1.04, g: 1.0, b: 1.02 };
     } else if (p === "teal_orange") {
-      pb.top = { temp: 8.0, tint: 1.0, cont: 1.10, pivot: 0.435, md: 10.0 };
-      pb.bot = { colBoost: 12.0, shad: 8.0, hiLight: -5.0, sat: 55.0, hue: 50.0, lMix: 100.0 };
-      pb.lift = { y: -0.03, r: -0.04, g: 0.01, b: 0.05 };
-      pb.gamma = { y: 0.04, r: 0.06, g: 0.01, b: -0.04 };
-      pb.gain = { y: 1.03, r: 1.04, g: 1.01, b: 0.97 };
+      pb.top = { temp: 16.0, tint: 2.0, cont: 1.18, pivot: 0.435, md: 18.0 };
+      pb.bot = { colBoost: 22.0, shad: 12.0, hiLight: -10.0, sat: 60.0, hue: 50.0, lMix: 100.0 };
+      pb.lift = { y: -0.05, r: -0.08, g: 0.02, b: 0.10 };
+      pb.gamma = { y: 0.06, r: 0.10, g: 0.02, b: -0.08 };
+      pb.gain = { y: 1.06, r: 1.08, g: 1.02, b: 0.94 };
     }
     inspectorState.primariesBars = pb;
     syncPrimariesBarsDom();
