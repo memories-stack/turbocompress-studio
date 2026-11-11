@@ -5909,6 +5909,310 @@ body.theme-light .slider-track-skinbright::-webkit-slider-runnable-track {
   background: linear-gradient(90deg, #ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #ec4899);
 }
 
+/* =========================================================================
+   COLORSLICE VIEW SWITCHER & TABBED FOCUS LAYOUT (STYLE 1 - SPACIOUS HERO)
+   ========================================================================= */
+.cs-view-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  background: #18181c;
+  border-radius: 6px;
+  margin: 6px 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cs-view-lbl {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.cs-view-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-cs-view {
+  background: #232328;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cs-view:hover {
+  background: #2c2d35;
+  color: #ffffff;
+}
+
+.btn-cs-view.active {
+  background: #0A84FF;
+  border-color: #0A84FF;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(10, 132, 255, 0.35);
+}
+
+/* 7 Slice Selector Tabs (แบบที่ 1) */
+.cs-tabbed-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.cs-slice-nav {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  width: 100%;
+}
+
+.cs-slice-tab {
+  background: #1e1e24;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #a1a1aa;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 5px 2px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+
+.cs-slice-tab:hover {
+  background: #292933;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.cs-slice-tab.active {
+  background: #252836;
+  color: #ffffff;
+  border: 1.5px solid #0A84FF;
+  box-shadow: 0 0 8px rgba(10, 132, 255, 0.28);
+}
+
+.cs-slice-tab.cs-tab-skin.active {
+  border-color: #f472b6;
+  box-shadow: 0 0 8px rgba(244, 114, 182, 0.35);
+}
+
+/* Hero Slice Box */
+.cs-hero-box {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #18181c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  align-items: center;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.cs-hero-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  padding-right: 8px;
+}
+
+.cs-hero-wheel-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.cs-hero-wheel {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  position: relative;
+  background: conic-gradient(
+    from -90deg,
+    rgba(239, 68, 68, 0.55) 0deg,
+    rgba(234, 179, 8, 0.55) 60deg,
+    rgba(34, 197, 94, 0.55) 120deg,
+    rgba(6, 182, 212, 0.55) 180deg,
+    rgba(59, 130, 246, 0.55) 240deg,
+    rgba(236, 72, 153, 0.55) 300deg,
+    rgba(239, 68, 68, 0.55) 360deg
+  );
+  border: 2px solid #3f3f46;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.cs-hero-wedge {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.95) 24deg,
+    transparent 48deg
+  );
+  transform: rotate(var(--hero-wedge-angle, -5deg));
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  transition: transform 0.1s ease;
+}
+
+.cs-hero-wheel-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #18181b;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cs-hero-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fbcfe8;
+  margin-top: 2px;
+}
+
+.cs-hero-reset-btn {
+  background: #27272a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+  font-size: 8.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cs-hero-reset-btn:hover {
+  background: #3f3f46;
+  color: #ffffff;
+}
+
+.cs-hero-right {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cs-hero-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cs-hero-row-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9.5px;
+  color: #d4d4d8;
+  font-weight: 600;
+}
+
+.cs-hero-val {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #0A84FF;
+  background: #111114;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid #27272a;
+}
+
+.cs-hero-slider-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.cs-hero-slider {
+  width: 100%;
+  height: 5px;
+  -webkit-appearance: none;
+  background: #27272a;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.cs-hero-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0A84FF;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+
+.cs-hero-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+}
+
+.cs-hero-denslider::-webkit-slider-thumb {
+  border-color: #f59e0b;
+}
+
+.cs-hero-satslider::-webkit-slider-thumb {
+  border-color: #10b981;
+}
+
+.cs-hero-huebar {
+  width: 100%;
+  height: 2px;
+  margin-top: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #ec4899, #ef4444);
+}
+
+/* Eye-Care Light Mode Adaptation for Tabbed ColorSlice */
+body.theme-light .cs-view-switch-row,
+body.theme-light .cs-hero-box {
+  background: #E5E5EA !important;
+  border-color: #D1D1D6 !important;
+}
+
+body.theme-light .cs-slice-tab {
+  background: #F2F2F7;
+  border-color: #D1D1D6;
+  color: #3C3C43;
+}
+
+body.theme-light .cs-slice-tab.active {
+  background: #FFFFFF;
+  color: #007AFF;
+  border-color: #007AFF;
+}
+
+body.theme-light .cs-hero-val {
+  background: #FFFFFF;
+  color: #007AFF;
+  border-color: #D1D1D6;
+}
+
 /* 7-Column Slice Grid */
 .cs-grid-7 {
   display: grid;

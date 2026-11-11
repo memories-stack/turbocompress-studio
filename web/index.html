@@ -952,6 +952,96 @@
                 </div>
               </div>
 
+              <!-- VIEW MODE SWITCHER: แบบที่ 1 (Tabbed Focus) vs แบบที่ 2 (7 Columns Side-by-Side) -->
+              <div class="cs-view-switch-row">
+                <span class="cs-view-lbl">รูปแบบหน้าตา:</span>
+                <div class="cs-view-pills">
+                  <button type="button" class="btn-cs-view active" id="btnCsViewTabs" data-csview="tabs" title="แบบที่ 1: แถบ 7 ปุ่มโทนสีเรียงด้านบน ปรับกว้างชัด ไม่เบียด (แนะนำ)">⭐ แบบ 1 (แท็บแยกสี ปรับกว้างสบายตา)</button>
+                  <button type="button" class="btn-cs-view" id="btnCsViewCols" data-csview="cols" title="แบบที่ 2: แสดง 7 คอลัมน์พร้อมกันทั้งหมดเหมือน DaVinci Resolve">แบบ 2 (7 คอลัมน์เรียงแถว)</button>
+                </div>
+              </div>
+
+              <!-- ========================================================================= -->
+              <!-- แบบที่ 1 (FEATURED): 7-VECTOR TABBED FOCUS PANEL (ปรับกว้าง ไม่เบียดตา) -->
+              <!-- ========================================================================= -->
+              <div class="cs-tabbed-container" id="csTabbedContainer">
+                <!-- 7 Slice Selector Tabs -->
+                <div class="cs-slice-nav">
+                  <button type="button" class="cs-slice-tab cs-tab-red" data-slicetab="red" title="Red Slice">🔴 Red</button>
+                  <button type="button" class="cs-slice-tab cs-tab-skin active" data-slicetab="skin" title="Skin Tone Slice (ผิวคน / สุขภาพผิว)">🧑🏻 Skin Tone</button>
+                  <button type="button" class="cs-slice-tab cs-tab-yellow" data-slicetab="yellow" title="Yellow Slice">🟡 Yellow</button>
+                  <button type="button" class="cs-slice-tab cs-tab-green" data-slicetab="green" title="Green Slice (สนามหญ้า/ใบไม้)">🟢 Green</button>
+                  <button type="button" class="cs-slice-tab cs-tab-cyan" data-slicetab="cyan" title="Cyan Slice">🩵 Cyan</button>
+                  <button type="button" class="cs-slice-tab cs-tab-blue" data-slicetab="blue" title="Blue Slice (ท้องฟ้า/สีเสื้อ)">🔵 Blue</button>
+                  <button type="button" class="cs-slice-tab cs-tab-magenta" data-slicetab="magenta" title="Magenta Slice">🟣 Magenta</button>
+                </div>
+
+                <!-- Single Focused Slice Hero Canvas & Controls (Spacious & Clean) -->
+                <div class="cs-hero-box" id="csHeroBox">
+                  <div class="cs-hero-left">
+                    <div class="cs-hero-wheel-wrap">
+                      <div class="cs-hero-wheel" id="csHeroWheel">
+                        <div class="cs-hero-wedge" id="csHeroWedge"></div>
+                        <div class="cs-hero-wheel-dot" id="csHeroDot"></div>
+                      </div>
+                      <span class="cs-hero-title" id="csHeroTitle">🧑🏻 Skin Tone</span>
+                      <button type="button" class="cs-hero-reset-btn" id="btnCsHeroReset" title="รีเซ็ตเฉพาะโทนสีนี้">↺ Reset Slice</button>
+                    </div>
+                  </div>
+
+                  <div class="cs-hero-right">
+                    <!-- 1. Center Slider (ย้ายศูนย์กลางเฉดสี) -->
+                    <div class="cs-hero-row">
+                      <div class="cs-hero-row-label">
+                        <span>Center (ศูนย์กลางเฉด)</span>
+                        <span class="cs-hero-val" id="lblCsHeroCenter">0.00</span>
+                      </div>
+                      <div class="cs-hero-slider-wrap">
+                        <input type="range" class="cs-hero-slider" id="slCsHeroCenter" min="-1" max="1" step="0.01" value="0">
+                      </div>
+                    </div>
+
+                    <!-- 2. Hue Slider (หมุนเปลี่ยนสี) -->
+                    <div class="cs-hero-row">
+                      <div class="cs-hero-row-label">
+                        <span>Hue (เปลี่ยนเฉดสี)</span>
+                        <span class="cs-hero-val" id="lblCsHeroHue">0.00</span>
+                      </div>
+                      <div class="cs-hero-slider-wrap">
+                        <input type="range" class="cs-hero-slider cs-hero-hueslider" id="slCsHeroHue" min="-1" max="1" step="0.01" value="0">
+                        <div class="cs-hero-huebar" id="csHeroHueBar"></div>
+                      </div>
+                    </div>
+
+                    <!-- 3. Density Fader (ความแน่น / ความสว่างเนื้อสีแบบ Subtractive Film) -->
+                    <div class="cs-hero-row">
+                      <div class="cs-hero-row-label">
+                        <span>Density (ความสว่างผิว/ความแน่นสี)</span>
+                        <span class="cs-hero-val" id="lblCsHeroDen">0.00</span>
+                      </div>
+                      <div class="cs-hero-slider-wrap">
+                        <input type="range" class="cs-hero-slider cs-hero-denslider" id="slCsHeroDen" min="-1" max="1" step="0.01" value="0">
+                      </div>
+                    </div>
+
+                    <!-- 4. Saturation Fader (ความสดอิ่มสี) -->
+                    <div class="cs-hero-row">
+                      <div class="cs-hero-row-label">
+                        <span>Saturation (ความอิ่มสี)</span>
+                        <span class="cs-hero-val" id="lblCsHeroSat">1.00</span>
+                      </div>
+                      <div class="cs-hero-slider-wrap">
+                        <input type="range" class="cs-hero-slider cs-hero-satslider" id="slCsHeroSat" min="0" max="2" step="0.01" value="1">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ========================================================================= -->
+              <!-- แบบที่ 2: 7-VECTOR COLORSLICE COLUMNS SIDE-BY-SIDE                        -->
+              <!-- ========================================================================= -->
+
               <!-- 7-Vector ColorSlice Columns: Red | Skin | Yellow | Green | Cyan | Blue | Magenta -->
               <div class="cs-grid-7" id="colorSliceGrid">
                 <!-- 1. RED -->
