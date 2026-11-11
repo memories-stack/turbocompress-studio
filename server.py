@@ -217,7 +217,11 @@ def get_best_encoder(ffmpeg_bin, codec_type="h264"):
 
 FFMPEG_BIN = get_ffmpeg_bin()
 
-SUPPORTED_EXT = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".mts", ".m2ts", ".webm"}
+SUPPORTED_EXT = {
+    ".mp4", ".mov", ".m4v", ".mkv", ".avi", ".mts", ".m2ts", ".webm",
+    ".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".tif", ".tiff",
+    ".nef", ".nrw", ".arw", ".cr2", ".cr3", ".dng"
+}
 
 STATE = {
     "clips": [],
@@ -495,17 +499,26 @@ class StudioHandler(SimpleHTTPRequestHandler):
             qv = "3" if hi_res else "5"
             t_path = os.path.join(thumb_cache_dir, f"{prefix}{os.path.basename(fpath)}.jpg")
             if not os.path.exists(t_path):
-                subprocess.run([
-                    FFMPEG_BIN, "-ss", "00:00:00.5", "-i", fpath,
-                    "-vframes", "1", "-vf", scale_vf, "-q:v", qv,
-                    "-y", t_path
-                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if not os.path.exists(t_path):
+                ext = Path(fpath).suffix.lower()
+                is_img = ext in {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".tif", ".tiff", ".nef", ".nrw", ".arw", ".cr2", ".cr3", ".dng"}
+                if is_img:
                     subprocess.run([
                         FFMPEG_BIN, "-i", fpath,
                         "-vframes", "1", "-vf", scale_vf, "-q:v", qv,
                         "-y", t_path
                     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    subprocess.run([
+                        FFMPEG_BIN, "-ss", "00:00:00.5", "-i", fpath,
+                        "-vframes", "1", "-vf", scale_vf, "-q:v", qv,
+                        "-y", t_path
+                    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    if not os.path.exists(t_path):
+                        subprocess.run([
+                            FFMPEG_BIN, "-i", fpath,
+                            "-vframes", "1", "-vf", scale_vf, "-q:v", qv,
+                            "-y", t_path
+                        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             if os.path.exists(t_path):
                 self.send_response(200)
@@ -595,7 +608,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
                 'tell application "Finder"\n'
                 '    activate\n'
                 f'    set defLoc to POSIX file "{default_dir}"\n'
-                '    set theFiles to choose file with prompt "Select Video Clips / เลือกไฟล์วิดีโอ" of type {"public.movie", "mp4", "mov", "m4v"} default location defLoc with multiple selections allowed\n'
+                '    set theFiles to choose file with prompt "Select Media Files / เลือกไฟล์วิดีโอหรือรูปภาพ" default location defLoc with multiple selections allowed\n'
                 '    set res to ""\n'
                 '    repeat with f in theFiles\n'
                 '        set res to res & (POSIX path of f) & "\n"\n'
@@ -760,10 +773,22 @@ class StudioHandler(SimpleHTTPRequestHandler):
 
     def serve_video_file(self, filepath):
         file_size = os.path.getsize(filepath)
+        ext = Path(filepath).suffix.lower()
+        if ext in {".jpg", ".jpeg"}:
+            ctype = "image/jpeg"
+        elif ext == ".png":
+            ctype = "image/png"
+        elif ext == ".webp":
+            ctype = "image/webp"
+        elif ext == ".mov":
+            ctype = "video/quicktime"
+        else:
+            ctype = "video/mp4"
+
         range_header = self.headers.get("Range", None)
         if not range_header:
             self.send_response(200)
-            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(file_size))
             self.send_header("Accept-Ranges", "bytes")
             self.end_headers()
@@ -779,7 +804,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
         length = end - start + 1
 
         self.send_response(206)
-        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Content-Type", ctype)
         self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
         self.send_header("Content-Length", str(length))
         self.send_header("Accept-Ranges", "bytes")

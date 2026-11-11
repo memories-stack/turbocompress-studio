@@ -3768,7 +3768,12 @@ function setupInspectorListeners() {
   if (btnImportFolderTop) btnImportFolderTop.addEventListener("click", triggerImportFolder);
 
   const btnImportFolderPool = document.getElementById("btnImportFolderPool");
-  if (btnImportFolderPool) btnImportFolderPool.addEventListener("click", triggerImportFolder);
+  if (btnImportFolderPool) btnImportFolderPool.addEventListener("click", () => {
+    openImportModal();
+  });
+
+  const btnImportFilesPool = document.getElementById("btnImportFilesPool");
+  if (btnImportFilesPool) btnImportFilesPool.addEventListener("click", triggerImportFiles);
 
   const btnImportFilesTop = document.getElementById("btnImportFilesTop");
   if (btnImportFilesTop) btnImportFilesTop.addEventListener("click", triggerImportFiles);
@@ -3959,9 +3964,50 @@ function setupDragAndDrop() {
     dropZone.style.borderColor = "#262838";
     dropZone.style.background = "";
     const files = Array.from(e.dataTransfer.files || []);
-    if (files.length > 0) {
-      showToast(`📥 Detected ${files.length} items dropped. Select target folder to import.`);
+    if (files.length === 0) return;
+    const paths = files.map(f => f.path).filter(Boolean);
+    if (paths.length > 0) {
+      showToast(`⏳ Importing ${paths.length} items into Media Pool...`);
+      try {
+        const res = await fetch("/api/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paths })
+        });
+        const data = await res.json();
+        await loadClips();
+        showToast(`✅ Successfully imported ${data.added || paths.length} media clips!`);
+      } catch (err) {
+        console.error(err);
+        showToast("❌ Failed to import dropped files.");
+      }
+    } else {
       openImportModal();
+    }
+  });
+
+  // Global window drop handler so dropping anywhere into media pool imports smoothly
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", async (e) => {
+    // Only handle if dropped outside input elements and not already handled by dropZone
+    if (e.target.closest("#dropZone")) return;
+    const files = Array.from(e.dataTransfer.files || []);
+    const paths = files.map(f => f.path).filter(Boolean);
+    if (paths.length > 0) {
+      e.preventDefault();
+      showToast(`⏳ Importing ${paths.length} dropped items...`);
+      try {
+        const res = await fetch("/api/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paths })
+        });
+        const data = await res.json();
+        await loadClips();
+        showToast(`✅ Successfully imported ${data.added || paths.length} media clips!`);
+      } catch (err) {
+        console.error(err);
+      }
     }
   });
 }
