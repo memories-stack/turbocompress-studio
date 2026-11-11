@@ -11,62 +11,6 @@
   <!-- TOP MENU BAR (Modern Studio Toolbar - Clean & Uncluttered) -->
   <header class="dv-topbar">
     <div class="top-left">
-      <!-- App Menu (☰) with CapCut / DaVinci Dropdown -->
-      <div class="app-menu-wrapper" id="appMenuWrapper">
-        <button type="button" class="btn-app-menu-trigger" id="btnAppMenuTrigger" title="ZCut Main Menu &amp; Layouts">
-          <span class="app-menu-bar-icon">☰</span>
-        </button>
-
-        <!-- Main Menu Flyout Box -->
-        <div class="app-menu-flyout" id="appMenuFlyout" style="display: none;">
-          <div class="menu-action-item" id="menuItemAbout">
-            <span class="m-act-lbl">About</span>
-          </div>
-          <div class="menu-action-item" id="menuItemSettings">
-            <span class="m-act-lbl">Settings</span>
-          </div>
-          <div class="menu-action-item" id="menuItemHome">
-            <span class="m-act-lbl">Back to home page</span>
-          </div>
-          <div class="menu-act-divider"></div>
-
-          <!-- LAYOUT SUBMENU (Matching User Reference Image) -->
-          <div class="menu-action-item has-sub" id="menuItemLayout">
-            <span class="m-act-lbl">Layout</span>
-            <span class="m-act-sub-arrow">›</span>
-
-            <!-- Submenu Floating Pane -->
-            <div class="app-submenu-pane" id="submenuLayoutPane">
-              <div class="sub-layout-option active" data-layout="default">
-                <span>Default</span>
-              </div>
-              <div class="sub-layout-option" data-layout="media">
-                <span>Media</span>
-              </div>
-              <div class="sub-layout-option" data-layout="attributes">
-                <span>Attributes</span>
-              </div>
-              <div class="sub-layout-option" data-layout="vertical">
-                <span>Vertical</span>
-              </div>
-              <div class="sub-layout-divider"></div>
-              <div class="sub-layout-option sub-reset-opt" data-layout="reset">
-                <span>Reset current layout</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="menu-action-item" id="menuItemMore">
-            <span class="m-act-lbl">More</span>
-          </div>
-          <div class="menu-act-divider"></div>
-          <div class="menu-action-item" id="menuItemQuit">
-            <span class="m-act-lbl">Quit</span>
-            <span class="m-act-shortcut">⌘Q</span>
-          </div>
-        </div>
-      </div>
-
       <div class="brand-box">
         <span class="brand-icon">⚡️</span>
         <span class="brand-name">ZCut</span>
@@ -234,28 +178,6 @@
               <div class="no-clip-msg" id="noClipMsg">
                 <span>🎬</span>
                 <p>No Clip Selected</p>
-              </div>
-            </div>
-
-            <!-- Master Stereo Audio VU Peak Meter -->
-            <div class="audio-vu-bar" id="audioVuBar" title="Master Audio Peak VU Meter (L / R dB)">
-              <div class="vu-track">
-                <div class="vu-channel ch-l">
-                  <div class="vu-fill" id="vuFillL"></div>
-                  <div class="vu-peak" id="vuPeakL"></div>
-                </div>
-                <div class="vu-channel ch-r">
-                  <div class="vu-fill" id="vuFillR"></div>
-                  <div class="vu-peak" id="vuPeakR"></div>
-                </div>
-              </div>
-              <div class="vu-scale">
-                <span>0</span>
-                <span>-6</span>
-                <span>-12</span>
-                <span>-18</span>
-                <span>-24</span>
-                <span>-36</span>
               </div>
             </div>
 
