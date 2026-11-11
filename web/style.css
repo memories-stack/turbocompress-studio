@@ -7336,3 +7336,154 @@ body.theme-light .btn-pb-preset.active {
   border-color: #0A84FF !important;
   color: #FFFFFF !important;
 }
+
+/* COLOR BARS & LIGHT MASTER PRESET TOOLBAR */
+.color-master-toolbar {
+  background: rgba(18, 22, 34, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cmt-row-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-cmt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cmt-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Save Preset Button */
+.btn-cmt-save {
+  background: linear-gradient(135deg, rgba(0, 245, 212, 0.16), rgba(0, 187, 249, 0.12));
+  border: 1px solid rgba(0, 245, 212, 0.45);
+  color: #00f5d4;
+}
+
+.btn-cmt-save:hover {
+  background: linear-gradient(135deg, rgba(0, 245, 212, 0.3), rgba(0, 187, 249, 0.22));
+  box-shadow: 0 2px 8px rgba(0, 245, 212, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Preset Picker Dropdown */
+.cmt-preset-picker {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  position: relative;
+}
+
+.cmt-select {
+  flex: 1;
+  width: 100%;
+  height: 27px;
+  background: #0f121d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 0 6px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cmt-select:hover, .cmt-select:focus {
+  border-color: #00f5d4;
+  box-shadow: 0 0 0 1px rgba(0, 245, 212, 0.2);
+}
+
+.btn-cmt-del {
+  width: 26px;
+  height: 26px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  color: #f87171;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cmt-del:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+}
+
+/* ตั้งค่า Def (Default) Button */
+.btn-cmt-def {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(217, 119, 6, 0.12));
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.btn-cmt-def:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.22));
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Reset All Button */
+.btn-cmt-reset {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+}
+
+.btn-cmt-reset:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #f87171;
+  transform: translateY(-1px);
+}
+
+/* Light Theme Support */
+body.theme-light .color-master-toolbar {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.theme-light .cmt-select {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.theme-light .btn-cmt-reset {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}

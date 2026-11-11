@@ -525,6 +525,31 @@
 
         <!-- PANE 2: NIKON COLOR ENGINE & GRADING -->
         <div class="insp-pane active" id="paneColor" style="display: flex;">
+
+          <!-- COLOR BARS & LIGHT MASTER PRESET TOOLBAR (Save Preset, ตั้งค่า Def, Reset All) -->
+          <div class="color-master-toolbar" id="colorMasterToolbar">
+            <div class="cmt-row-top">
+              <button type="button" class="btn-cmt btn-cmt-save" id="btnSaveColorPreset" title="บันทึกค่าสี แสง สกินโทน ปัจจุบันเป็น Custom Preset (Save Current Look as Preset)">
+                <span class="cmt-icon">💾</span> <span>Save Preset</span>
+              </button>
+
+              <div class="cmt-preset-picker">
+                <select class="cmt-select" id="selColorUserPresets" title="เลือก Preset ที่บันทึกไว้">
+                  <option value="" selected>📁 เลือก Preset...</option>
+                </select>
+                <button type="button" class="btn-cmt-del" id="btnDeleteColorPreset" title="ลบ Preset ที่เลือก" style="display: none;">🗑</button>
+              </div>
+
+              <button type="button" class="btn-cmt btn-cmt-def" id="btnSetColorDefault" title="ตั้งค่าสีปัจจุบันนี้เป็นค่าเริ่มต้น (Default) สำหรับทุกคลิปใหม่และทุกครั้งที่เปิดโปรแกรม">
+                <span class="cmt-icon">⭐</span> <span>ตั้งค่า Def</span>
+              </button>
+
+              <button type="button" class="btn-cmt btn-cmt-reset" id="btnResetColorAll" title="รีเซ็ตค่าสี แสง สกินโทน ทั้งหมดใน Color Bars &amp; Light กลับเป็นค่าเริ่มต้น">
+                <span class="cmt-icon">↺</span> <span>Reset All</span>
+              </button>
+            </div>
+          </div>
+
           <!-- CARD 0: REAL-TIME SCOPE & HISTOGRAM -->
           <div class="dv-card dv-card-scopes" id="cardHistogram">
             <div class="dv-card-header" id="headerHistogram" style="cursor: pointer;" title="คลิกเพื่อย่อ/ขยายกราฟสโคป">

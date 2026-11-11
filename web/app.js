@@ -1460,6 +1460,7 @@ function setupAutoSettingsSync() {
 // Initialize safely regardless of when script is loaded
 async function initApp() {
   setupAppMenuAndLayouts();
+  setupColorMasterToolbar();
   setupThemeSwitcher();
   await loadSavedSettings();
   loadClips();
@@ -5527,4 +5528,205 @@ function setupAppMenuAndLayouts() {
   // Restore saved layout on launch
   const savedLayout = localStorage.getItem("zcut_active_layout") || "default";
   applyWorkspaceLayout(savedLayout, false);
+}
+
+// Extract current state for Color Bars & Light
+function getCurrentColorPresetState() {
+  return {
+    temperature: parseFloat(inspectorState.temperature) || 0,
+    tint: parseFloat(inspectorState.tint) || 0,
+    brightness: parseFloat(inspectorState.brightness) || 0.0,
+    contrast: inspectorState.contrast !== undefined ? parseFloat(inspectorState.contrast) : 1.0,
+    shadows: parseFloat(inspectorState.shadows) || 0.0,
+    saturation: inspectorState.saturation !== undefined ? parseFloat(inspectorState.saturation) : 1.0,
+    nikonProfile: inspectorState.nikonProfile || "portrait",
+    nikonStrength: inspectorState.nikonStrength !== undefined ? parseFloat(inspectorState.nikonStrength) : 100,
+    customLutPath: inspectorState.customLutPath || "",
+    skinSoftening: parseFloat(inspectorState.skinSoftening) || 0,
+    portraitHue: parseFloat(inspectorState.portraitHue) || 0,
+    portraitBrightness: parseFloat(inspectorState.portraitBrightness) || 0,
+    colorSlice: JSON.parse(JSON.stringify(inspectorState.colorSlice || createDefaultColorSlice())),
+    primariesBars: JSON.parse(JSON.stringify(inspectorState.primariesBars || createDefaultPrimariesBars())),
+    denoiseMode: inspectorState.denoiseMode || "off",
+    denoiseSpatial: parseFloat(inspectorState.denoiseSpatial) || 0.0,
+    denoiseTemporal: parseFloat(inspectorState.denoiseTemporal) || 0.0
+  };
+}
+
+// Master Presets, Default Settings & Reset for Color Bars & Light
+function setupColorMasterToolbar() {
+  const btnSave = document.getElementById("btnSaveColorPreset");
+  const selPresets = document.getElementById("selColorUserPresets");
+  const btnDel = document.getElementById("btnDeleteColorPreset");
+  const btnSetDef = document.getElementById("btnSetColorDefault");
+  const btnReset = document.getElementById("btnResetColorAll");
+
+  if (!btnSave || !selPresets) return;
+
+  const STORAGE_KEY = "zcut_user_color_presets";
+  const DEFAULT_KEY = "zcut_color_default_settings";
+
+  // Refresh preset dropdown options
+  function refreshPresetDropdown() {
+    let presets = [];
+    try {
+      presets = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      presets = [];
+    }
+
+    selPresets.innerHTML = '<option value="" selected>📁 เลือก Preset...</option>';
+    presets.forEach((p, idx) => {
+      const opt = document.createElement("option");
+      opt.value = p.id || idx;
+      opt.textContent = `🎨 ${p.name}`;
+      selPresets.appendChild(opt);
+    });
+
+    if (btnDel) btnDel.style.display = "none";
+  }
+
+  // 1. SAVE PRESET
+  btnSave.addEventListener("click", () => {
+    const curName = "Look " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const name = prompt("ตั้งชื่อ Preset สำหรับ Color Bars & Light:", curName);
+    if (!name || !name.trim()) return;
+
+    let presets = [];
+    try {
+      presets = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      presets = [];
+    }
+
+    const newPreset = {
+      id: "preset_" + Date.now(),
+      name: name.trim(),
+      created: new Date().toISOString(),
+      data: getCurrentColorPresetState()
+    };
+
+    presets.push(newPreset);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+    refreshPresetDropdown();
+    selPresets.value = newPreset.id;
+    if (btnDel) btnDel.style.display = "inline-flex";
+
+    showToast(`💾 บันทึก Preset "${name.trim()}" เรียบร้อยแล้ว`);
+  });
+
+  // 2. LOAD PRESET FROM DROPDOWN
+  selPresets.addEventListener("change", (e) => {
+    const val = e.target.value;
+    if (!val) {
+      if (btnDel) btnDel.style.display = "none";
+      return;
+    }
+
+    let presets = [];
+    try {
+      presets = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      presets = [];
+    }
+
+    const found = presets.find(p => p.id == val);
+    if (found && found.data) {
+      syncDomWithSettings(found.data);
+      applyMonitorTransform();
+      renderMonitorLutCanvas();
+      if (btnDel) btnDel.style.display = "inline-flex";
+      showToast(`🎨 ใช้งาน Preset: ${found.name}`);
+    }
+  });
+
+  // 3. DELETE PRESET
+  if (btnDel) {
+    btnDel.addEventListener("click", () => {
+      const val = selPresets.value;
+      if (!val) return;
+
+      let presets = [];
+      try {
+        presets = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch (e) {
+        presets = [];
+      }
+
+      const idx = presets.findIndex(p => p.id == val);
+      if (idx !== -1) {
+        const deletedName = presets[idx].name;
+        if (confirm(`ลบ Preset "${deletedName}" ใช่หรือไม่?`)) {
+          presets.splice(idx, 1);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+          refreshPresetDropdown();
+          showToast(`🗑 ลบ Preset "${deletedName}" แล้ว`);
+        }
+      }
+    });
+  }
+
+  // 4. SET AS DEFAULT (ตั้งค่า Def)
+  if (btnSetDef) {
+    btnSetDef.addEventListener("click", () => {
+      const defState = getCurrentColorPresetState();
+      localStorage.setItem(DEFAULT_KEY, JSON.stringify(defState));
+      
+      // Also sync to server settings so it persists across all sessions
+      if (typeof saveAppSetting === "function") {
+        saveAppSetting("color_default_state", defState);
+      }
+
+      showToast("⭐ บันทึกการตั้งค่าสีนี้เป็นค่าเริ่มต้น (Default) แล้ว");
+    });
+  }
+
+  // 5. RESET ALL (รีเซ็ตค่าสีทั้งหมดใน Color Bars & Light)
+  if (btnReset) {
+    btnReset.addEventListener("click", () => {
+      const cleanState = {
+        temperature: 0,
+        tint: 0,
+        brightness: 0.0,
+        contrast: 1.0,
+        shadows: 0.0,
+        saturation: 1.0,
+        nikonProfile: "portrait",
+        nikonStrength: 100,
+        customLutPath: "",
+        skinSoftening: 0,
+        portraitHue: 0,
+        portraitBrightness: 0,
+        colorSlice: createDefaultColorSlice(),
+        primariesBars: createDefaultPrimariesBars(),
+        denoiseMode: "off",
+        denoiseSpatial: 0.0,
+        denoiseTemporal: 0.0
+      };
+
+      syncDomWithSettings(cleanState);
+      applyMonitorTransform();
+      renderMonitorLutCanvas();
+
+      // Reset preset dropdown selection
+      selPresets.value = "";
+      if (btnDel) btnDel.style.display = "none";
+
+      showToast("↺ รีเซ็ตค่าสี Color Bars & Light ทั้งหมดกลับเป็นค่าเริ่มต้น");
+    });
+  }
+
+  // Initialize presets list
+  refreshPresetDropdown();
+
+  // Apply user-saved Default if exists and no clip-specific overrides yet
+  try {
+    const savedDef = localStorage.getItem(DEFAULT_KEY);
+    if (savedDef) {
+      const defObj = JSON.parse(savedDef);
+      if (defObj && typeof defObj === "object") {
+        syncDomWithSettings(defObj);
+      }
+    }
+  } catch (e) {}
 }
