@@ -1459,6 +1459,7 @@ function setupAutoSettingsSync() {
 
 // Initialize safely regardless of when script is loaded
 async function initApp() {
+  setupAppMenuAndLayouts();
   setupThemeSwitcher();
   await loadSavedSettings();
   loadClips();
@@ -5376,4 +5377,167 @@ function setupPrimariesBarsControls() {
   });
 
   syncPrimariesBarsDom();
+}
+
+// Workspace Layout Configurations (Default, Media, Attributes, Vertical)
+const WORKSPACE_LAYOUTS = {
+  default: {
+    name: "Default",
+    inspectorWidth: "462px",
+    mediaPoolFlex: "4.5",
+    monitorFlex: "6.5",
+    timelineHeight: "140px"
+  },
+  media: {
+    name: "Media",
+    inspectorWidth: "360px",
+    mediaPoolFlex: "8.0",
+    monitorFlex: "5.0",
+    timelineHeight: "220px"
+  },
+  attributes: {
+    name: "Attributes",
+    inspectorWidth: "580px",
+    mediaPoolFlex: "3.5",
+    monitorFlex: "6.5",
+    timelineHeight: "120px"
+  },
+  vertical: {
+    name: "Vertical",
+    inspectorWidth: "400px",
+    mediaPoolFlex: "2.8",
+    monitorFlex: "8.5",
+    timelineHeight: "110px"
+  }
+};
+
+function applyWorkspaceLayout(layoutKey, showNotification = true) {
+  if (layoutKey === "reset" || !WORKSPACE_LAYOUTS[layoutKey]) {
+    layoutKey = "default";
+    localStorage.removeItem("zcut_active_layout");
+  } else {
+    localStorage.setItem("zcut_active_layout", layoutKey);
+  }
+
+  const cfg = WORKSPACE_LAYOUTS[layoutKey];
+  const root = document.documentElement;
+  root.style.setProperty("--inspector-width", cfg.inspectorWidth);
+  root.style.setProperty("--media-pool-flex", cfg.mediaPoolFlex);
+  root.style.setProperty("--monitor-flex", cfg.monitorFlex);
+  root.style.setProperty("--timeline-height", cfg.timelineHeight);
+
+  // Update active state in submenu options
+  document.querySelectorAll(".sub-layout-option").forEach(opt => {
+    opt.classList.toggle("active", opt.dataset.layout === layoutKey);
+  });
+
+  // Update top bar quick indicator
+  const lqActiveName = document.getElementById("lqActiveName");
+  if (lqActiveName) lqActiveName.textContent = cfg.name;
+
+  if (showNotification) {
+    showToast(`🪟 Layout: ${cfg.name}`);
+  }
+
+  // Refresh monitor preview
+  if (typeof applyMonitorTransform === "function") {
+    setTimeout(applyMonitorTransform, 50);
+  }
+}
+
+function setupAppMenuAndLayouts() {
+  const btnTrigger = document.getElementById("btnAppMenuTrigger");
+  const flyout = document.getElementById("appMenuFlyout");
+  const wrapper = document.getElementById("appMenuWrapper");
+  const quickPill = document.getElementById("layoutQuickPill");
+
+  if (!btnTrigger || !flyout) return;
+
+  const toggleMenu = (e) => {
+    if (e) e.stopPropagation();
+    const isVisible = flyout.style.display === "block";
+    flyout.style.display = isVisible ? "none" : "block";
+    btnTrigger.classList.toggle("active", !isVisible);
+  };
+
+  btnTrigger.addEventListener("click", toggleMenu);
+
+  if (quickPill) {
+    quickPill.addEventListener("click", (e) => {
+      e.stopPropagation();
+      flyout.style.display = "block";
+      btnTrigger.classList.add("active");
+    });
+  }
+
+  // Close when clicking outside
+  document.addEventListener("click", (e) => {
+    if (flyout.style.display === "block" && wrapper && !wrapper.contains(e.target) && (!quickPill || !quickPill.contains(e.target))) {
+      flyout.style.display = "none";
+      btnTrigger.classList.remove("active");
+    }
+  });
+
+  // Layout Submenu Selection
+  document.querySelectorAll(".sub-layout-option").forEach(opt => {
+    opt.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const layout = opt.dataset.layout;
+      applyWorkspaceLayout(layout, true);
+      flyout.style.display = "none";
+      btnTrigger.classList.remove("active");
+    });
+  });
+
+  // Menu items: About, Settings, Back to home, More, Quit
+  const miAbout = document.getElementById("menuItemAbout");
+  if (miAbout) {
+    miAbout.addEventListener("click", () => {
+      flyout.style.display = "none";
+      showToast("⚡️ ZCut PRO Studio v3.2 — Fast Batch Vertical Engine (Apple Silicon M-Series Active)");
+    });
+  }
+
+  const miSettings = document.getElementById("menuItemSettings");
+  if (miSettings) {
+    miSettings.addEventListener("click", () => {
+      flyout.style.display = "none";
+      const expCard = document.querySelector(".inspector-card:last-child");
+      if (expCard) expCard.scrollIntoView({ behavior: "smooth" });
+      showToast("⚙️ Output & Export Settings");
+    });
+  }
+
+  const miHome = document.getElementById("menuItemHome");
+  if (miHome) {
+    miHome.addEventListener("click", () => {
+      flyout.style.display = "none";
+      applyWorkspaceLayout("default", false);
+      if (allClips && allClips.length > 0) updateMonitorDisplay(0);
+      showToast("🏠 ZCut Studio Home");
+    });
+  }
+
+  const miMore = document.getElementById("menuItemMore");
+  if (miMore) {
+    miMore.addEventListener("click", () => {
+      flyout.style.display = "none";
+      showToast("ℹ️ Shortcuts: Space = Play/Pause, J/K/L = Shuttle, 1/2/3/4 = Quick Angles");
+    });
+  }
+
+  const miQuit = document.getElementById("menuItemQuit");
+  if (miQuit) {
+    miQuit.addEventListener("click", () => {
+      flyout.style.display = "none";
+      if (confirm("Are you sure you want to quit ZCut PRO?")) {
+        fetch("/api/quit", { method: "POST" }).catch(() => {});
+        window.close();
+      }
+    });
+  }
+
+  // Restore saved layout on launch
+  const savedLayout = localStorage.getItem("zcut_active_layout") || "default";
+  applyWorkspaceLayout(savedLayout, false);
 }

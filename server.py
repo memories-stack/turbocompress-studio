@@ -562,6 +562,14 @@ class StudioHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"success": success, "settings": load_app_settings()}).encode())
             return
 
+        elif url.path == "/api/quit":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "status": "quitting"}).encode())
+            threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0))).start()
+            return
+
         elif url.path == "/api/clear" or url.path == "/api/clear_on_exit":
             with proc_lock:
                 STATE["clips"] = []
@@ -1147,13 +1155,17 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             except:
                 pass
 
-    # Audio detection
+    # Audio and Color Range detection (Nikon Z8 / Full Range vs Limited Range)
     has_audio = False
+    is_full_range = False
     try:
         probe_cmd = [FFMPEG_BIN, "-nostdin", "-i", src]
         p_res = subprocess.run(probe_cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True, errors="ignore")
         if "Audio:" in p_res.stderr:
             has_audio = True
+        err_lower = p_res.stderr.lower()
+        if "yuvj" in err_lower or "(pc" in err_lower or "pc," in err_lower or "pc)" in err_lower or "full" in err_lower:
+            is_full_range = True
     except:
         pass
 
@@ -1176,12 +1188,13 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             target_w = (target_w // 2) * 2
             target_h = (target_h // 2) * 2
 
+    scale_range = ":in_range=full:out_range=tv" if is_full_range else ""
     if scaling_mode == "crop":
-        vf.append(f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase,crop={target_w}:{target_h}")
+        vf.append(f"scale={target_w}:{target_h}{scale_range}:force_original_aspect_ratio=increase,crop={target_w}:{target_h}")
     elif scaling_mode == "stretch":
-        vf.append(f"scale={target_w}:{target_h}")
+        vf.append(f"scale={target_w}:{target_h}{scale_range}")
     else:
-        vf.append(f"scale={target_w}:{target_h}:force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2")
+        vf.append(f"scale={target_w}:{target_h}{scale_range}:force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2")
 
     # Speed Change (Retime)
     spd = max(25.0, min(400.0, float(params.get("speed", 100.0))))
@@ -1220,11 +1233,11 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         user_shadows = float(params.get("shadows", 0.0))
         user_saturation = float(params.get("saturation", 1.0))
 
-        # Calibrated to match sRGB Monitor Preview (applyMonitorTransform in app.js) 1:1
-        tot_contrast = 1.0 + (user_contrast - 1.0) * 1.35
-        tot_saturation = 1.0 + (user_saturation - 1.0) * 1.35
-        tot_brightness = (user_brightness * 1.15) + (user_shadows * 0.16)
-        tot_gamma = 1.0 + (user_shadows * 0.90)
+        # Calibrated 1:1 with WebKit Monitor Preview (applyMonitorTransform in app.js)
+        tot_contrast = user_contrast
+        tot_saturation = user_saturation
+        tot_brightness = user_brightness + (user_shadows * 0.05)
+        tot_gamma = 1.0 + (user_shadows * 0.10)
 
         temp = float(params.get("temperature", 0.0))
         tint = float(params.get("tint", 0.0))
