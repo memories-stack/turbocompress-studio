@@ -5712,6 +5712,17 @@ function setupColorMasterToolbar() {
       selPresets.value = "";
       if (btnDel) btnDel.style.display = "none";
 
+      // Reset preset buttons highlight to neutral defaults
+      document.querySelectorAll(".btn-color-preset").forEach(b => {
+        b.classList.toggle("active", b.dataset.preset === "normal");
+      });
+      document.querySelectorAll(".btn-wb-preset").forEach(b => {
+        b.classList.toggle("active", b.dataset.wb === "shot");
+      });
+      document.querySelectorAll(".btn-cs-preset").forEach(b => {
+        b.classList.remove("active");
+      });
+
       showToast("↺ รีเซ็ตค่าสี Color Bars & Light ทั้งหมดกลับเป็นค่าเริ่มต้น");
     });
   }
