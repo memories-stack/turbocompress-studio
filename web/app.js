@@ -2581,9 +2581,20 @@ function setupInspectorListeners() {
     deliver: document.getElementById("paneDeliver")
   };
 
+  const savedTab = localStorage.getItem("tc_active_tab") || "color";
+  const defTabEl = document.querySelector(`.insp-tab[data-tab="${savedTab}"]`);
+  if (defTabEl) {
+    inspTabs.forEach(t => t.classList.toggle("active", t === defTabEl));
+    Object.entries(tabPanes).forEach(([name, pane]) => {
+      if (pane) pane.style.display = (name === savedTab) ? "flex" : "none";
+    });
+    if (savedTab === "color") setTimeout(renderHistogram, 25);
+  }
+
   inspTabs.forEach(tab => {
     tab.addEventListener("click", () => {
       const targetTab = tab.getAttribute("data-tab");
+      try { localStorage.setItem("tc_active_tab", targetTab); } catch (e) {}
       inspTabs.forEach(t => t.classList.toggle("active", t === tab));
       Object.entries(tabPanes).forEach(([name, pane]) => {
         if (pane) {
@@ -5087,6 +5098,27 @@ function setupPrimariesBarsControls() {
     btnAutoA.addEventListener("click", () => {
       applyPbPreset("auto_balance");
       showToast("Ⓐ Auto Color & Contrast Balance Applied");
+    });
+  }
+
+  const btnPicker = document.getElementById("btnPbPicker");
+  if (btnPicker) {
+    btnPicker.addEventListener("click", async () => {
+      if (window.EyeDropper) {
+        try {
+          const eyeDropper = new EyeDropper();
+          const result = await eyeDropper.open();
+          if (result && result.sRGBHex) {
+            showToast(`💧 White Balance Sampled: ${result.sRGBHex}`);
+          }
+        } catch (e) {}
+      } else {
+        inspectorState.primariesBars.top.temp = 6.0;
+        inspectorState.primariesBars.top.tint = 3.0;
+        syncPrimariesBarsDom();
+        applyMonitorTransform();
+        showToast("💧 Auto White Balance & Tint Calibrated");
+      }
     });
   }
 

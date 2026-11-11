@@ -268,15 +268,15 @@
     <aside class="dv-inspector">
       <!-- Tab Header Icons: Transform, Color & Light, Deliver -->
       <div class="insp-tabs">
-        <div class="insp-tab active" data-tab="transform" title="Rotation, Orientation & Framing">
+        <div class="insp-tab" data-tab="transform" title="Rotation, Orientation & Framing (Cmd+1)">
           <div class="tab-icon">🔄</div>
           <div class="tab-label">Transform</div>
         </div>
-        <div class="insp-tab" data-tab="color" title="Color Grading, Brightness, Shadows & Contrast">
+        <div class="insp-tab active" data-tab="color" title="DaVinci Primaries Color Bars, ColorSlice & Skin Tone (Cmd+2)">
           <div class="tab-icon">🎨</div>
-          <div class="tab-label">Color &amp; Light</div>
+          <div class="tab-label">Color Bars &amp; Light</div>
         </div>
-        <div class="insp-tab" data-tab="deliver" title="Resolution, Bitrate, Destination & Export Setup">
+        <div class="insp-tab" data-tab="deliver" title="Resolution, Bitrate, Destination & Export Setup (Cmd+3)">
           <div class="tab-icon">🚀</div>
           <div class="tab-label">Deliver</div>
         </div>
@@ -291,7 +291,7 @@
       <!-- Scrollable Inspector Content with Tab Panes -->
       <div class="insp-body">
         <!-- PANE 1: TRANSFORM & ORIENTATION -->
-        <div class="insp-pane active" id="paneTransform">
+        <div class="insp-pane" id="paneTransform" style="display: none;">
           <!-- 1. TRANSFORM -->
           <div class="dv-card">
             <div class="dv-card-header">
@@ -528,7 +528,7 @@
         </div>
 
         <!-- PANE 2: NIKON COLOR ENGINE & GRADING -->
-        <div class="insp-pane" id="paneColor" style="display: none;">
+        <div class="insp-pane active" id="paneColor" style="display: flex;">
           <!-- CARD 0: REAL-TIME SCOPE & HISTOGRAM -->
           <div class="dv-card dv-card-scopes" id="cardHistogram">
             <div class="dv-card-header" id="headerHistogram" style="cursor: pointer;" title="คลิกเพื่อย่อ/ขยายกราฟสโคป">
@@ -679,15 +679,21 @@
                 <button type="button" class="btn-pb-preset" data-pbpreset="clean_skin" title="ดึง Gamma ช่วงผิวให้ใสอมชมพู + กด Lift เงาให้ลึก">✨ Clean Skin</button>
                 <button type="button" class="btn-pb-preset" data-pbpreset="teal_orange" title="โทนภาพยนตร์ Teal &amp; Orange">🎬 Cine</button>
               </div>
-              <div class="card-tools">
+              <div class="card-tools pb-header-tools">
+                <span class="pb-mode-icon" title="Primaries Wheels (⊙)">⊙</span>
+                <span class="pb-mode-icon active" title="Primaries Color Bars (||||)">||||</span>
+                <span class="pb-mode-icon" title="Primaries Log Wheels (LOG)">⊙<small style="font-size:7px;">LOG</small></span>
                 <span class="tool-icon reset-btn" id="resetPrimariesBars" title="Reset All Primaries Color Bars">↺</span>
               </div>
             </div>
 
             <div class="dv-card-body pb-card-body">
-              <!-- Top Master Row: Auto | Temp | Tint | Cont | Pivot | MD -->
+              <!-- Top Master Row: Auto | Pipette | Temp | Tint | Cont | Pivot | MD -->
               <div class="pb-top-bar">
-                <button type="button" class="pb-auto-btn" id="btnPbAutoA" title="Auto Balance &amp; Neutralize Cast">Ⓐ</button>
+                <div class="pb-top-actions">
+                  <button type="button" class="pb-auto-btn" id="btnPbAutoA" title="Auto White &amp; Contrast Balance (Ⓐ)">Ⓐ</button>
+                  <button type="button" class="pb-auto-btn pb-picker-btn" id="btnPbPicker" title="Auto White Balance EyeDropper (💧)">💧</button>
+                </div>
                 <div class="pb-m-item" title="Color Temperature (-100 ถึง +100)">
                   <span class="pb-m-lbl">Temp</span>
                   <div class="pb-m-box-wrap">
