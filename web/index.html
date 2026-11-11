@@ -649,7 +649,10 @@
                 <button type="button" class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">🌟 Vibrant</button>
               </div>
 
-              <!-- Brightness (Exposure) -->
+              <!-- TONE SECTION -->
+              <div class="dv-sub-header">Tone</div>
+
+              <!-- Exposure -->
               <div class="dv-row">
                 <label class="row-label">Exposure</label>
                 <div class="row-controls">
@@ -669,13 +672,86 @@
                 </div>
               </div>
 
-              <!-- Shadow Lift -->
+              <!-- Highlights -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Highlights</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderHighlights" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpHighlights" value="0">
+                  <span class="tool-icon reset-single" data-key="highlights" title="Reset Highlights">↺</span>
+                </div>
+              </div>
+
+              <!-- Shadows -->
               <div class="dv-row" style="margin-top: 3px;">
                 <label class="row-label">Shadows</label>
                 <div class="row-controls">
-                  <input type="range" class="dv-slider slider-track-shadows" id="sliderShadows" min="-0.3" max="0.6" step="0.02" value="0">
-                  <input type="text" class="dv-num-box" id="inpShadows" value="0.000">
+                  <input type="range" class="dv-slider slider-track-shadows" id="sliderShadows" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpShadows" value="0">
                   <span class="tool-icon reset-single" data-key="shadows" title="Reset Shadows">↺</span>
+                </div>
+              </div>
+
+              <!-- Whites -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Whites</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderWhites" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpWhites" value="0">
+                  <span class="tool-icon reset-single" data-key="whites" title="Reset Whites">↺</span>
+                </div>
+              </div>
+
+              <!-- Blacks -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Blacks</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderBlacks" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpBlacks" value="0">
+                  <span class="tool-icon reset-single" data-key="blacks" title="Reset Blacks">↺</span>
+                </div>
+              </div>
+
+              <!-- PRESENCE SECTION -->
+              <div class="dv-sub-header" style="margin-top: 8px;">Presence</div>
+
+              <!-- Texture -->
+              <div class="dv-row">
+                <label class="row-label">Texture</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderTexture" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpTexture" value="0">
+                  <span class="tool-icon reset-single" data-key="texture" title="Reset Texture">↺</span>
+                </div>
+              </div>
+
+              <!-- Clarity -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Clarity</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderClarity" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpClarity" value="0">
+                  <span class="tool-icon reset-single" data-key="clarity" title="Reset Clarity">↺</span>
+                </div>
+              </div>
+
+              <!-- Dehaze -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Dehaze</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderDehaze" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpDehaze" value="0">
+                  <span class="tool-icon reset-single" data-key="dehaze" title="Reset Dehaze">↺</span>
+                </div>
+              </div>
+
+              <!-- Vibrance -->
+              <div class="dv-row" style="margin-top: 3px;">
+                <label class="row-label">Vibrance</label>
+                <div class="row-controls">
+                  <input type="range" class="dv-slider" id="sliderVibrance" min="-100" max="100" step="1" value="0">
+                  <input type="text" class="dv-num-box" id="inpVibrance" value="0">
+                  <span class="tool-icon reset-single" data-key="vibrance" title="Reset Vibrance">↺</span>
                 </div>
               </div>
 

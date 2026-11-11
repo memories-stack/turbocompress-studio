@@ -1905,6 +1905,20 @@ body {
   height: 24px;
 }
 
+.dv-sub-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #7b8296;
+  margin: 8px 0 4px 0;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .row-label {
   width: 105px;
   color: #8c91a3;

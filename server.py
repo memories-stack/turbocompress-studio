@@ -1230,14 +1230,26 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
 
         user_brightness = float(params.get("brightness", 0.0))
         user_contrast = float(params.get("contrast", 1.0))
+        user_highlights = float(params.get("highlights", 0.0))
         user_shadows = float(params.get("shadows", 0.0))
+        user_whites = float(params.get("whites", 0.0))
+        user_blacks = float(params.get("blacks", 0.0))
+        user_texture = float(params.get("texture", 0.0))
+        user_clarity = float(params.get("clarity", 0.0))
+        user_dehaze = float(params.get("dehaze", 0.0))
+        user_vibrance = float(params.get("vibrance", 0.0))
         user_saturation = float(params.get("saturation", 1.0))
 
-        # Calibrated 1:1 with WebKit Monitor Preview (applyMonitorTransform in app.js)
-        tot_contrast = user_contrast
-        tot_saturation = user_saturation
-        tot_brightness = user_brightness + (user_shadows * 0.05)
-        tot_gamma = 1.0 + (user_shadows * 0.10)
+        # Calibrated 1:1 with WebKit Monitor Preview (Tone & Presence engine)
+        tot_contrast = user_contrast * (1.0 + (user_clarity * 0.0035) + (user_dehaze * 0.0030) + (user_whites * 0.0015) - (user_blacks * 0.0015))
+        tot_saturation = user_saturation * (1.0 + (user_vibrance * 0.0040) + (user_dehaze * 0.0025))
+        tot_brightness = user_brightness + (user_shadows * 0.0030) + (user_highlights * 0.0020) + (user_whites * 0.0025) + (user_blacks * 0.0018) - (user_dehaze * 0.0015)
+        tot_gamma = 1.0 + (user_shadows * 0.0025) - (user_highlights * 0.0020)
+
+        if user_texture > 5:
+            vf.append(f"unsharp=3:3:{min(1.5, user_texture * 0.012):.2f}")
+        elif user_texture < -5:
+            vf.append(f"smartblur=lr={min(2.0, abs(user_texture) * 0.015):.2f}:ls=-0.25")
 
         temp = float(params.get("temperature", 0.0))
         tint = float(params.get("tint", 0.0))

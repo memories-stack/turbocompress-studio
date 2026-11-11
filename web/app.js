@@ -635,7 +635,14 @@ const inspectorState = {
   flipV: false,
   brightness: 0.0,
   contrast: 1.0,
-  shadows: 0.0,
+  highlights: 0,
+  shadows: 0,
+  whites: 0,
+  blacks: 0,
+  texture: 0,
+  clarity: 0,
+  dehaze: 0,
+  vibrance: 0,
   saturation: 1.0,
   opacity: 100.0,
   compositeMode: "normal",
@@ -910,7 +917,14 @@ function gatherCurrentSettings() {
     denoiseTemporal: (document.getElementById("sliderDenoiseTemporal") ? parseFloat(document.getElementById("sliderDenoiseTemporal").value) : (inspectorState.denoiseTemporal || 0)),
     brightness: inspectorState.brightness,
     contrast: inspectorState.contrast,
-    shadows: inspectorState.shadows,
+    highlights: inspectorState.highlights || 0,
+    shadows: inspectorState.shadows || 0,
+    whites: inspectorState.whites || 0,
+    blacks: inspectorState.blacks || 0,
+    texture: inspectorState.texture || 0,
+    clarity: inspectorState.clarity || 0,
+    dehaze: inspectorState.dehaze || 0,
+    vibrance: inspectorState.vibrance || 0,
     saturation: inspectorState.saturation,
     temperature: inspectorState.temperature || 0,
     tint: inspectorState.tint || 0,
@@ -1010,7 +1024,14 @@ async function loadSavedSettings() {
   }
   if (settings.brightness !== undefined) inspectorState.brightness = parseFloat(settings.brightness);
   if (settings.contrast !== undefined) inspectorState.contrast = parseFloat(settings.contrast);
+  if (settings.highlights !== undefined) inspectorState.highlights = parseFloat(settings.highlights);
   if (settings.shadows !== undefined) inspectorState.shadows = parseFloat(settings.shadows);
+  if (settings.whites !== undefined) inspectorState.whites = parseFloat(settings.whites);
+  if (settings.blacks !== undefined) inspectorState.blacks = parseFloat(settings.blacks);
+  if (settings.texture !== undefined) inspectorState.texture = parseFloat(settings.texture);
+  if (settings.clarity !== undefined) inspectorState.clarity = parseFloat(settings.clarity);
+  if (settings.dehaze !== undefined) inspectorState.dehaze = parseFloat(settings.dehaze);
+  if (settings.vibrance !== undefined) inspectorState.vibrance = parseFloat(settings.vibrance);
   if (settings.saturation !== undefined) inspectorState.saturation = parseFloat(settings.saturation);
 
   if (settings.theme !== undefined) {
@@ -1173,11 +1194,16 @@ function syncDomWithSettings(s) {
     if (sliderContrast) sliderContrast.value = s.contrast;
     if (inpContrast) inpContrast.value = parseFloat(s.contrast).toFixed(3);
   }
-  if (s.shadows !== undefined) {
-    inspectorState.shadows = parseFloat(s.shadows);
-    if (sliderShadows) sliderShadows.value = s.shadows;
-    if (inpShadows) inpShadows.value = parseFloat(s.shadows).toFixed(3);
-  }
+  ["highlights", "shadows", "whites", "blacks", "texture", "clarity", "dehaze", "vibrance"].forEach(k => {
+    if (s[k] !== undefined) {
+      inspectorState[k] = parseFloat(s[k]);
+      const capKey = k.charAt(0).toUpperCase() + k.slice(1);
+      const sl = document.getElementById(`slider${capKey}`);
+      const inp = document.getElementById(`inp${capKey}`);
+      if (sl) sl.value = s[k];
+      if (inp) inp.value = Math.round(parseFloat(s[k]));
+    }
+  });
   if (s.saturation !== undefined) {
     inspectorState.saturation = parseFloat(s.saturation);
     if (sliderSaturation) sliderSaturation.value = s.saturation;
@@ -1867,10 +1893,22 @@ function applyMonitorTransform() {
   else if (scalingMode === "stretch") objectFitVal = "fill";
   else objectFitVal = "contain";
 
-  // Real-time Color, Exposure & Shadow grading filter
-  let br = 1.0 + inspectorState.brightness + (inspectorState.shadows * 0.35);
-  let ct = inspectorState.contrast;
-  let sat = inspectorState.saturation;
+  // Real-time Color, Exposure, Tone & Presence grading filter
+  const isExpBypassed = isBypassed || (inspectorState.bypassedCards && inspectorState.bypassedCards.exposure);
+  const expVal = isExpBypassed ? 0.0 : (inspectorState.brightness || 0.0);
+  const ctVal = isExpBypassed ? 1.0 : (inspectorState.contrast !== undefined ? inspectorState.contrast : 1.0);
+  const satVal = isExpBypassed ? 1.0 : (inspectorState.saturation !== undefined ? inspectorState.saturation : 1.0);
+  const hlVal = isExpBypassed ? 0 : (inspectorState.highlights || 0);
+  const shVal = isExpBypassed ? 0 : (inspectorState.shadows || 0);
+  const whVal = isExpBypassed ? 0 : (inspectorState.whites || 0);
+  const blVal = isExpBypassed ? 0 : (inspectorState.blacks || 0);
+  const clrVal = isExpBypassed ? 0 : (inspectorState.clarity || 0);
+  const dhzVal = isExpBypassed ? 0 : (inspectorState.dehaze || 0);
+  const vibVal = isExpBypassed ? 0 : (inspectorState.vibrance || 0);
+
+  let br = 1.0 + expVal + (shVal * 0.0030) + (hlVal * 0.0020) + (whVal * 0.0025) + (blVal * 0.0018) - (dhzVal * 0.0015);
+  let ct = ctVal * (1.0 + (clrVal * 0.0035) + (dhzVal * 0.0030) + (whVal * 0.0015) - (blVal * 0.0015));
+  let sat = satVal * (1.0 + (vibVal * 0.0040) + (dhzVal * 0.0025));
 
   // Nikon Picture Control / Tone Profile Engine
   const isNikonBypassed = isBypassed || (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor);
@@ -2970,7 +3008,8 @@ function setupInspectorListeners() {
     slider.addEventListener("input", (e) => {
       const v = parseFloat(e.target.value);
       inspectorState[key] = v;
-      input.value = (key === "temperature" || key === "tint") ? v.toFixed(0) : v.toFixed(3);
+      const isInt = ["temperature", "tint", "highlights", "shadows", "whites", "blacks", "texture", "clarity", "dehaze", "vibrance"].includes(key);
+      input.value = isInt ? Math.round(v) : v.toFixed(3);
       if (key === "temperature" || key === "tint") updateWhitebalanceBadge();
       applyMonitorTransform();
     });
@@ -2985,7 +3024,14 @@ function setupInspectorListeners() {
 
   bindColorSlider(sliderBrightness, inpBrightness, "brightness");
   bindColorSlider(sliderContrast, inpContrast, "contrast");
-  bindColorSlider(sliderShadows, inpShadows, "shadows");
+  bindColorSlider(document.getElementById("sliderHighlights"), document.getElementById("inpHighlights"), "highlights");
+  bindColorSlider(document.getElementById("sliderShadows"), document.getElementById("inpShadows"), "shadows");
+  bindColorSlider(document.getElementById("sliderWhites"), document.getElementById("inpWhites"), "whites");
+  bindColorSlider(document.getElementById("sliderBlacks"), document.getElementById("inpBlacks"), "blacks");
+  bindColorSlider(document.getElementById("sliderTexture"), document.getElementById("inpTexture"), "texture");
+  bindColorSlider(document.getElementById("sliderClarity"), document.getElementById("inpClarity"), "clarity");
+  bindColorSlider(document.getElementById("sliderDehaze"), document.getElementById("inpDehaze"), "dehaze");
+  bindColorSlider(document.getElementById("sliderVibrance"), document.getElementById("inpVibrance"), "vibrance");
   bindColorSlider(sliderSaturation, inpSaturation, "saturation");
 
   const sliderTemp = document.getElementById("sliderTemp");
@@ -3177,27 +3223,41 @@ function setupInspectorListeners() {
 
   // Color Presets (Master Exposure & Primaries only — preserves White Balance & Portrait Hue)
   const colorPresets = {
-    normal: { brightness: 0.0, contrast: 1.0, shadows: 0.0, saturation: 1.0 },
-    shadows: { brightness: 0.05, contrast: 1.05, shadows: 0.40, saturation: 1.10 },
-    cinematic: { brightness: -0.02, contrast: 1.25, shadows: 0.05, saturation: 1.20 },
-    vibrant: { brightness: 0.04, contrast: 1.15, shadows: 0.20, saturation: 1.35 }
+    normal: { brightness: 0.0, contrast: 1.0, highlights: 0, shadows: 0, whites: 0, blacks: 0, texture: 0, clarity: 0, dehaze: 0, vibrance: 0, saturation: 1.0 },
+    shadows: { brightness: 0.05, contrast: 1.05, highlights: -10, shadows: 40, whites: 0, blacks: 15, texture: 5, clarity: 10, dehaze: 0, vibrance: 10, saturation: 1.10 },
+    cinematic: { brightness: -0.02, contrast: 1.25, highlights: -25, shadows: 15, whites: 10, blacks: -15, texture: 10, clarity: 20, dehaze: 15, vibrance: 15, saturation: 1.20 },
+    vibrant: { brightness: 0.04, contrast: 1.15, highlights: -10, shadows: 20, whites: 15, blacks: -5, texture: 15, clarity: 15, dehaze: 10, vibrance: 35, saturation: 1.35 }
   };
 
   function applyColorPreset(name) {
     const p = colorPresets[name] || colorPresets.normal;
     inspectorState.brightness = p.brightness;
     inspectorState.contrast = p.contrast;
-    inspectorState.shadows = p.shadows;
+    inspectorState.highlights = p.highlights !== undefined ? p.highlights : 0;
+    inspectorState.shadows = p.shadows !== undefined ? p.shadows : 0;
+    inspectorState.whites = p.whites !== undefined ? p.whites : 0;
+    inspectorState.blacks = p.blacks !== undefined ? p.blacks : 0;
+    inspectorState.texture = p.texture !== undefined ? p.texture : 0;
+    inspectorState.clarity = p.clarity !== undefined ? p.clarity : 0;
+    inspectorState.dehaze = p.dehaze !== undefined ? p.dehaze : 0;
+    inspectorState.vibrance = p.vibrance !== undefined ? p.vibrance : 0;
     inspectorState.saturation = p.saturation;
 
     if (sliderBrightness) sliderBrightness.value = p.brightness;
     if (inpBrightness) inpBrightness.value = p.brightness.toFixed(3);
     if (sliderContrast) sliderContrast.value = p.contrast;
     if (inpContrast) inpContrast.value = p.contrast.toFixed(3);
-    if (sliderShadows) sliderShadows.value = p.shadows;
-    if (inpShadows) inpShadows.value = p.shadows.toFixed(3);
     if (sliderSaturation) sliderSaturation.value = p.saturation;
     if (inpSaturation) inpSaturation.value = p.saturation.toFixed(3);
+
+    ["highlights", "shadows", "whites", "blacks", "texture", "clarity", "dehaze", "vibrance"].forEach(k => {
+      const capKey = k.charAt(0).toUpperCase() + k.slice(1);
+      const sl = document.getElementById(`slider${capKey}`);
+      const inp = document.getElementById(`inp${capKey}`);
+      const val = p[k] !== undefined ? p[k] : 0;
+      if (sl) sl.value = val;
+      if (inp) inp.value = Math.round(val);
+    });
 
     document.querySelectorAll(".btn-color-preset").forEach(b => {
       b.classList.toggle("active", b.getAttribute("data-preset") === name);
@@ -3519,10 +3579,13 @@ function setupInspectorListeners() {
         inspectorState.contrast = 1.0;
         if (sliderContrast) sliderContrast.value = 1.0;
         if (inpContrast) inpContrast.value = "1.000";
-      } else if (key === "shadows") {
-        inspectorState.shadows = 0.0;
-        if (sliderShadows) sliderShadows.value = 0;
-        if (inpShadows) inpShadows.value = "0.000";
+      } else if (["highlights", "shadows", "whites", "blacks", "texture", "clarity", "dehaze", "vibrance"].includes(key)) {
+        inspectorState[key] = 0;
+        const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+        const sl = document.getElementById(`slider${capKey}`);
+        const inp = document.getElementById(`inp${capKey}`);
+        if (sl) sl.value = 0;
+        if (inp) inp.value = "0";
       } else if (key === "saturation") {
         inspectorState.saturation = 1.0;
         if (sliderSaturation) sliderSaturation.value = 1.0;
@@ -4532,10 +4595,17 @@ async function startBatchExport() {
     denoise_temporal: inspectorState.denoiseTemporal || 0,
     nlog_normalize: (inspectorState.nikonProfile === "nlog_rec709"),
     naming_pattern: selNamingPattern ? selNamingPattern.value : "suffix_vertical",
-    brightness: isPrimariesBypassed ? 0.0 : inspectorState.brightness,
-    contrast: isPrimariesBypassed ? 1.0 : inspectorState.contrast,
-    shadows: isPrimariesBypassed ? 0.0 : inspectorState.shadows,
-    saturation: isPrimariesBypassed ? 1.0 : inspectorState.saturation,
+    brightness: isPrimariesBypassed ? 0.0 : (inspectorState.brightness || 0.0),
+    contrast: isPrimariesBypassed ? 1.0 : (inspectorState.contrast !== undefined ? inspectorState.contrast : 1.0),
+    highlights: isPrimariesBypassed ? 0 : (inspectorState.highlights || 0),
+    shadows: isPrimariesBypassed ? 0 : (inspectorState.shadows || 0),
+    whites: isPrimariesBypassed ? 0 : (inspectorState.whites || 0),
+    blacks: isPrimariesBypassed ? 0 : (inspectorState.blacks || 0),
+    texture: isPrimariesBypassed ? 0 : (inspectorState.texture || 0),
+    clarity: isPrimariesBypassed ? 0 : (inspectorState.clarity || 0),
+    dehaze: isPrimariesBypassed ? 0 : (inspectorState.dehaze || 0),
+    vibrance: isPrimariesBypassed ? 0 : (inspectorState.vibrance || 0),
+    saturation: isPrimariesBypassed ? 1.0 : (inspectorState.saturation !== undefined ? inspectorState.saturation : 1.0),
     temperature: isWbBypassed ? 0 : (inspectorState.temperature || 0),
     tint: isWbBypassed ? 0 : (inspectorState.tint || 0),
     export_audio: chkExportAudio ? chkExportAudio.checked : true,
