@@ -2904,7 +2904,6 @@ function setupInspectorListeners() {
     { dotId: "dotSpeed", cardId: "cardSpeed", key: "speed" },
     { dotId: "dotStabilization", cardId: "cardStabilization", key: "stabilization" },
     { dotId: "dotWhiteBalance", cardId: "cardWhiteBalance", key: "whiteBalance" },
-    { dotId: "dotPrimariesBars", cardId: "cardPrimariesBars", key: "primariesBars" },
     { dotId: "dotColorSlice", cardId: "cardColorSlice", key: "colorSlice" },
     { dotId: "dotNikonColor", cardId: "cardNikonColor", key: "nikonColor" },
     { dotId: "dotDenoise", cardId: "cardDenoise", key: "denoise" }
@@ -4910,130 +4909,9 @@ function setupColorSliceControls() {
     });
   });
 
-  // 8. Style 1 View Switcher & Tabbed Hero Slice Setup
-  const btnCsViewTabs = document.getElementById("btnCsViewTabs");
-  const btnCsViewCols = document.getElementById("btnCsViewCols");
-  const csTabbedContainer = document.getElementById("csTabbedContainer");
+  // 8. 7-Vector ColorSlice Grid (DaVinci Resolve Style)
   const colorSliceGrid = document.getElementById("colorSliceGrid");
-
-  function setCsViewMode(mode) {
-    currentCsViewMode = mode;
-    try { localStorage.setItem("zcut_cs_view_mode", mode); } catch (e) {}
-    if (btnCsViewTabs) btnCsViewTabs.classList.toggle("active", mode === "tabs");
-    if (btnCsViewCols) btnCsViewCols.classList.toggle("active", mode === "cols");
-    if (csTabbedContainer) csTabbedContainer.style.display = (mode === "tabs") ? "flex" : "none";
-    if (colorSliceGrid) colorSliceGrid.style.display = (mode === "cols") ? "grid" : "none";
-  }
-
-  const savedCsView = localStorage.getItem("zcut_cs_view_mode") || "tabs";
-  setCsViewMode(savedCsView);
-
-  if (btnCsViewTabs) {
-    btnCsViewTabs.addEventListener("click", () => setCsViewMode("tabs"));
-  }
-  if (btnCsViewCols) {
-    btnCsViewCols.addEventListener("click", () => setCsViewMode("cols"));
-  }
-
-  // 9. 7 Slice Selector Tabs Click Handler
-  document.querySelectorAll(".cs-slice-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      const sKey = tab.dataset.slicetab;
-      if (sKey) {
-        currentCsActiveSlice = sKey;
-        syncColorSliceHeroDom();
-      }
-    });
-  });
-
-  // 10. Hero Controls Sliders Event Handlers (Center / Hue / Density / Saturation)
-  const slCenter = document.getElementById("slCsHeroCenter");
-  if (slCenter) {
-    slCenter.addEventListener("input", (e) => {
-      const v = parseFloat(e.target.value) || 0;
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].center = v;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-    slCenter.addEventListener("dblclick", () => {
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].center = 0;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-  }
-
-  const slHue = document.getElementById("slCsHeroHue");
-  if (slHue) {
-    slHue.addEventListener("input", (e) => {
-      const v = parseFloat(e.target.value) || 0;
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].hue = v;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-    slHue.addEventListener("dblclick", () => {
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].hue = 0;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-  }
-
-  const slDen = document.getElementById("slCsHeroDen");
-  if (slDen) {
-    slDen.addEventListener("input", (e) => {
-      const v = parseFloat(e.target.value) || 0;
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].den = v;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-    slDen.addEventListener("dblclick", () => {
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].den = 0;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-  }
-
-  const slSat = document.getElementById("slCsHeroSat");
-  if (slSat) {
-    slSat.addEventListener("input", (e) => {
-      const v = parseFloat(e.target.value) || 0;
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].sat = v;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-    slSat.addEventListener("dblclick", () => {
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice].sat = 1.0;
-        syncColorSliceDom();
-        applyMonitorTransform();
-      }
-    });
-  }
-
-  const btnHeroReset = document.getElementById("btnCsHeroReset");
-  if (btnHeroReset) {
-    btnHeroReset.addEventListener("click", () => {
-      if (inspectorState.colorSlice && currentCsActiveSlice) {
-        inspectorState.colorSlice[currentCsActiveSlice] = { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 };
-        syncColorSliceDom();
-        applyMonitorTransform();
-        showToast(`↺ Reset ${COLORSLICE_TITLES[currentCsActiveSlice]} to Default`);
-      }
-    });
-  }
+  if (colorSliceGrid) colorSliceGrid.style.display = "grid";
 
   syncColorSliceDom();
   setupPrimariesBarsControls();
@@ -5097,6 +4975,7 @@ function syncPrimariesBarsDom() {
 }
 
 function setupPrimariesBarsControls() {
+  if (!document.getElementById("cardPrimariesBars")) return;
   if (!inspectorState.primariesBars) {
     inspectorState.primariesBars = createDefaultPrimariesBars();
   }
