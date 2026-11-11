@@ -1465,6 +1465,7 @@ async function initApp() {
   setupInspectorListeners();
   setupCompareListeners();
   setupDragAndDrop();
+  setupTimelineResizer();
   setupTransport();
   setupKeyboardShortcuts();
   setupAutoSettingsSync();
@@ -4009,6 +4010,135 @@ function setupDragAndDrop() {
       }
     }
   });
+}
+
+// Interactive Timeline Height Resizer (ขยายช่องวิวแนวตั้งลงมาด้านล่างได้ตามต้องการ)
+function setupTimelineResizer() {
+  const resizer = document.getElementById("tlSplitResizer");
+  const timelinePanel = document.getElementById("timelinePanel");
+  const workarea = document.querySelector(".dv-workarea");
+  const btnToggle = document.getElementById("btnMonitorExpandToggle");
+  const btnMax = document.getElementById("btnHsMax");
+  const btnBalanced = document.getElementById("btnHsBalanced");
+  const btnCompact = document.getElementById("btnHsCompact");
+
+  if (!resizer || !timelinePanel || !workarea) return;
+
+  function setTimelineHeight(heightPx, animate = true) {
+    const clamped = Math.max(48, Math.min(420, Math.round(heightPx)));
+    if (!animate) {
+      timelinePanel.classList.add("is-dragging");
+    } else {
+      timelinePanel.classList.remove("is-dragging");
+    }
+    workarea.style.setProperty("--timeline-height", `${clamped}px`);
+    timelinePanel.classList.toggle("compact-mode", clamped <= 75);
+    try { localStorage.setItem("zcut_tl_height", clamped); } catch (e) {}
+
+    // Update preset buttons state
+    if (btnMax) btnMax.classList.toggle("active", clamped <= 60);
+    if (btnCompact) btnCompact.classList.toggle("active", clamped > 60 && clamped <= 90);
+    if (btnBalanced) btnBalanced.classList.toggle("active", clamped > 90);
+
+    if (btnToggle) {
+      if (clamped <= 60) {
+        btnToggle.textContent = "↕️ ย่อจอวิว";
+        btnToggle.classList.add("active");
+        btnToggle.title = "สลับกลับสู่ขนาดมาตรฐาน (Restore Balanced View)";
+      } else {
+        btnToggle.textContent = "↕️ ขยายจอวิว";
+        btnToggle.classList.remove("active");
+        btnToggle.title = "ขยายช่องวิวแนวตั้งลงมาด้านล่างสุด (Maximize 9:16 Vertical Monitor)";
+      }
+    }
+
+    // Refresh LUT canvas and monitor transform if needed
+    setTimeout(() => {
+      renderMonitorLutCanvas();
+      applyMonitorTransform();
+    }, 120);
+  }
+
+  // Restore saved height or default to spacious Max Vertical (56px)
+  const savedHeight = parseInt(localStorage.getItem("zcut_tl_height") || "56", 10);
+  setTimelineHeight(isNaN(savedHeight) ? 56 : savedHeight, false);
+
+  // Mouse drag handler on Splitter bar
+  resizer.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".btn-hs-quick")) return;
+    e.preventDefault();
+    resizer.classList.add("is-dragging");
+    timelinePanel.classList.add("is-dragging");
+    const startY = e.clientY;
+    const startH = timelinePanel.getBoundingClientRect().height;
+
+    const onMove = (ev) => {
+      // Moving mouse down (dy > 0) shrinks timeline & expands monitor downwards!
+      const dy = ev.clientY - startY;
+      const newH = startH - dy;
+      setTimelineHeight(newH, false);
+    };
+
+    const onUp = () => {
+      resizer.classList.remove("is-dragging");
+      timelinePanel.classList.remove("is-dragging");
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  });
+
+  // Double click resizer to toggle max/balanced
+  resizer.addEventListener("dblclick", (e) => {
+    if (e.target.closest(".btn-hs-quick")) return;
+    const currentH = timelinePanel.getBoundingClientRect().height;
+    if (currentH > 75) {
+      setTimelineHeight(56, true);
+      showToast("📱 ขยายช่องวิวแนวตั้งลงมาด้านล่างเต็มที่ (Maximized Monitor)");
+    } else {
+      setTimelineHeight(130, true);
+      showToast("⚖️ ปรับขนาดช่องวิวและไทม์ไลน์เป็นขนาดมาตรฐาน");
+    }
+  });
+
+  // Header Expand Toggle Button
+  if (btnToggle) {
+    btnToggle.addEventListener("click", () => {
+      const currentH = timelinePanel.getBoundingClientRect().height;
+      if (currentH > 75) {
+        setTimelineHeight(56, true);
+        showToast("📱 ขยายช่องวิวแนวตั้งลงมาด้านล่างเต็มที่");
+      } else {
+        setTimelineHeight(130, true);
+        showToast("⚖️ กลับสู่ขนาดมาตรฐาน");
+      }
+    });
+  }
+
+  // Quick Preset Buttons
+  if (btnMax) {
+    btnMax.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setTimelineHeight(56, true);
+      showToast("📱 ขยายช่องวิวแนวตั้งใหญ่สุด (Max 9:16 Monitor)");
+    });
+  }
+  if (btnCompact) {
+    btnCompact.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setTimelineHeight(80, true);
+      showToast("📐 ขนาดกะทัดรัด (Compact Timeline)");
+    });
+  }
+  if (btnBalanced) {
+    btnBalanced.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setTimelineHeight(130, true);
+      showToast("⚖️ ขนาดมาตรฐาน (Balanced View)");
+    });
+  }
 }
 
 // Timeline

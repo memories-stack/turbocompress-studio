@@ -252,19 +252,22 @@ body {
   background-color: #121318;
   border-right: 1px solid #232530;
   overflow: hidden;
+  --timeline-height: 110px;
 }
 
 .top-split {
-  flex: 6;
+  flex: 1 1 0%;
   display: flex;
-  padding: 6px;
+  padding: 6px 6px 0 6px;
   gap: 6px;
-  min-height: 0;
+  min-height: 200px;
+  overflow: hidden;
 }
 
 /* MEDIA POOL - Stripe Glass Capsule */
 .media-pool-panel {
-  flex: 5;
+  flex: 4.5;
+  min-width: 250px;
   background: rgba(16, 21, 36, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-top: 1px solid rgba(255, 255, 255, 0.16);
@@ -842,7 +845,7 @@ body {
 
 /* VERTICAL MONITOR - Stripe Glass Viewport */
 .monitor-panel {
-  flex: 5;
+  flex: 6.5;
   background: rgba(16, 21, 36, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-top: 1px solid rgba(255, 255, 255, 0.16);
@@ -1233,17 +1236,126 @@ body {
   border-radius: 6px;
 }
 
+/* HORIZONTAL SPLITTER BAR (DRAG TO RESIZE MONITOR DOWNWARDS) */
+.h-split-resizer {
+  height: 12px;
+  background: rgba(18, 22, 34, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  position: relative;
+  z-index: 15;
+  user-select: none;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.h-split-resizer:hover,
+.h-split-resizer.is-dragging {
+  background: rgba(0, 221, 255, 0.15);
+  border-color: rgba(0, 221, 255, 0.5);
+}
+
+.hs-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+.hs-handle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px;
+  background: rgba(26, 31, 46, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.hs-icon {
+  font-size: 10px;
+}
+
+.hs-text {
+  letter-spacing: 0.2px;
+}
+
+.hs-dots {
+  letter-spacing: 2px;
+  opacity: 0.5;
+}
+
+.hs-quick-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 2;
+}
+
+.btn-hs-quick {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-hs-quick:hover {
+  background: rgba(0, 245, 212, 0.2);
+  border-color: #00f5d4;
+  color: #00f5d4;
+}
+
+.btn-hs-quick.active {
+  background: linear-gradient(135deg, rgba(0, 245, 212, 0.3), rgba(0, 187, 249, 0.3));
+  border-color: #00f5d4;
+  color: #00f5d4;
+  font-weight: 700;
+}
+
 /* DUAL TIMELINE - Stripe Frosted Track View */
 .timeline-panel {
-  flex: 4;
+  flex: 0 0 auto;
+  height: var(--timeline-height, 110px);
+  min-height: 48px;
+  max-height: 450px;
   background: rgba(14, 18, 32, 0.52);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: none;
   display: flex;
   flex-direction: column;
-  padding: 8px;
-  gap: 6px;
+  padding: 4px 8px 6px;
+  gap: 4px;
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
+  overflow: hidden;
+  transition: height 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timeline-panel.is-dragging {
+  transition: none !important;
+}
+
+.timeline-panel.compact-mode .timeline-detail {
+  display: none !important;
 }
 
 .tl-header {
@@ -4765,6 +4877,26 @@ body.theme-light .fb-entry-item:hover {
 }
 
 .monitor-header .m-title,
+#btnMonitorExpandToggle {
+  padding: 2px 8px !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  background: rgba(0, 221, 255, 0.12) !important;
+  border: 1px solid rgba(0, 221, 255, 0.35) !important;
+  color: #00ddff !important;
+  transition: all 0.15s ease;
+}
+
+#btnMonitorExpandToggle:hover {
+  background: rgba(0, 221, 255, 0.25) !important;
+}
+
+#btnMonitorExpandToggle.active {
+  background: rgba(0, 240, 170, 0.2) !important;
+  border-color: #00f0aa !important;
+  color: #00f0aa !important;
+}
+
 .monitor-header .seg-cmp-btn,
 .monitor-header .btn-bypass-cmp,
 .monitor-header .btn-mtool,
@@ -4772,6 +4904,26 @@ body.theme-light .fb-entry-item:hover {
   white-space: nowrap !important;
   flex-shrink: 0 !important;
   font-size: 9.5px !important;
+}
+
+#btnMonitorExpandToggle {
+  padding: 2px 8px !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  background: rgba(0, 221, 255, 0.12) !important;
+  border: 1px solid rgba(0, 221, 255, 0.35) !important;
+  color: #00ddff !important;
+  transition: all 0.15s ease;
+}
+
+#btnMonitorExpandToggle:hover {
+  background: rgba(0, 221, 255, 0.25) !important;
+}
+
+#btnMonitorExpandToggle.active {
+  background: rgba(0, 240, 170, 0.2) !important;
+  border-color: #00f0aa !important;
+  color: #00f0aa !important;
 }
 
 .monitor-header .seg-cmp-btn,

@@ -115,6 +115,7 @@
 
               <!-- Live Video Monitoring Tools: Safe Zone Guides -->
               <div class="mh-tools">
+                <button class="btn-mtool" id="btnMonitorExpandToggle" title="ขยายช่องวิวแนวตั้งลงมาด้านล่างให้ใหญ่สุด (Maximize 9:16 Vertical Monitor)">↕️ ขยายช่องวิว</button>
                 <div class="guide-dropdown-wrap">
                   <button class="btn-mtool" id="btnGuidesToggle" title="Overlay Guides (TikTok Safe Zone, Rule of Thirds)">📐 Guides ⌵</button>
                   <div class="guide-menu" id="guideMenu" style="display: none;">
@@ -237,8 +238,23 @@
         </div>
       </div>
 
+      <!-- HORIZONTAL SPLITTER BAR: DRAG TO EXPAND MONITOR DOWNWARDS (คลิกลากขยายช่องวิวลงมาด้านล่าง) -->
+      <div class="h-split-resizer" id="tlSplitResizer" title="คลิกลากขึ้น-ลงเพื่อปรับขนาดช่องวิวแนวตั้ง | ดับเบิ้ลคลิกเพื่อสลับจอใหญ่สุด">
+        <div class="hs-line"></div>
+        <div class="hs-handle">
+          <span class="hs-icon">↕️</span>
+          <span class="hs-text">ขยายช่องวิวแนวตั้ง (Drag to Resize)</span>
+          <span class="hs-dots">•••••</span>
+        </div>
+        <div class="hs-quick-buttons">
+          <button type="button" class="btn-hs-quick active" id="btnHsMax" title="ขยายช่องวิวแนวตั้งให้ใหญ่เต็มที่ (Maximize 9:16 Monitor)">📱 จอใหญ่สุด</button>
+          <button type="button" class="btn-hs-quick" id="btnHsBalanced" title="ขนาดสมดุล (Balanced)">⚖️ มาตรฐาน</button>
+          <button type="button" class="btn-hs-quick" id="btnHsCompact" title="ย่อไทม์ไลน์เหลือน้อยสุด (Compact Timeline)">📐 ไทม์ไลน์มินิ</button>
+        </div>
+      </div>
+
       <!-- BOTTOM: DUAL TIMELINE -->
-      <div class="timeline-panel">
+      <div class="timeline-panel" id="timelinePanel">
         <div class="tl-header">
           <div class="tl-tracks-badge">
             <span class="badge-v1">V1</span>
