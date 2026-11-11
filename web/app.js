@@ -4473,7 +4473,12 @@ async function startBatchExport() {
   if (slSat) inspectorState.saturation = parseFloat(slSat.value);
   if (slTmp) inspectorState.temperature = parseFloat(slTmp.value);
   if (slTnt) inspectorState.tint = parseFloat(slTnt.value);
-  if (selNik && selNik.value) inspectorState.nikonProfile = selNik.value;
+  if (selNik && selNik.value) {
+    inspectorState.nikonProfile = selNik.value;
+  } else {
+    inspectorState.nikonProfile = "none";
+    inspectorState.nikonStrength = 0;
+  }
   if (slNikStr) inspectorState.nikonStrength = parseFloat(slNikStr.value);
   if (slPortHue) inspectorState.portraitHue = parseFloat(slPortHue.value);
   if (slPortBrt) inspectorState.portraitBrightness = parseFloat(slPortBrt.value);
@@ -4514,8 +4519,8 @@ async function startBatchExport() {
     resolution: finalRes,
     workers: selWorkers ? parseInt(selWorkers.value) : 2,
     scaling_mode: inspectorState.scaling || "fit",
-    nikon_profile: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? "none" : (inspectorState.nikonProfile || "nlog_rec709"),
-    nikon_strength: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : inspectorState.nikonStrength,
+    nikon_profile: selNik ? ((inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? "none" : (inspectorState.nikonProfile || "none")) : "none",
+    nikon_strength: selNik ? ((inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : inspectorState.nikonStrength) : 0,
     custom_lut_path: inspectorState.customLutPath || "",
     skin_softening: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.skinSoftening || 0),
     portrait_hue: (inspectorState.bypassedCards && inspectorState.bypassedCards.nikonColor) ? 0 : (inspectorState.portraitHue || 0),
