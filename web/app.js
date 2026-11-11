@@ -937,6 +937,11 @@ function gatherCurrentSettings() {
 }
 
 async function saveCurrentSettings() {
+  const pill = document.getElementById("autoSavePill");
+  if (pill) {
+    pill.classList.add("saving");
+    pill.innerHTML = '<span class="as-dot">●</span> Saving...';
+  }
   const data = gatherCurrentSettings();
   try {
     localStorage.setItem("tc_studio_settings", JSON.stringify(data));
@@ -948,6 +953,12 @@ async function saveCurrentSettings() {
       body: JSON.stringify(data)
     });
   } catch (e) {}
+  if (pill) {
+    setTimeout(() => {
+      pill.classList.remove("saving");
+      pill.innerHTML = '<span class="as-dot">●</span> Auto-Saved';
+    }, 250);
+  }
 }
 
 async function loadSavedSettings() {
@@ -1342,15 +1353,32 @@ function updatePinnedSpeedDisplay(val) {
 }
 
 function setupAutoSettingsSync() {
-  const deliverInputIds = [
+  const allSyncIds = [
+    // Deliver Page Settings
     "inpOutputPath", "inpFileNamePattern", "selFormat", "selCodec",
     "selConflictAction", "selConflictActionFileTab",
     "selResolution", "inpResW", "inpResH", "chkVerticalRes", "inpBitrateKbps",
     "chkExportAudio", "selAudioCodec", "inpAudioBitrate", "selAudioChannels",
     "inpFileSubfolder", "chkSmartResume", "selWorkers", "selRenderSpeed",
-    "sliderSkinSoft", "sliderPortraitHue", "selDenoiseMode", "sliderDenoiseSpatial", "sliderDenoiseTemporal"
+    // Color Bars & Light & Tone Controls
+    "sliderBrightness", "inpBrightness",
+    "sliderContrast", "inpContrast",
+    "sliderShadows", "inpShadows",
+    "sliderSaturation", "inpSaturation",
+    "sliderTemp", "inpTemp",
+    "sliderTint", "inpTint",
+    "selNikonProfile", "sliderNikonStrength", "inpNikonStrength",
+    "sliderSkinSoft", "inpSkinSoft",
+    "sliderPortraitHue", "inpPortraitHue",
+    "sliderPortraitBright", "inpPortraitBright",
+    "selDenoiseMode", "sliderDenoiseSpatial", "sliderDenoiseTemporal",
+    // Transform & Orientation
+    "sliderRotation", "inpRotation",
+    "inpZoomX", "inpZoomY", "inpPosX", "inpPosY",
+    "inpAnchorX", "inpAnchorY", "sliderPitch", "sliderYaw",
+    "selScalingModeTransform"
   ];
-  deliverInputIds.forEach(id => {
+  allSyncIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener("change", triggerSaveSettings);
