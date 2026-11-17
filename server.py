@@ -6,6 +6,9 @@ Powers the DaVinci Resolve Cut Page Web App with Apple Silicon Hardware Engine
 
 import os
 import sys
+_LOCAL_PY_DEPS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "py_deps")
+if os.path.isdir(_LOCAL_PY_DEPS) and _LOCAL_PY_DEPS not in sys.path:
+    sys.path.insert(0, _LOCAL_PY_DEPS)
 import re
 import json
 import time
@@ -18,6 +21,28 @@ import subprocess
 from pathlib import Path
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import gc
+import tempfile
+import urllib.request
+import zipfile
+
+ZCUT_VERSION = "2.1.0"
+UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
+DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
+
+THUMB_CACHE_DIR = os.path.join(tempfile.gettempdir(), "tc_thumbs")
+
+def get_user_desktop():
+    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    if os.path.exists(desktop):
+        return desktop
+    return os.path.expanduser("~")
+
+def get_default_output_dir():
+    custom = "/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8/_vertical_export"
+    if os.path.exists(os.path.dirname(custom)):
+        return custom
+    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    return os.path.join(desktop if os.path.exists(desktop) else os.path.expanduser("~"), "ZCut_Export")
 
 try:
     import fcntl
@@ -52,7 +77,7 @@ def purge_system_and_process_ram(filepath=None):
 
     # Auto-prune thumbnail cache if it exceeds 150 thumbnails to keep disk & RAM minimal
     try:
-        thumb_cache_dir = "/tmp/tc_thumbs"
+        thumb_cache_dir = THUMB_CACHE_DIR
         if os.path.exists(thumb_cache_dir):
             entries = sorted(
                 (e for e in os.scandir(thumb_cache_dir) if e.is_file()),
@@ -79,7 +104,7 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 SETTINGS_PATH = os.path.expanduser("~/.turbocompress_studio_settings.json")
 
 DEFAULT_SETTINGS = {
-    "rotation": 270.0,
+    "rotation": 0.0,
     "scaling": "fit",
     "zoomX": 1.0,
     "zoomY": 1.0,
@@ -99,23 +124,30 @@ DEFAULT_SETTINGS = {
     "cropSoftness": 0.0,
     "speed": 100.0,
     "speedDirection": "forward",
-    "nikonProfile": "nlog_rec709",
-    "nikonStrength": 100,
+    "nikonProfile": "none",
+    "nikonStrength": 0,
     "customLutPath": "",
-    "brightness": 0.0,
-    "contrast": 1.0,
-    "shadows": 0.0,
-    "saturation": 1.0,
-    "temperature": 0,
-    "tint": 0,
+    "brightness": 0.05,
+    "contrast": 1.06,
+    "shadows": 40.0,
+    "highlights": -10.0,
+    "whites": 0.0,
+    "blacks": 15.0,
+    "texture": 5.0,
+    "clarity": 10.0,
+    "dehaze": 0.0,
+    "vibrance": 10.0,
+    "saturation": 1.1,
+    "temperature": 12.0,
+    "tint": 2.0,
     "skinSoftening": 0,
     "portraitHue": 0,
     "portraitBrightness": 0,
-    "denoiseMode": "off",
+    "denoiseMode": "normal",
     "denoiseSpatial": 0.0,
     "denoiseTemporal": 0.0,
     "conflictAction": "overwrite",
-    "outputPath": "/Users/siamratchongtong/Desktop/STD_VT/test_Exp",
+    "outputPath": "",
     "fileNamePattern": "SourceName",
     "renderMode": "individual",
     "format": "mp4",
@@ -135,7 +167,27 @@ DEFAULT_SETTINGS = {
     "smartResume": True,
     "workers": 2,
     "renderSpeed": "max",
-    "theme": "auto"
+    "theme": "auto",
+    "namingStyle": "original_same",
+    "customFileName": "",
+    "colorSlice": {
+        "master": {"den": 0, "denDepth": 0, "sat": 1, "satBal": 0, "satDepth": 0, "hue": 0},
+        "red": {"center": 0, "hue": 0, "den": 0, "sat": 1},
+        "skin": {"center": 0, "hue": 0, "den": -0.23, "sat": 1},
+        "yellow": {"center": 0, "hue": 0, "den": -0.13, "sat": 1},
+        "green": {"center": 0, "hue": 0, "den": 0, "sat": 1},
+        "cyan": {"center": 0, "hue": 0, "den": 0, "sat": 1},
+        "blue": {"center": 0, "hue": 0, "den": 0, "sat": 1},
+        "magenta": {"center": 0, "hue": 0, "den": 0, "sat": 1}
+    },
+    "primariesBars": {
+        "top": {"temp": 0, "tint": 0, "cont": 1, "pivot": 0.435, "md": 0},
+        "bot": {"colBoost": 0, "shad": 0, "hiLight": 0, "sat": 50, "hue": 50, "lMix": 100},
+        "lift": {"y": 0, "r": 0, "g": 0, "b": 0},
+        "gamma": {"y": 0, "r": 0, "g": 0, "b": 0},
+        "gain": {"y": 1, "r": 1, "g": 1, "b": 1},
+        "offset": {"r": 25, "g": 25, "b": 25}
+    }
 }
 
 def load_app_settings():
@@ -225,7 +277,7 @@ SUPPORTED_EXT = {
 
 STATE = {
     "clips": [],
-    "output_dir": "/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8/_vertical_export",
+    "output_dir": get_default_output_dir(),
     "is_exporting": False,
     "is_paused": False,
     "cancel_requested": False,
@@ -454,23 +506,47 @@ class StudioHandler(SimpleHTTPRequestHandler):
             status_data = dict(STATE["progress"])
             status_data["is_exporting"] = STATE.get("is_exporting", False)
             status_data["is_paused"] = STATE.get("is_paused", False)
+            status_data["version"] = ZCUT_VERSION
             self.wfile.write(json.dumps(status_data).encode())
             return
 
+        elif url.path == "/api/check-update":
+            res = check_for_update()
+            payload_bytes = json.dumps(res).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload_bytes)))
+            self.end_headers()
+            self.wfile.write(payload_bytes)
+            return
+
         elif url.path == "/api/list-dir":
-            dir_path = qs.get("path", ["/Users/siamratchongtong/Desktop"])[0]
-            if not os.path.exists(dir_path) or not os.path.isdir(dir_path):
-                dir_path = "/Users/siamratchongtong/Desktop"
+            requested = qs.get("path", [""])[0].strip()
+            dir_path = requested
+            if not dir_path or not os.path.exists(dir_path) or not os.path.isdir(dir_path):
+                desktop = get_user_desktop()
+                if os.path.exists(desktop):
+                    dir_path = desktop
+                elif sys.platform == "win32" and os.path.exists("C:\\"):
+                    dir_path = "C:\\"
+                else:
+                    dir_path = os.path.expanduser("~")
+
             entries = []
             try:
                 for entry in sorted(os.scandir(dir_path), key=lambda e: (not e.is_dir(), e.name.lower())):
-                    if entry.name.startswith("."): continue
-                    is_d = entry.is_dir()
+                    if entry.name.startswith(".") or entry.name.startswith("$"):
+                        continue
+                    is_d = False
+                    try:
+                        is_d = entry.is_dir()
+                    except Exception:
+                        continue
                     video_count = 0
                     if is_d:
                         try:
                             video_count = sum(1 for f in os.scandir(entry.path) if not f.name.startswith("._") and Path(f.name).suffix.lower() in SUPPORTED_EXT)
-                        except:
+                        except Exception:
                             pass
                     entries.append({
                         "name": entry.name,
@@ -478,12 +554,27 @@ class StudioHandler(SimpleHTTPRequestHandler):
                         "is_dir": is_d,
                         "video_count": video_count
                     })
-            except Exception as e:
+            except Exception:
                 pass
+
+            parent_path = str(Path(dir_path).parent)
+            drives = []
+            if sys.platform == "win32":
+                import string
+                for letter in string.ascii_uppercase:
+                    d = f"{letter}:\\"
+                    if os.path.exists(d):
+                        drives.append(d)
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"current": dir_path, "parent": str(Path(dir_path).parent), "entries": entries}).encode())
+            self.wfile.write(json.dumps({
+                "current": dir_path,
+                "parent": parent_path,
+                "drives": drives,
+                "entries": entries
+            }).encode())
             return
 
         elif url.path == "/api/thumb":
@@ -492,7 +583,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
             if not fpath or not os.path.exists(fpath):
                 self.send_error(404, "File not found")
                 return
-            thumb_cache_dir = "/tmp/tc_thumbs"
+            thumb_cache_dir = THUMB_CACHE_DIR
             os.makedirs(thumb_cache_dir, exist_ok=True)
             prefix = "hi_" if hi_res else ""
             scale_vf = "scale=640:-2" if hi_res else "scale=240:-2"
@@ -586,53 +677,116 @@ class StudioHandler(SimpleHTTPRequestHandler):
             return
 
         elif url.path == "/api/browse-folder":
-            default_dir = "/Users/siamratchongtong/Desktop/STD_VT"
-            if not os.path.exists(default_dir):
-                default_dir = "/Users/siamratchongtong/Desktop"
-            osa_script = (
-                'tell application "Finder"\n'
-                '    activate\n'
-                f'    set defLoc to POSIX file "{default_dir}"\n'
-                '    set sel to choose folder with prompt "Select Video Folder / เลือกโฟลเดอร์วิดีโอ" default location defLoc\n'
-                '    return POSIX path of sel\n'
-                'end tell'
-            )
-            res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
-            chosen = res.stdout.strip()
+            now_ts = time.time()
+            last_ts = getattr(StudioHandler, "_last_browse_folder_ts", 0.0)
+            if now_ts - last_ts < 1.0:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "debounced": True}).encode())
+                return
+            StudioHandler._last_browse_folder_ts = now_ts
+
+            chosen = ""
+            unsupported = sys.platform not in ("darwin", "win32")
+            default_dir = get_user_desktop()
+            if sys.platform == "darwin":
+                osa_script = (
+                    'try\n'
+                    f'    set defLoc to POSIX file "{default_dir}"\n'
+                    '    tell application "System Events" to activate\n'
+                    '    set sel to choose folder with prompt "Select Video Folder / เลือกโฟลเดอร์วิดีโอ" default location (defLoc as alias)\n'
+                    '    return POSIX path of sel\n'
+                    'on error\n'
+                    '    return ""\n'
+                    'end try'
+                )
+                try:
+                    res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
+                    chosen = res.stdout.strip()
+                except Exception:
+                    pass
+            elif sys.platform == "win32":
+                ps_script = (
+                    'Add-Type -AssemblyName System.Windows.Forms; '
+                    '$d = New-Object System.Windows.Forms.FolderBrowserDialog; '
+                    '$d.ShowNewFolderButton = $true; '
+                    '$d.Description = "Select Video Folder / เลือกโฟลเดอร์วิดีโอ"; '
+                    'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }'
+                )
+                try:
+                    res = subprocess.run(["powershell.exe", "-NoProfile", "-STA", "-Command", ps_script], capture_output=True, text=True)
+                    chosen = res.stdout.strip()
+                except Exception:
+                    pass
+
             added = 0
             if chosen and os.path.exists(chosen):
                 added = scan_files([chosen])
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"success": bool(chosen), "added": added, "path": chosen, "total": len(STATE["clips"])}).encode())
+            self.wfile.write(json.dumps({"success": bool(chosen), "added": added, "path": chosen, "total": len(STATE["clips"]), "unsupported": unsupported}).encode())
             return
 
         elif url.path == "/api/browse-files":
-            default_dir = "/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8"
-            if not os.path.exists(default_dir):
-                default_dir = "/Users/siamratchongtong/Desktop/STD_VT"
-            osa_script = (
-                'tell application "Finder"\n'
-                '    activate\n'
-                f'    set defLoc to POSIX file "{default_dir}"\n'
-                '    set theFiles to choose file with prompt "Select Media Files / เลือกไฟล์วิดีโอหรือรูปภาพ" default location defLoc with multiple selections allowed\n'
-                '    set res to ""\n'
-                '    repeat with f in theFiles\n'
-                '        set res to res & (POSIX path of f) & "\n"\n'
-                '    end repeat\n'
-                '    return res\n'
-                'end tell'
-            )
-            res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
-            paths = [p.strip() for p in res.stdout.strip().splitlines() if p.strip()]
+            now_ts = time.time()
+            last_ts = getattr(StudioHandler, "_last_browse_files_ts", 0.0)
+            if now_ts - last_ts < 1.0:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "debounced": True}).encode())
+                return
+            StudioHandler._last_browse_files_ts = now_ts
+
+            paths = []
+            unsupported = sys.platform not in ("darwin", "win32")
+            default_dir = get_user_desktop()
+            if sys.platform == "darwin":
+                osa_script = (
+                    'try\n'
+                    f'    set defLoc to POSIX file "{default_dir}"\n'
+                    '    tell application "System Events" to activate\n'
+                    '    set theFiles to choose file with prompt "Select Media Files / เลือกไฟล์วิดีโอหรือรูปภาพ" default location (defLoc as alias) with multiple selections allowed\n'
+                    '    set res to ""\n'
+                    '    repeat with f in theFiles\n'
+                    '        set res to res & (POSIX path of f) & "\\n"\n'
+                    '    end repeat\n'
+                    '    return res\n'
+                    'on error\n'
+                    '    return ""\n'
+                    'end try'
+                )
+                try:
+                    res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
+                    paths = [p.strip() for p in res.stdout.strip().splitlines() if p.strip()]
+                except Exception:
+                    pass
+            elif sys.platform == "win32":
+                ps_script = (
+                    'Add-Type -AssemblyName System.Windows.Forms; '
+                    '$d = New-Object System.Windows.Forms.OpenFileDialog; '
+                    '$d.Title = "Select Media Files / เลือกไฟล์วิดีโอหรือรูปภาพ"; '
+                    '$d.Filter = "Media Files (*.mp4;*.mov;*.mkv;*.m4v;*.jpg;*.png)|*.mp4;*.mov;*.mkv;*.m4v;*.jpg;*.png;*.jpeg;*.webp;*.nef;*.cr3;*.arw;*.dng|All Files (*.*)|*.*"; '
+                    '$d.Multiselect = $true; '
+                    'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { '
+                    '    $d.FileNames | ForEach-Object { Write-Output $_ } '
+                    '}'
+                )
+                try:
+                    res = subprocess.run(["powershell.exe", "-NoProfile", "-STA", "-Command", ps_script], capture_output=True, text=True)
+                    paths = [p.strip() for p in res.stdout.strip().splitlines() if p.strip()]
+                except Exception:
+                    pass
+
             added = 0
             if paths:
                 added = scan_files(paths)
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"success": bool(paths), "added": added, "total": len(STATE["clips"])}).encode())
+            self.wfile.write(json.dumps({"success": bool(paths), "added": added, "total": len(STATE["clips"]), "unsupported": unsupported}).encode())
             return
 
         elif url.path == "/api/load-path":
@@ -670,29 +824,38 @@ class StudioHandler(SimpleHTTPRequestHandler):
         elif url.path == "/api/set-output-folder":
             chosen = data.get("output_dir", "").strip()
             if not chosen:
-                cur_loc = STATE.get("output_dir", "/Users/siamratchongtong/Desktop/STD_VT")
+                cur_loc = STATE.get("output_dir") or get_default_output_dir()
                 if not os.path.exists(cur_loc):
-                    cur_loc = "/Users/siamratchongtong/Desktop"
+                    cur_loc = get_user_desktop()
                 if sys.platform == "darwin":
                     osa_script = (
-                        'tell application "Finder"\n'
-                        '    activate\n'
+                        'try\n'
                         f'    set defLoc to POSIX file "{cur_loc}"\n'
-                        '    set sel to choose folder with prompt "Select or Create Destination Folder / เลือกหรือสร้างโฟลเดอร์ปลายทาง" default location defLoc\n'
+                        '    tell application "System Events" to activate\n'
+                        '    set sel to choose folder with prompt "Select or Create Destination Folder / เลือกหรือสร้างโฟลเดอร์ปลายทาง" default location (defLoc as alias)\n'
                         '    return POSIX path of sel\n'
-                        'end tell'
+                        'on error\n'
+                        '    return ""\n'
+                        'end try'
                     )
-                    res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
-                    chosen = res.stdout.strip()
+                    try:
+                        res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
+                        chosen = res.stdout.strip()
+                    except Exception:
+                        pass
                 elif sys.platform == "win32":
                     ps_script = (
-                        '[System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null; '
+                        'Add-Type -AssemblyName System.Windows.Forms; '
                         '$d = New-Object System.Windows.Forms.FolderBrowserDialog; '
+                        '$d.ShowNewFolderButton = $true; '
                         '$d.Description = "Select or Create Destination Folder"; '
                         'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }'
                     )
-                    res = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True)
-                    chosen = res.stdout.strip()
+                    try:
+                        res = subprocess.run(["powershell.exe", "-NoProfile", "-STA", "-Command", ps_script], capture_output=True, text=True)
+                        chosen = res.stdout.strip()
+                    except Exception:
+                        pass
 
             if chosen:
                 os.makedirs(chosen, exist_ok=True)
@@ -706,10 +869,22 @@ class StudioHandler(SimpleHTTPRequestHandler):
             return
 
         elif url.path == "/api/open-folder":
-            target_dir = STATE.get("output_dir", "/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8/_vertical_export")
+            now_ts = time.time()
+            last_ts = STATE.get("_last_open_folder_ts", 0.0)
+            if now_ts - last_ts < 1.0:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "debounced": True}).encode())
+                return
+            STATE["_last_open_folder_ts"] = now_ts
+            target_dir = STATE.get("output_dir", get_default_output_dir())
             os.makedirs(target_dir, exist_ok=True)
             if sys.platform == "win32":
-                os.startfile(target_dir)
+                try:
+                    os.startfile(target_dir)
+                except Exception:
+                    subprocess.run(["explorer.exe", target_dir])
             else:
                 subprocess.run(["open", target_dir])
             self.send_response(200)
@@ -717,10 +892,11 @@ class StudioHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"success": True, "output_dir": target_dir}).encode())
             return
+            return
 
         elif url.path == "/api/clear-cache":
             freed = 0
-            thumb_cache_dir = "/tmp/tc_thumbs"
+            thumb_cache_dir = THUMB_CACHE_DIR
             if os.path.exists(thumb_cache_dir):
                 for f in os.scandir(thumb_cache_dir):
                     try:
@@ -734,6 +910,53 @@ class StudioHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"success": True, "freed": freed_mb}).encode())
+            return
+
+        elif url.path == "/api/analyze-blur":
+            paths = data.get("paths") or []
+            max_sec = float(data.get("max_seconds") or 5.0)
+            sensitivity = str(data.get("sensitivity") or "balanced")
+            result = batch_analyze_blurry_intros(paths, max_seconds=max_sec, sensitivity=sensitivity)
+            payload_bytes = json.dumps(result).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload_bytes)))
+            self.end_headers()
+            self.wfile.write(payload_bytes)
+            return
+
+        elif url.path == "/api/analyze-whole-blur":
+            paths = data.get("paths") or []
+            sensitivity = str(data.get("sensitivity") or "balanced")
+            result = batch_analyze_whole_clips(paths, sensitivity=sensitivity)
+            payload_bytes = json.dumps(result).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload_bytes)))
+            self.end_headers()
+            self.wfile.write(payload_bytes)
+            return
+
+        elif url.path == "/api/auto-color":
+            target_path = str(data.get("path") or "").strip()
+            result = analyze_auto_color(target_path)
+            payload_bytes = json.dumps(result).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload_bytes)))
+            self.end_headers()
+            self.wfile.write(payload_bytes)
+            return
+
+        elif url.path == "/api/apply-update":
+            zip_url = str(data.get("update_zip_url") or "").strip()
+            result = apply_remote_update(zip_url)
+            payload_bytes = json.dumps(result).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload_bytes)))
+            self.end_headers()
+            self.wfile.write(payload_bytes)
             return
 
         elif url.path == "/api/pause":
@@ -829,6 +1052,12 @@ class StudioHandler(SimpleHTTPRequestHandler):
 
 
 import tempfile
+import urllib.request
+import zipfile
+
+ZCUT_VERSION = "2.1.0"
+UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
+DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 import colorsys
 
 _BAKED_LUT_CACHE = {"hash": None, "path": None}
@@ -1093,12 +1322,33 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
 
     conflict = (params.get("conflict_action") or ("skip" if params.get("smart_resume", True) else "overwrite")).lower()
 
-    naming = params.get("naming_pattern", "suffix_vertical")
+    naming = params.get("naming_pattern") or params.get("naming_style") or "suffix_vertical"
+    custom_name = (params.get("custom_name") or params.get("file_name_pattern") or "").strip()
     stem = Path(clip_info['name']).stem
-    if naming == "prefix_reel":
+
+    if custom_name:
+        import datetime
+        now_str = datetime.datetime.now().strftime("%Y%m%d")
+        has_token = any(tok in custom_name.lower() for tok in ["{source}", "{name}", "{stem}", "{index}", "{seq}", "{date}"])
+        if has_token:
+            base_name = custom_name
+            base_name = re.sub(r"\{(?:source|name|stem)\}", stem, base_name, flags=re.IGNORECASE)
+            base_name = re.sub(r"\{(?:index|seq)\}", f"{idx+1:04d}", base_name, flags=re.IGNORECASE)
+            base_name = re.sub(r"\{date\}", now_str, base_name, flags=re.IGNORECASE)
+        elif naming == "prefix_custom":
+            sep = "" if (custom_name.endswith("_") or custom_name.endswith("-")) else "_"
+            base_name = f"{custom_name}{sep}{stem}"
+        elif naming == "custom":
+            sep = "" if (custom_name.endswith("_") or custom_name.endswith("-")) else "_"
+            base_name = f"{custom_name}{sep}{idx+1:04d}"
+        else:
+            base_name = custom_name
+    elif naming == "prefix_reel":
         base_name = f"Reel_{idx+1:03d}_{stem}"
     elif naming == "original_same":
         base_name = f"{stem}"
+    elif naming == "custom":
+        base_name = f"Clip_{idx+1:04d}"
     else:
         base_name = f"{stem}_vertical"
 
@@ -1188,7 +1438,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             target_w = (target_w // 2) * 2
             target_h = (target_h // 2) * 2
 
-    scale_range = ":in_range=full:out_range=tv" if is_full_range else ""
+    scale_range = ""
     if scaling_mode == "crop":
         vf.append(f"scale={target_w}:{target_h}{scale_range}:force_original_aspect_ratio=increase,crop={target_w}:{target_h}")
     elif scaling_mode == "stretch":
@@ -1423,19 +1673,20 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
 
     tot_contrast = max(0.2, min(2.5, tot_contrast))
     tot_saturation = max(0.0, min(3.0, tot_saturation))
-    tot_brightness = max(-1.0, min(1.0, tot_brightness))
-    tot_gamma = max(0.5, min(2.5, tot_gamma))
+    # Calibrated Lumetri Exposure/Brightness Multiplier (Matches WebKit CSS brightness 1:1 without washing out black point)
+    br_multiplier = max(0.1, min(2.5, 1.0 + tot_brightness))
+
+    r_gain = max(0.1, min(3.0, br_multiplier * r_mult))
+    g_gain = max(0.1, min(3.0, br_multiplier * g_mult))
+    b_gain = max(0.1, min(3.0, br_multiplier * b_mult))
+
+    if (abs(r_gain - 1.0) > 0.003 or abs(g_gain - 1.0) > 0.003 or abs(b_gain - 1.0) > 0.003):
+        vf.append(f"colorchannelmixer=rr={r_gain:.3f}:gg={g_gain:.3f}:bb={b_gain:.3f}")
 
     if is_mono:
-        vf.append(f"hue=s=0,eq=contrast={tot_contrast:.3f}:brightness={tot_brightness:.3f}:gamma={tot_gamma:.3f}")
-    elif (abs(tot_brightness) > 0.001 or abs(tot_contrast - 1.0) > 0.001 or abs(tot_gamma - 1.0) > 0.001 or abs(tot_saturation - 1.0) > 0.001):
-        vf.append(f"eq=brightness={tot_brightness:.3f}:contrast={tot_contrast:.3f}:saturation={tot_saturation:.3f}:gamma={tot_gamma:.3f}")
-
-    r_mult = max(0.5, min(1.5, r_mult))
-    g_mult = max(0.5, min(1.5, g_mult))
-    b_mult = max(0.5, min(1.5, b_mult))
-    if (abs(r_mult - 1.0) > 0.005 or abs(g_mult - 1.0) > 0.005 or abs(b_mult - 1.0) > 0.005):
-        vf.append(f"colorchannelmixer=rr={r_mult:.3f}:gg={g_mult:.3f}:bb={b_mult:.3f}")
+        vf.append(f"hue=s=0,eq=contrast={tot_contrast:.3f}")
+    elif (abs(tot_contrast - 1.0) > 0.003 or abs(tot_saturation - 1.0) > 0.003):
+        vf.append(f"eq=contrast={tot_contrast:.3f}:saturation={tot_saturation:.3f}")
 
     # DaVinci ColorSlice (7-Vector) + Primaries Color Bars (Lift/Gamma/Gain/Offset) + Selective Skin Tone -> 3D LUT (.cube)
     if render_timeline_effects:
@@ -1450,6 +1701,20 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     is_prores = "prores" in codec_req
     is_hevc = codec_req in ["hevc", "h265"]
     is_webm = (ext == "webm" or codec_req == "vp9")
+    raw_trims = params.get("clip_trims") or {}
+    clip_trims = {}
+    for k, v in raw_trims.items():
+        if not k:
+            continue
+        clip_trims[k] = v
+        try:
+            clip_trims[str(Path(k).resolve())] = v
+        except Exception:
+            pass
+    try:
+        trim_start = float(clip_trims.get(src) or clip_trims.get(str(Path(src).resolve()), 0) or clip_info.get("trim_start", 0) or 0)
+    except Exception:
+        trim_start = 0.0
 
     def execute_ffmpeg(enc_codec, use_hwaccel=True):
         cmd = [FFMPEG_BIN, "-nostdin", "-y"]
@@ -1462,6 +1727,8 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
                     cmd.extend(["-hwaccel", "cuda"])
                 else:
                     cmd.extend(["-hwaccel", "auto"])
+        if trim_start > 0.05:
+            cmd.extend(["-ss", f"{trim_start:.3f}"])
         cmd.extend(["-i", src])
         if is_prores:
             prof = 2  # Standard ProRes 422
@@ -1653,8 +1920,8 @@ def run_batch_export(params):
         except Exception:
             pass
 
-    # Rotation defaults to 270.0 (-90.0) for Nikon Z8 vertical shooting orientation
-    rot = float(params.get("rotation", 270.0))
+    # Rotation defaults to 0.0
+    rot = float(params.get("rotation", 0.0))
     cl = float(params.get("crop_left", 0.0))
     cr = float(params.get("crop_right", 0.0))
     ct = float(params.get("crop_top", 0.0))
@@ -1728,6 +1995,389 @@ def run_batch_export(params):
             "osascript", "-e",
             f'display notification "{notify_msg}" with title "ZCut PRO" subtitle "Batch Export Completed"'
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def analyze_blurry_intro(filepath, max_seconds=5.0, sensitivity="balanced"):
+    """Offline AI/CV intro blur & camera-shake detector using FFmpeg + OpenCV + NumPy."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError as e:
+        return {"path": filepath, "trim_start": 0.0, "error": f"OpenCV not available: {e}"}
+
+    if not filepath or not os.path.exists(filepath):
+        return {"path": filepath, "trim_start": 0.0, "error": "File not found"}
+
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext in [".jpg", ".jpeg", ".png", ".heic", ".webp", ".tiff"]:
+        return {"path": filepath, "trim_start": 0.0, "duration": 0.0, "status": "image"}
+
+    sample_fps = 7.0
+    w, h = 320, 180
+    frame_bytes = w * h
+    cmd = [
+        FFMPEG_BIN, "-nostdin", "-v", "error",
+        "-t", f"{float(max_seconds):.2f}",
+        "-i", filepath,
+        "-vf", f"fps={sample_fps},scale={w}:{h}:flags=bilinear,format=gray",
+        "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1",
+    ]
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+        raw = proc.stdout
+    except Exception as e:
+        return {"path": filepath, "trim_start": 0.0, "error": f"FFmpeg decode error: {e}"}
+
+    n_frames = len(raw) // frame_bytes
+    if n_frames < 3:
+        return {"path": filepath, "trim_start": 0.0, "status": "too_short"}
+
+    samples = []
+    prev_gray = None
+    cy0, cy1 = int(h * 0.15), int(h * 0.85)
+    cx0, cx1 = int(w * 0.15), int(w * 0.85)
+
+    for idx in range(n_frames):
+        chunk = raw[idx * frame_bytes : (idx + 1) * frame_bytes]
+        gray = np.frombuffer(chunk, dtype=np.uint8).reshape((h, w))
+        center = gray[cy0:cy1, cx0:cx1]
+
+        lap_full = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        lap_center = float(cv2.Laplacian(center, cv2.CV_64F).var())
+        sharpness = (lap_center * 0.7) + (lap_full * 0.3)
+
+        motion = 0.0
+        if prev_gray is not None:
+            motion = float(np.mean(cv2.absdiff(gray, prev_gray)))
+        prev_gray = gray
+
+        samples.append({"t": round(idx / sample_fps, 2), "sharp": sharpness, "motion": motion})
+
+    sharp_vals = np.array([s["sharp"] for s in samples], dtype=np.float64)
+    ref_sharp = float(np.percentile(sharp_vals, 75))
+    if ref_sharp < 12.0:
+        return {"path": filepath, "trim_start": 0.0, "status": "low_detail"}
+
+    ratio_map = {"gentle": 0.42, "balanced": 0.58, "strict": 0.72}
+    motion_map = {"gentle": 24.0, "balanced": 16.0, "strict": 11.0}
+    ratio = ratio_map.get(sensitivity, 0.58)
+    motion_limit = motion_map.get(sensitivity, 16.0)
+    sharp_thresh = ref_sharp * ratio
+
+    trim_start = 0.0
+    for i in range(len(samples) - 1):
+        s0, s1 = samples[i], samples[i + 1]
+        ok0 = s0["sharp"] >= sharp_thresh and s0["motion"] <= motion_limit
+        ok1 = s1["sharp"] >= sharp_thresh and s1["motion"] <= motion_limit
+        if ok0 and ok1:
+            trim_start = s0["t"]
+            break
+    else:
+        best = max(samples, key=lambda s: s["sharp"])
+        trim_start = best["t"]
+
+    if trim_start < 0.25:
+        trim_start = 0.0
+    trim_start = round(min(trim_start, max(0.0, (n_frames - 2) / sample_fps)), 2)
+
+    return {
+        "path": filepath,
+        "trim_start": trim_start,
+        "ref_sharp": round(ref_sharp, 1),
+        "status": "trimmed" if trim_start > 0 else "sharp_from_start",
+    }
+
+
+def batch_analyze_blurry_intros(paths, max_seconds=5.0, sensitivity="balanced"):
+    if not paths:
+        return {"success": True, "results": []}
+    results = []
+    for p in paths:
+        try:
+            results.append(analyze_blurry_intro(p, max_seconds, sensitivity))
+        except Exception as e:
+            results.append({"path": p, "trim_start": 0.0, "error": str(e)})
+    return {"success": True, "results": results}
+
+
+def analyze_whole_clip_blur(filepath, sensitivity="balanced"):
+    """Offline AI/CV whole-clip blur screener using FFmpeg + OpenCV Laplacian."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError as e:
+        return {"path": filepath, "is_blurry": False, "error": f"OpenCV not available: {e}"}
+
+    if not filepath or not os.path.exists(filepath):
+        return {"path": filepath, "is_blurry": False, "error": "File not found"}
+
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext in [".jpg", ".jpeg", ".png", ".heic", ".webp", ".tiff"]:
+        return {"path": filepath, "is_blurry": False, "status": "image"}
+
+    w, h = 320, 180
+    frame_bytes = w * h
+    cmd = [
+        FFMPEG_BIN, "-nostdin", "-v", "error",
+        "-i", filepath,
+        "-vf", f"fps=1,scale={w}:{h}:flags=bilinear,format=gray",
+        "-frames:v", "8",
+        "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1",
+    ]
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+        raw = proc.stdout
+    except Exception as e:
+        return {"path": filepath, "is_blurry": False, "error": f"FFmpeg decode error: {e}"}
+
+    n_frames = len(raw) // frame_bytes
+    if n_frames < 1:
+        return {"path": filepath, "is_blurry": False, "status": "unreadable"}
+
+    cy0, cy1 = int(h * 0.15), int(h * 0.85)
+    cx0, cx1 = int(w * 0.15), int(w * 0.85)
+    sharps = []
+    for idx in range(n_frames):
+        chunk = raw[idx * frame_bytes : (idx + 1) * frame_bytes]
+        gray = np.frombuffer(chunk, dtype=np.uint8).reshape((h, w))
+        center = gray[cy0:cy1, cx0:cx1]
+        lap_full = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        lap_center = float(cv2.Laplacian(center, cv2.CV_64F).var())
+        sharps.append((lap_center * 0.7) + (lap_full * 0.3))
+
+    p75_sharp = float(np.percentile(np.array(sharps, dtype=np.float64), 75))
+    thresh_map = {"gentle": 28.0, "balanced": 48.0, "strict": 75.0}
+    thresh = thresh_map.get(sensitivity, 48.0)
+    is_blurry = p75_sharp < thresh
+
+    return {
+        "path": filepath,
+        "is_blurry": bool(is_blurry),
+        "sharpness": round(p75_sharp, 1),
+        "threshold": thresh,
+        "status": "blurry_clip" if is_blurry else "sharp",
+    }
+
+
+def batch_analyze_whole_clips(paths, sensitivity="balanced"):
+    if not paths:
+        return {"success": True, "results": []}
+    results = []
+    for p in paths:
+        try:
+            results.append(analyze_whole_clip_blur(p, sensitivity))
+        except Exception as e:
+            results.append({"path": p, "is_blurry": False, "error": str(e)})
+    return {"success": True, "results": results}
+
+
+def analyze_auto_color(file_path):
+    """Offline perceptual color science analyzer using FFmpeg + OpenCV/NumPy."""
+    if not file_path or not os.path.exists(file_path):
+        return {"success": False, "error": "ไม่พบไฟล์วิดีโอ/รูปภาพที่เลือก"}
+    try:
+        import cv2
+        import numpy as np
+    except Exception as e:
+        return {"success": False, "error": f"Missing offline vision library: {e}"}
+
+    clip_meta = next((c for c in STATE.get("clips", []) if c.get("path") == file_path), None)
+    dur = float(clip_meta.get("duration") or 0) if clip_meta else 0.0
+    is_image = bool(clip_meta and clip_meta.get("is_image")) or file_path.lower().endswith(
+        (".jpg", ".jpeg", ".png", ".webp", ".nef", ".cr3", ".arw", ".dng")
+    )
+
+    sample_times = [0.0] if (is_image or dur <= 1.2) else [round(dur * 0.2, 2), round(dur * 0.5, 2), round(dur * 0.8, 2)]
+    frames_bgr = []
+    for t in sample_times:
+        cmd = [FFMPEG_BIN, "-y", "-hide_banner", "-loglevel", "error"]
+        if t > 0:
+            cmd.extend(["-ss", str(t)])
+        cmd.extend(["-i", file_path, "-vframes", "1", "-vf", "scale=320:-2", "-f", "image2pipe", "-vcodec", "png", "pipe:1"])
+        try:
+            proc = subprocess.run(cmd, capture_output=True, timeout=8)
+            if proc.returncode == 0 and proc.stdout:
+                arr = np.frombuffer(proc.stdout, dtype=np.uint8)
+                img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                if img is not None and img.size > 0:
+                    frames_bgr.append(img)
+        except Exception:
+            continue
+
+    if not frames_bgr:
+        return {"success": False, "error": "ไม่สามารถดึงเฟรมตัวอย่างเพื่อวิเคราะห์สีได้"}
+
+    # Combine sampled frames into one analysis batch
+    stacked = np.concatenate([f.reshape(-1, 3) for f in frames_bgr], axis=0).astype(np.float32) / 255.0
+    b_ch, g_ch, r_ch = stacked[:, 0], stacked[:, 1], stacked[:, 2]
+    luma = 0.2126 * r_ch + 0.7152 * g_ch + 0.0722 * b_ch
+
+    p5, p15, p50, p85, p95 = np.percentile(luma, [5, 15, 50, 85, 95])
+    spread = float(p95 - p5)
+    dark_ratio = float(np.mean(luma < 0.14))
+    bright_ratio = float(np.mean(luma > 0.88))
+
+    # 1. Exposure (brightness: -0.14..+0.15)
+    target_mid = 0.44
+    raw_exp = (target_mid - float(p50)) * 0.55
+    if p95 > 0.88 and raw_exp > 0:
+        raw_exp = min(raw_exp, max(0.0, (0.93 - float(p95)) * 0.6))
+    brightness = round(max(-0.14, min(0.15, raw_exp)), 3)
+
+    # 2. Highlights (-48..+18)
+    highlights = 0
+    if p95 > 0.84 or bright_ratio > 0.05:
+        highlights = -int(round(min(48, max(8, (float(p95) - 0.80) * 180 + bright_ratio * 90))))
+    elif p95 < 0.72:
+        highlights = int(round(min(18, (0.76 - float(p95)) * 65)))
+
+    # 3. Shadows (-10..+48)
+    shadows = 0
+    if p15 < 0.16 or dark_ratio > 0.14:
+        shadows = int(round(min(48, max(10, (0.18 - float(p15)) * 220 + dark_ratio * 45))))
+
+    # 4. Contrast (0.94..1.16)
+    contrast = 1.0
+    if spread < 0.50:
+        contrast = round(min(1.16, 1.0 + (0.54 - spread) * 0.45), 2)
+    elif spread > 0.74:
+        contrast = round(max(0.95, 1.0 - (spread - 0.74) * 0.28), 2)
+
+    # 5. White Balance (Lab neutral axis excluding clipped & extreme-chroma pixels)
+    mid_img = frames_bgr[len(frames_bgr) // 2]
+    lab = cv2.cvtColor(mid_img, cv2.COLOR_BGR2LAB).astype(np.float32)
+    L_lab = lab[:, :, 0] / 255.0
+    a_lab = lab[:, :, 1] - 128.0
+    b_lab = lab[:, :, 2] - 128.0
+    chroma = np.sqrt(a_lab ** 2 + b_lab ** 2)
+    valid_mask = (L_lab >= 0.16) & (L_lab <= 0.84) & (chroma < 32.0)
+    if np.count_nonzero(valid_mask) > 200:
+        mean_a = float(np.median(a_lab[valid_mask]))
+        mean_b = float(np.median(b_lab[valid_mask]))
+    else:
+        mean_a = float(np.median(a_lab))
+        mean_b = float(np.median(b_lab))
+
+    # b* > 0 means warm/yellow -> cool down (-temp); b* < 0 means cool/blue -> warm up (+temp)
+    temperature = int(round(max(-22, min(22, -mean_b * 0.95))))
+    tint = int(round(max(-14, min(14, -mean_a * 0.75))))
+
+    # 6. Vibrance & Saturation (HSV midtone saturation)
+    hsv = cv2.cvtColor(mid_img, cv2.COLOR_BGR2HSV).astype(np.float32)
+    sat_med = float(np.median(hsv[:, :, 1]) / 255.0)
+    if sat_med < 0.28:
+        vibrance = int(round(min(24, max(8, (0.32 - sat_med) * 95))))
+        saturation = round(min(1.08, 1.0 + (0.30 - sat_med) * 0.25), 2)
+    elif sat_med > 0.45:
+        vibrance = 0
+        saturation = 1.0
+    else:
+        vibrance = 10
+        saturation = 1.03
+
+    parts = []
+    if abs(brightness) >= 0.01:
+        parts.append(f"Exp {brightness:+.2f}")
+    if shadows != 0:
+        parts.append(f"Shadow {shadows:+d}")
+    if highlights != 0:
+        parts.append(f"High {highlights:+d}")
+    if temperature != 0:
+        parts.append(f"Temp {temperature:+d}")
+    if vibrance > 0:
+        parts.append(f"Vib +{vibrance}")
+    summary = " • ".join(parts) if parts else "แสงและสีสมดุลดีอยู่แล้ว"
+
+    return {
+        "success": True,
+        "params": {
+            "brightness": brightness,
+            "contrast": contrast,
+            "highlights": highlights,
+            "shadows": shadows,
+            "temperature": temperature,
+            "tint": tint,
+            "vibrance": vibrance,
+            "saturation": saturation,
+        },
+        "summary": summary,
+    }
+
+
+def _parse_semver(v_str):
+    parts = re.findall(r"\d+", str(v_str or "0"))
+    nums = [int(x) for x in parts[:3]]
+    while len(nums) < 3:
+        nums.append(0)
+    return tuple(nums)
+
+
+def check_for_update():
+    try:
+        req = urllib.request.Request(
+            f"{UPDATE_MANIFEST_URL}?t={int(time.time() // 60)}",
+            headers={"User-Agent": f"ZCutPRO/{ZCUT_VERSION}"},
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            manifest = json.loads(resp.read().decode("utf-8"))
+        latest = str(manifest.get("version") or ZCUT_VERSION).strip()
+        has_update = _parse_semver(latest) > _parse_semver(ZCUT_VERSION)
+        return {
+            "success": True,
+            "current_version": ZCUT_VERSION,
+            "latest_version": latest,
+            "has_update": has_update,
+            "release_notes": manifest.get("releaseNotes", ""),
+            "dmg_url": manifest.get("dmgUrl", DOWNLOAD_PAGE_URL),
+            "update_zip_url": manifest.get("updateZipUrl", ""),
+            "download_page": DOWNLOAD_PAGE_URL,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "current_version": ZCUT_VERSION,
+            "latest_version": ZCUT_VERSION,
+            "has_update": False,
+            "error": str(e),
+            "download_page": DOWNLOAD_PAGE_URL,
+        }
+
+
+def apply_remote_update(zip_url=""):
+    if not zip_url:
+        info = check_for_update()
+        zip_url = info.get("update_zip_url") or ""
+    if not zip_url:
+        return {"success": False, "error": "ไม่พบลิงก์ไฟล์อัปเดต"}
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            zip_path = os.path.join(tmpdir, "zcut-update.zip")
+            req = urllib.request.Request(zip_url, headers={"User-Agent": f"ZCutPRO/{ZCUT_VERSION}"})
+            with urllib.request.urlopen(req, timeout=30) as resp, open(zip_path, "wb") as out_f:
+                shutil.copyfileobj(resp, out_f)
+
+            extract_dir = os.path.join(tmpdir, "extracted")
+            os.makedirs(extract_dir, exist_ok=True)
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                for member in zf.namelist():
+                    dest = os.path.abspath(os.path.join(extract_dir, member))
+                    if os.path.commonpath([extract_dir, dest]) != extract_dir:
+                        raise ValueError("Unsafe zip path")
+                zf.extractall(extract_dir)
+
+            srv_src = os.path.join(extract_dir, "server.py")
+            web_src = os.path.join(extract_dir, "web")
+            if os.path.exists(srv_src):
+                shutil.copy2(srv_src, os.path.join(base_dir, "server.py"))
+            if os.path.isdir(web_src):
+                web_dst = os.path.join(base_dir, "web")
+                shutil.copytree(web_src, web_dst, dirs_exist_ok=True)
+
+        return {"success": True, "restart_required": True, "message": "อัปเดตไฟล์เรียบร้อย กรุณาปิดและเปิดโปรแกรมใหม่"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 def main():

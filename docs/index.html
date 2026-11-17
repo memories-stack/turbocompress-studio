@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZCut PRO — Fast Batch Vertical Studio (Download)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #122136 0%, #090d14 60%);
+      color: #e5e7eb; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .card {
+      max-width: 720px; width: 100%; background: rgba(17, 24, 39, 0.86);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 32px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    }
+    .badge {
+      display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      background: rgba(16,185,129,0.16); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.4);
+    }
+    h1 { margin: 12px 0 8px; font-size: 30px; letter-spacing: -0.02em; }
+    .sub { color: #9ca3af; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981, #2563eb); color: #fff; text-decoration: none;
+      padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 15px;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06); color: #e5e7eb; text-decoration: none;
+      padding: 12px 18px; border-radius: 10px; font-weight: 500; font-size: 14px; border: 1px solid rgba(255,255,255,0.12);
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .feat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; font-size: 13px; }
+    .feat b { display: block; margin-bottom: 4px; color: #f9fafb; }
+    .steps { background: rgba(0,0,0,0.28); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge" id="verBadge">ZCut PRO v2.1.0 • macOS Apple Silicon (All-in-One)</span>
+    <h1>ZCut PRO — Fast Batch Vertical Studio</h1>
+    <p class="sub">สตูดิโอตัดต่อ ปรับสี AI และเรนเดอร์วิดีโอแนวตั้ง 9:16 แบบชุดใหญ่ความเร็วสูงด้วย Apple VideoToolbox (ออฟไลน์ 100% + ฝัง FFmpeg ในตัว)</p>
+
+    <div class="actions">
+      <a class="btn-primary" id="btnDownloadDmg" href="https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg">⬇️ ดาวน์โหลด ZCut_PRO_Installer.dmg (macOS)</a>
+      <a class="btn-secondary" href="https://github.com/memories-stack/turbocompress-studio/releases">ดู Releases ทั้งหมด</a>
+    </div>
+
+    <div class="grid">
+      <div class="feat"><b>✨ Auto Color (Offline)</b>วิเคราะห์แสงและสีด้วย OpenCV/NumPy แล้วปรับสไลเดอร์ให้อัตโนมัติ ไม่กระพริบระหว่างเฟรม</div>
+      <div class="feat"><b>🎯 AI Blur &amp; Intro Trim</b>ตัดช่วงเบลอต้นคลิปและคัดกรองคลิปที่เบลอทั้งคลิปออกจากงานอัตโนมัติ</div>
+      <div class="feat"><b>⚡ VideoToolbox Batch</b>เรนเดอร์แนวตั้ง 1080×1920 (8000 Kb/s) แบบ Multi-Worker ความเร็วสูงสุด</div>
+      <div class="feat"><b>🔄 In-App Auto Update</b>เช็กและอัปเดตเวอร์ชันใหม่ได้ทันทีจากปุ่มมุมขวาบนของโปรแกรม</div>
+    </div>
+
+    <div class="steps">
+      <b>วิธีติดตั้ง:</b><br>
+      1. ดาวน์โหลดและดับเบิลคลิก <code>ZCut_PRO_Installer.dmg</code><br>
+      2. ลาก <code>ZCut.app</code> ไปวางในโฟลเดอร์ <code>Applications</code><br>
+      3. เปิดครั้งแรก: คลิกขวาที่ <code>ZCut.app</code> → เลือก <b>Open (เปิด)</b> → ยืนยัน Open
+    </div>
+  </div>
+  <script>
+    fetch("./version.json?t=" + Date.now()).then(r => r.json()).then(d => {
+      if (d.version) document.getElementById("verBadge").textContent = `ZCut PRO v${d.version} • macOS Apple Silicon (All-in-One)`;
+      if (d.dmgUrl) document.getElementById("btnDownloadDmg").href = d.dmgUrl;
+    }).catch(() => {});
+  </script>
+</body>
+</html>

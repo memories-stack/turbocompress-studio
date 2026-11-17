@@ -1,0 +1,99 @@
+name: Deploy ZCut PRO to GitHub Pages & Releases
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "zcut-pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy-pages:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Package lightweight update zip
+        run: |
+          mkdir -p pages_dist
+          cp -R docs/* pages_dist/
+          zip -rq pages_dist/zcut-update.zip server.py web/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './pages_dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build ZCut.app & ZCut_PRO_Installer.dmg
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NOTES=$(node -p "require('./package.json').releaseNotes || 'ZCut PRO Release'")
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_NOTES=$NOTES" >> $GITHUB_ENV
+
+          clang -fobjc-arc -framework Cocoa -framework WebKit turbocompress_macos.m -o TurboCompressStudio_bin
+          chmod +x TurboCompressStudio_bin
+
+          mkdir -p build_mac/ZCut.app/Contents/MacOS
+          mkdir -p build_mac/ZCut.app/Contents/Resources/web
+          cp TurboCompressStudio_bin build_mac/ZCut.app/Contents/MacOS/TurboCompressStudio
+          cp server.py build_mac/ZCut.app/Contents/Resources/server.py
+          cp -R web/* build_mac/ZCut.app/Contents/Resources/web/
+          cp AppIcon.icns build_mac/ZCut.app/Contents/Resources/AppIcon.icns
+
+          cat > build_mac/ZCut.app/Contents/Info.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>TurboCompressStudio</string>
+            <key>CFBundleIconFile</key><string>AppIcon</string>
+            <key>CFBundleIdentifier</key><string>com.memories.zcutpro</string>
+            <key>CFBundleName</key><string>ZCut</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
+            <key>LSMinimumSystemVersion</key><string>12.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          EOF
+
+          mkdir -p dmg_stage
+          cp -R build_mac/ZCut.app dmg_stage/ZCut.app
+          ln -s /Applications dmg_stage/Applications
+          hdiutil create -volname "ZCut PRO Installer" -srcfolder dmg_stage -ov -format UDZO ZCut_PRO_Installer.dmg
+          zip -rq zcut-update.zip server.py web/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: ZCut PRO v${{ env.APP_VERSION }}
+          body: ${{ env.APP_NOTES }}
+          files: |
+            ZCut_PRO_Installer.dmg
+            zcut-update.zip

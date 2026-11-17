@@ -8,24 +8,27 @@
   <link rel="stylesheet" href="style.css?v=3.2">
 </head>
 <body>
-  <!-- TOP MENU BAR (Modern Studio Toolbar - Clean & Uncluttered) -->
+  <!-- TOP MENU BAR (Modern Studio Toolbar - Clean & Minimal) -->
   <header class="dv-topbar">
     <div class="top-left">
       <div class="brand-box">
-        <span class="brand-icon">⚡️</span>
         <span class="brand-name">ZCut</span>
         <span class="brand-tag">PRO</span>
       </div>
 
-      <div class="engine-badge" title="Apple VideoToolbox Hardware Active">
+      <div class="engine-badge" title="Hardware Media Engine Active">
         <span class="pulse-indicator"></span>
-        <span class="engine-label">M-Series GPU Media Engine</span>
+        <span class="engine-label" id="topEngineLabel">M-Series GPU Media Engine</span>
+      </div>
+
+      <div class="workspace-mode-group" id="workspaceModeGroup" title="สลับโหมดหน้าจอ (Pro Studio • Live Dashboard)">
+        <button class="btn-ws-mode active" id="btnWsPro" data-wsmode="pro">🎛️ Pro Studio</button>
+        <button class="btn-ws-mode" id="btnWsDash" data-wsmode="dash">📊 Dashboard</button>
       </div>
     </div>
 
     <div class="top-center">
       <div class="top-source-pill" id="topSourceFolder" title="คลิกเพื่อเปิดโฟลเดอร์ปลายทางที่เก็บไฟล์ Export (Click to open Export Output Folder)" style="cursor: pointer;">
-        <span class="pill-folder-icon">📂</span>
         <span class="pill-folder-path" id="topFolderPathText">Output: STD_VT / 100NC_Z8 / _vertical_export</span>
       </div>
     </div>
@@ -33,13 +36,16 @@
     <div class="top-right">
       <!-- Theme Mode Switcher (Dark / Light / Auto Day-Night) -->
       <div class="theme-pill-group" id="themePillGroup" title="Theme / สลับธีม: มืด • สว่าง • ออโต้ตามระบบ">
-        <button class="btn-theme-pill active" id="btnThemeDark" data-theme="dark" title="Dark Mode (โหมดมืด)">🌙 <span>Dark</span></button>
-        <button class="btn-theme-pill" id="btnThemeLight" data-theme="light" title="Light Mode (โหมดสว่าง)">☀️ <span>Light</span></button>
-        <button class="btn-theme-pill" id="btnThemeAuto" data-theme="auto" title="Auto Day/Night (ออโต้ตามระบบกลางวัน-กลางคืน)">💻 <span>Auto</span></button>
+        <button class="btn-theme-pill active" id="btnThemeDark" data-theme="dark" title="Dark Mode (โหมดมืด)">Dark</button>
+        <button class="btn-theme-pill" id="btnThemeLight" data-theme="light" title="Light Mode (โหมดสว่าง)">Light</button>
+        <button class="btn-theme-pill" id="btnThemeAuto" data-theme="auto" title="Auto Day/Night (ออโต้ตามระบบกลางวัน-กลางคืน)">Auto</button>
       </div>
 
       <button class="btn-top-action" id="btnClearCache" title="Free Thumbnail Cache & System RAM">
-        <span>🧹</span> Clear Cache &amp; RAM
+        Clear Cache &amp; RAM
+      </button>
+      <button class="btn-top-action" id="btnAppUpdate" title="ตรวจสอบเวอร์ชันและอัปเดต ZCut PRO" style="font-size:11px; opacity:0.88;">
+        v2.1.0
       </button>
     </div>
   </header>
@@ -55,24 +61,26 @@
           <div class="panel-header">
             <div class="ph-left">
               <span class="ph-title">MEDIA POOL</span>
-              <button class="btn-pool-import" id="btnImportFolderPool" title="Open Media & Folder Import Dialog">➕ Import Media...</button>
-              <button class="btn-pool-import" id="btnImportFilesPool" style="background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18);" title="เลือกไฟล์วิดีโอหรือรูปภาพโดยตรง (Select Video or Photo Files)">📄 Files</button>
-              <button class="btn-select-all" id="btnSelectAll">✓ Select All</button>
+              <button class="btn-pool-import" id="btnImportFolderPool" title="เลือกโฟลเดอร์วิดีโอหรือรูปภาพโดยตรง (Select Video Folder)">Import Folder</button>
+              <button class="btn-pool-import" id="btnImportFilesPool" style="background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18);" title="เลือกไฟล์วิดีโอหรือรูปภาพโดยตรง (Select Video or Photo Files)">Files</button>
+              <input type="file" id="nativeHtmlFolderPicker" webkitdirectory directory style="display:none">
+              <input type="file" id="nativeHtmlFilePicker" multiple accept="video/*,image/*" style="display:none">
+              <button class="btn-select-all" id="btnSelectAll">Select All</button>
               <span class="pool-stats-badge" id="clipCountBadge">0 Clips</span>
               <span class="pool-meta-badge">25.000 fps • 1080p</span>
             </div>
             <div class="ph-right">
               <div class="sort-wrapper" title="Sort Media Pool Clips">
                 <select class="pool-sort-select" id="selPoolSort">
-                  <option value="name_asc" selected>🔤 Name (A-Z / Shoot Order)</option>
-                  <option value="time_asc">⏱ Time (Oldest First)</option>
-                  <option value="time_desc">⏱ Time (Newest First)</option>
-                  <option value="size_desc">💾 Size (Largest First)</option>
+                  <option value="name_asc" selected>Name (A-Z / Shoot Order)</option>
+                  <option value="time_asc">Time (Oldest First)</option>
+                  <option value="time_desc">Time (Newest First)</option>
+                  <option value="size_desc">Size (Largest First)</option>
                 </select>
               </div>
               <div class="segmented-view-control">
-                <button class="seg-btn active" id="btnViewThumb" title="Thumbnail Grid View">🖼 Grid</button>
-                <button class="seg-btn" id="btnViewList" title="Filename List View">☰ List</button>
+                <button class="seg-btn active" id="btnViewThumb" title="Thumbnail Grid View">Grid</button>
+                <button class="seg-btn" id="btnViewList" title="Filename List View">List</button>
               </div>
               <div class="search-wrapper">
                 <span class="search-lens">🔍</span>
@@ -80,10 +88,10 @@
               </div>
               <div class="rating-filter-pills" title="Filter clips by Star Rating, Rejection, or Duplicates">
                 <button class="btn-rf active" data-filter="all" title="Show All Clips">All</button>
-                <button class="btn-rf" data-filter="star3" title="Show 3+ Stars">★ 3+</button>
-                <button class="btn-rf" data-filter="star5" title="Show 5 Stars Only">★ 5</button>
-                <button class="btn-rf" data-filter="rejected" title="Show Rejected Clips">✕</button>
-                <button class="btn-rf" data-filter="duplicate" title="Show Duplicate Clips (ตรวจหาภาพ/คลิปซ้ำ)">♊︎ Duplicates</button>
+                <button class="btn-rf" data-filter="star3" title="Show 3+ Stars">3+ Stars</button>
+                <button class="btn-rf" data-filter="star5" title="Show 5 Stars Only">5 Stars</button>
+                <button class="btn-rf" data-filter="rejected" title="Show Rejected Clips">Rejected</button>
+                <button class="btn-rf" data-filter="duplicate" title="Show Duplicate Clips (ตรวจหาภาพ/คลิปซ้ำ)">Duplicates</button>
               </div>
             </div>
           </div>
@@ -262,18 +270,18 @@
 
     <!-- RIGHT: PIXEL-PERFECT DAVINCI INSPECTOR PANEL -->
     <aside class="dv-inspector">
-      <!-- Tab Header Icons: Transform, Color & Light, Deliver -->
+      <!-- Tab Header Icons: Transform, Edit, Color & Light, Deliver -->
       <div class="insp-tabs">
         <div class="insp-tab" data-tab="transform" title="Rotation, Orientation & Framing (Cmd+1)">
-          <div class="tab-icon">🔄</div>
           <div class="tab-label">Transform</div>
         </div>
+        <div class="insp-tab" data-tab="edit" title="AI Auto-Trim &amp; Cut Tools">
+          <div class="tab-label">Edit</div>
+        </div>
         <div class="insp-tab active" data-tab="color" title="DaVinci Primaries Color Bars, ColorSlice & Skin Tone (Cmd+2)">
-          <div class="tab-icon">🎨</div>
-          <div class="tab-label">Color Bars &amp; Light</div>
+          <div class="tab-label">Color &amp; Light</div>
         </div>
         <div class="insp-tab" data-tab="deliver" title="Resolution, Bitrate, Destination & Export Setup (Cmd+3)">
-          <div class="tab-icon">🚀</div>
           <div class="tab-label">Deliver</div>
         </div>
       </div>
@@ -282,17 +290,123 @@
       <div class="insp-subheader">
         <span class="clip-title" id="inspClipTitle">Media Pool - Multiple Clips</span>
         <span class="auto-save-pill" id="autoSavePill" title="ระบบบันทึกงานที่ทำไว้อัตโนมัติในทุกการเลื่อนปรับค่า (Auto-Saved in real-time)"><span class="as-dot">●</span> Auto-Saved</span>
-        <span class="batch-apply-tag" id="batchApplyTag">⚡️ Batch Multi-Clip Applied</span>
+        <span class="batch-apply-tag" id="batchApplyTag">Batch Applied</span>
       </div>
 
       <!-- Scrollable Inspector Content with Tab Panes -->
       <div class="insp-body">
+        <!-- PANE 0: EDIT & AI CUT -->
+        <div class="insp-pane" id="paneEdit" style="display: none;">
+          <!-- CARD: AI AUTO-TRIM BLURRY INTRO (OFFLINE OPENCV) -->
+          <div class="dv-card" id="cardAutoTrimBlur">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotAutoTrimBlur" title="AI Auto-Trim Blurry Intro">🔴</span>
+              <span class="card-title">AI ตัดช็อตเบลอ 1-5 วิแรก</span>
+              <div class="card-tools">
+                <span class="tool-icon reset-btn" id="resetAutoTrimBlur" title="ล้างค่าตัดเบลอทั้งหมด">↺</span>
+              </div>
+            </div>
+            <div class="dv-card-body" id="bodyAutoTrimBlur">
+              <div class="dv-row">
+                <span class="dv-label">ความไว (AI)</span>
+                <div class="dv-control-wrap">
+                  <select class="dv-select" id="selBlurSensitivity">
+                    <option value="gentle">ผ่อนปรน (ตัดเฉพาะเบลอหนัก)</option>
+                    <option value="balanced" selected>สมดุล (แนะนำ)</option>
+                    <option value="strict">เข้มงวด (ต้องคมนิ่งเป๊ะ)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="dv-row">
+                <span class="dv-label">ช่วงตรวจ</span>
+                <div class="dv-control-wrap">
+                  <select class="dv-select" id="selBlurMaxSec">
+                    <option value="3">3 วินาทีแรก</option>
+                    <option value="5" selected>5 วินาทีแรก</option>
+                  </select>
+                </div>
+              </div>
+              <div class="dv-row">
+                <span class="dv-label">Trim In คลิปนี้</span>
+                <div class="dv-control-wrap" style="gap: 8px;">
+                  <input type="range" id="rngClipTrimStart" min="0" max="5" step="0.1" value="0" style="flex:1;" />
+                  <span id="valClipTrimStart" style="min-width: 42px; text-align: right; font-size: 11px; color: #38bdf8; font-weight: 600;">0.0s</span>
+                </div>
+              </div>
+              <div class="dv-action-row" style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" class="btn-davinci-pill" id="btnScanCurrentBlur" style="flex: 1; padding: 5px 8px; font-size: 11px; font-weight: 600;">✂️ สแกนคลิปนี้</button>
+                <button type="button" class="btn-davinci-pill" id="btnScanAllBlur" style="flex: 1; padding: 5px 8px; font-size: 11px; font-weight: 600; background: rgba(0, 240, 170, 0.14); border-color: rgba(0, 240, 170, 0.45); color: #34d399;">⚡ สแกนทุกคลิป</button>
+              </div>
+              <div class="dv-action-row" style="margin-top: 6px; display: flex; gap: 6px;">
+                <button type="button" class="btn-davinci-pill" id="btnJumpTrimStart" style="flex: 1; padding: 4px 8px; font-size: 10.5px;">👁️ ดูเฟรมที่จุดตัด</button>
+                <button type="button" class="btn-davinci-pill" id="btnClearAllTrims" style="padding: 4px 10px; font-size: 10.5px;">ล้างทั้งหมด</button>
+              </div>
+              <label style="margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                <input type="checkbox" id="chkAutoTrimBeforeExport" />
+                <span>Auto-Scan &amp; Trim Blur อัตโนมัติก่อน Export</span>
+              </label>
+              <div id="blurScanProgressWrap" style="display: none; margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #38bdf8; margin-bottom: 4px;">
+                  <span id="blurScanStepLabel">กำลังวิเคราะห์...</span>
+                  <span id="blurScanProgressPct">0%</span>
+                </div>
+                <div style="height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden;">
+                  <div id="blurScanProgressFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #38bdf8, #34d399); transition: width 0.15s ease;"></div>
+                </div>
+              </div>
+              <div id="autoTrimBlurSummary" style="margin-top: 7px; font-size: 11px; color: #94a3b8;">
+                พร้อมสแกนแบบออฟไลน์ 100% (OpenCV Sharpness + Motion)
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD: AI WHOLE-CLIP BLUR SCREENER -->
+          <div class="dv-card" id="cardWholeClipBlur">
+            <div class="dv-card-header">
+              <span class="pill-dot active" id="dotWholeClipBlur" title="AI Whole-Clip Blur Screener">🔴</span>
+              <span class="card-title">AI คัดภาพเบลอทั้งคลิป (ตัดคลิปเสีย)</span>
+            </div>
+            <div class="dv-card-body">
+              <div class="dv-row">
+                <span class="dv-label">ความเข้มงวด</span>
+                <div class="dv-control-wrap">
+                  <select class="dv-select" id="selWholeBlurSensitivity">
+                    <option value="gentle">ผ่อนปรน (คัดเฉพาะเบลอมาก)</option>
+                    <option value="balanced" selected>สมดุล (แนะนำ)</option>
+                    <option value="strict">เข้มงวด (หลุดโฟกัสนิดเดียวก็คัด)</option>
+                  </select>
+                </div>
+              </div>
+              <label style="margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                <input type="checkbox" id="chkDeselectBlurry" checked />
+                <span>ติ๊กออกจากการ Export อัตโนมัติ (Mark Rejected)</span>
+              </label>
+              <div class="dv-action-row" style="margin-top: 8px; display: flex; gap: 6px;">
+                <button type="button" class="btn-davinci-pill" id="btnScanWholeBlur" style="flex: 1; padding: 5px 8px; font-size: 11px; font-weight: 600; background: rgba(248, 113, 113, 0.14); border-color: rgba(248, 113, 113, 0.45); color: #fca5a5;">🔍 คัดคลิปเบลอทั้งภาพ</button>
+                <button type="button" class="btn-davinci-pill" id="btnClearWholeBlur" style="padding: 5px 10px; font-size: 10.5px;">ล้างป้าย</button>
+              </div>
+              <div id="wholeBlurProgressWrap" style="display: none; margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #f87171; margin-bottom: 4px;">
+                  <span id="wholeBlurStepLabel">กำลังคัดกรอง...</span>
+                  <span id="wholeBlurProgressPct">0%</span>
+                </div>
+                <div style="height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden;">
+                  <div id="wholeBlurProgressFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #f87171, #fb923c); transition: width 0.15s ease;"></div>
+                </div>
+              </div>
+              <div id="wholeBlurSummary" style="margin-top: 7px; font-size: 11px; color: #94a3b8;">
+                ตรวจจับคลิปที่หลุดโฟกัสหรือเบลอทั้งคลิปเพื่อคัดออกก่อนแต่งสี
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- PANE 1: TRANSFORM & ORIENTATION -->
         <div class="insp-pane" id="paneTransform" style="display: none;">
           <!-- 1. TRANSFORM -->
           <div class="dv-card">
             <div class="dv-card-header">
-              <span class="pill-dot active">🔴</span>
+              <span class="pill-dot active"></span>
               <span class="card-title">Transform &amp; Orientation</span>
               <div class="card-tools">
                 <span class="tool-icon">◇</span>
@@ -305,8 +419,8 @@
               <div class="dv-row">
                 <label class="row-label">Rotation Angle</label>
                 <div class="row-controls">
-                  <input type="range" class="dv-slider" id="sliderRotation" min="0" max="360" value="270">
-                  <input type="text" class="dv-num-box" id="inpRotation" value="270.000">
+                  <input type="range" class="dv-slider" id="sliderRotation" min="0" max="360" value="0">
+                  <input type="text" class="dv-num-box" id="inpRotation" value="0.000">
                   <span class="tool-icon">◇</span>
                   <span class="tool-icon">↺</span>
                 </div>
@@ -316,10 +430,10 @@
               <div class="dv-row quick-orient-row">
                 <label class="row-label">Orientation</label>
                 <div class="row-controls quick-angle-grid">
-                  <button class="btn-quick-ang active" data-ang="270" title="270° Vertical (แนวตั้งตรง หมุนทวนเข็ม 90°)">🔄 270°</button>
-                  <button class="btn-quick-ang" data-ang="90" title="90° Clockwise (หมุนตามเข็ม 90°)">🔄 90°</button>
-                  <button class="btn-quick-ang" data-ang="180" title="180° Inverted (กลับหัว 180°)">🔁 180°</button>
-                  <button class="btn-quick-ang" data-ang="0" title="0° Landscape Reset (แนวนอนเดิม 0°)">⏪ 0°</button>
+                  <button class="btn-quick-ang" data-ang="270" title="270° Vertical (แนวตั้งตรง หมุนทวนเข็ม 90°)">270°</button>
+                  <button class="btn-quick-ang" data-ang="90" title="90° Clockwise (หมุนตามเข็ม 90°)">90°</button>
+                  <button class="btn-quick-ang" data-ang="180" title="180° Inverted (กลับหัว 180°)">180°</button>
+                  <button class="btn-quick-ang active" data-ang="0" title="0° Landscape Reset (แนวนอนเดิม 0°)">0°</button>
                 </div>
               </div>
 
@@ -411,7 +525,7 @@
           <!-- 2. CROPPING -->
           <div class="dv-card" id="cardCrop">
             <div class="dv-card-header">
-              <span class="pill-dot active" id="dotCrop" title="Bypass / Enable Cropping">🔴</span>
+              <span class="pill-dot active" id="dotCrop" title="Bypass / Enable Cropping"></span>
               <span class="card-title">Cropping</span>
               <div class="card-tools">
                 <span class="tool-icon reset-btn" id="resetCrop" title="Reset Cropping">↺</span>
@@ -468,7 +582,7 @@
           <!-- SPEED CHANGE -->
           <div class="dv-card" id="cardSpeed">
             <div class="dv-card-header">
-              <span class="pill-dot active" id="dotSpeed" title="Bypass / Enable Speed Change">🔴</span>
+              <span class="pill-dot active" id="dotSpeed" title="Bypass / Enable Speed Change"></span>
               <span class="card-title">Speed Change</span>
               <div class="card-tools">
                 <span class="tool-icon reset-btn" id="resetSpeed" title="Reset Speed Change">↺</span>
@@ -527,34 +641,10 @@
         <!-- PANE 2: NIKON COLOR ENGINE & GRADING -->
         <div class="insp-pane active" id="paneColor" style="display: flex;">
 
-          <!-- COLOR BARS & LIGHT MASTER PRESET TOOLBAR (Save Preset, ตั้งค่า Def, Reset All) -->
-          <div class="color-master-toolbar" id="colorMasterToolbar">
-            <div class="cmt-row-top">
-              <button type="button" class="btn-cmt btn-cmt-save" id="btnSaveColorPreset" title="บันทึกค่าสี แสง สกินโทน ปัจจุบันเป็น Custom Preset (Save Current Look as Preset)">
-                <span class="cmt-icon">💾</span> <span>Save Preset</span>
-              </button>
-
-              <div class="cmt-preset-picker">
-                <select class="cmt-select" id="selColorUserPresets" title="เลือก Preset ที่บันทึกไว้">
-                  <option value="" selected>📁 เลือก Preset...</option>
-                </select>
-                <button type="button" class="btn-cmt-del" id="btnDeleteColorPreset" title="ลบ Preset ที่เลือก" style="display: none;">🗑</button>
-              </div>
-
-              <button type="button" class="btn-cmt btn-cmt-def" id="btnSetColorDefault" title="ตั้งค่าสีปัจจุบันนี้เป็นค่าเริ่มต้น (Default) สำหรับทุกคลิปใหม่และทุกครั้งที่เปิดโปรแกรม">
-                <span class="cmt-icon">⭐</span> <span>ตั้งค่า Def</span>
-              </button>
-
-              <button type="button" class="btn-cmt btn-cmt-reset" id="btnResetColorAll" title="รีเซ็ตค่าสี แสง สกินโทน ทั้งหมดใน Color Bars &amp; Light กลับเป็นค่าเริ่มต้น">
-                <span class="cmt-icon">↺</span> <span>Reset All</span>
-              </button>
-            </div>
-          </div>
-
           <!-- CARD 0: REAL-TIME SCOPE & HISTOGRAM -->
           <div class="dv-card dv-card-scopes" id="cardHistogram">
             <div class="dv-card-header" id="headerHistogram" style="cursor: pointer;" title="คลิกเพื่อย่อ/ขยายกราฟสโคป">
-              <span class="pill-dot active" id="dotHistogram">🔴</span>
+              <span class="pill-dot active" id="dotHistogram"></span>
               <span class="card-title">Live Scopes • Waveform <span id="scopeToggleArrow" style="font-size: 8px; opacity: 0.65; margin-left: 4px;">▼</span></span>
               <div class="histo-mode-pills" onclick="event.stopPropagation();">
                 <button type="button" class="btn-histo-mode active" data-mode="rgb" title="RGB Overlay Histogram">RGB</button>
@@ -630,23 +720,31 @@
             </div>
           </div>
 
-          <!-- CARD 2: MASTER EXPOSURE & TONE (PRIMARIES) -->
+          <!-- CARD 2: LUMETRI COLOR & TONE ENGINE -->
           <div class="dv-card" id="cardExposure">
             <div class="dv-card-header">
-              <span class="pill-dot active">🔴</span>
-              <span class="card-title">Master Exposure &amp; Primaries</span>
+              <span class="pill-dot active"></span>
+              <span class="card-title">Lumetri Color &amp; Tone Engine</span>
               <div class="card-tools">
-                <span class="tool-icon reset-btn" id="resetColor" title="Reset Exposure &amp; Sliders">↺</span>
+                <span class="tool-icon reset-btn" id="resetColor" title="Reset Lumetri Sliders">↺</span>
               </div>
             </div>
 
             <div class="dv-card-body">
+              <!-- Offline AI Auto Color Bar -->
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                <button type="button" id="btnAutoColor" title="วิเคราะห์แสงและสีแบบออฟไลน์แล้วปรับอัตโนมัติ (ไม่กระพริบ + แก้ต่อได้)" style="flex:1; background:linear-gradient(135deg, rgba(16,185,129,0.22), rgba(59,130,246,0.22)); border:1px solid rgba(52,211,153,0.45); color:#ecfdf5; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;">
+                  <span>✨</span><span>Auto Color</span>
+                </button>
+              </div>
+              <div id="autoColorStatus" style="display:none; font-size:10px; color:#6ee7b7; background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.25); border-radius:5px; padding:4px 7px; margin-bottom:6px; line-height:1.35;"></div>
+
               <!-- Quick Master Tone Presets -->
               <div class="dv-segmented-pills">
-                <button type="button" class="btn-color-preset active" data-preset="normal" title="Neutral natural camera balance">⚪ Natural</button>
-                <button type="button" class="btn-color-preset" data-preset="shadows" title="Brighten shadows and reveal shadow details">☀️ Lift Shadows</button>
-                <button type="button" class="btn-color-preset" data-preset="cinematic" title="Punchy contrast and rich tones">🎬 Cinematic</button>
-                <button type="button" class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">🌟 Vibrant</button>
+                <button type="button" class="btn-color-preset active" data-preset="normal" title="Neutral natural camera balance">Natural</button>
+                <button type="button" class="btn-color-preset" data-preset="shadows" title="Brighten shadows and reveal shadow details">Lift Shadows</button>
+                <button type="button" class="btn-color-preset" data-preset="cinematic" title="Punchy contrast and rich tones">Cinematic</button>
+                <button type="button" class="btn-color-preset" data-preset="vibrant" title="Vivid colors for outdoor sports">Vibrant</button>
               </div>
 
               <!-- TONE SECTION -->
@@ -770,12 +868,12 @@
           <!-- CARD 2.8: DAVINCI COLORSLICE (7-VECTOR SUBTRACTIVE COLOR & SKIN ENGINE) -->
           <div class="dv-card cs-card" id="cardColorSlice">
             <div class="dv-card-header">
-              <span class="pill-dot active" id="dotColorSlice" title="ColorSlice 7-Vector Engine: Active (Click to Bypass)">🟢</span>
+              <span class="pill-dot active" id="dotColorSlice" title="ColorSlice 7-Vector Engine: Active (Click to Bypass)"></span>
               <span class="card-title">ColorSlice</span>
               <div class="cs-quick-pills">
-                <button type="button" class="btn-cs-preset" data-preset="skin_pop" title="ดึงผิวอมชมพูสว่างใส + ลดความจัดสีเขียวใบไม้">🌸 Skin Pop</button>
-                <button type="button" class="btn-cs-preset" data-preset="outdoor" title="ลดคราบเหลือง-เขียวสนามวิ่ง + ดึงฟ้าและสีเสื้อให้เด่น">🌿 Outdoor</button>
-                <button type="button" class="btn-cs-preset" data-preset="film" title="เพิ่มความลึกสีแบบ Subtractive Film Density">🎬 Film</button>
+                <button type="button" class="btn-cs-preset" data-preset="skin_pop" title="ดึงผิวอมชมพูสว่างใส">Skin Pop</button>
+                <button type="button" class="btn-cs-preset" data-preset="outdoor" title="ลดคราบเหลือง-เขียวสนามวิ่ง + ดึงฟ้าและสีเสื้อ">Outdoor</button>
+                <button type="button" class="btn-cs-preset" data-preset="film" title="เพิ่มความลึกสีแบบ Subtractive Film Density">Film</button>
               </div>
               <div class="card-tools">
                 <span class="tool-icon reset-btn" id="resetColorSlice" title="Reset All ColorSlice Channels">↺</span>
@@ -1119,8 +1217,8 @@
           <!-- CARD 4: VIDEO NOISE REDUCTION -->
           <div class="dv-card" id="cardDenoise">
             <div class="dv-card-header">
-              <span class="pill-dot" id="dotDenoise" title="Denoise Status: Off / Active">⚫</span>
-              <span class="card-title">Noise Reduction (ลดนอยส์)</span>
+              <span class="pill-dot" id="dotDenoise" title="Denoise Status: Off / Active"></span>
+              <span class="card-title">Noise Reduction</span>
               <div class="card-tools">
                 <span class="tool-icon reset-btn" id="resetDenoise" title="Reset Noise Reduction">↺</span>
               </div>
@@ -1132,11 +1230,11 @@
                 <label class="row-label">Denoise Mode</label>
                 <div class="row-controls">
                   <select class="dv-select" id="selDenoiseMode">
-                    <option value="off" selected>⚪ Off (ปิดการลดนอยส์)</option>
-                    <option value="low">🍃 Low (ต่ำ - เก็บเนื้อฟิล์มเดิม 100%)</option>
-                    <option value="normal">💧 Normal (ปกติ - แนะนำสำหรับกล้อง Nikon Z8)</option>
-                    <option value="high">🛡️ High (สูง - ถ่ายกลางคืน / แสงน้อย / ISO สูง)</option>
-                    <option value="custom">⚙️ Custom (กำหนดความละเอียดเอง)</option>
+                    <option value="off" selected>Off</option>
+                    <option value="low">Low (Preserve Grain)</option>
+                    <option value="normal">Normal (Recommended)</option>
+                    <option value="high">High (Low Light / High ISO)</option>
+                    <option value="custom">Custom</option>
                   </select>
                 </div>
               </div>
@@ -1173,10 +1271,33 @@
           <div class="dv-card dv-deliver-card">
             <!-- Top Section: File Name & Location -->
             <div class="deliver-top-section">
+              <!-- File Naming System & Rename Engine -->
               <div class="dv-row deliver-row">
-                <label class="deliver-label">File Name</label>
+                <label class="deliver-label">Naming Style</label>
                 <div class="deliver-controls">
-                  <input type="text" class="dv-deliver-input" id="inpFileNamePattern" value="SourceName">
+                  <select class="dv-select deliver-select" id="selNamingStyle" title="เลือกรูปแบบการตั้งชื่อไฟล์ หรือ Rename เอง">
+                    <option value="suffix_vertical" selected>Source Name + _vertical</option>
+                    <option value="original_same">Original Name (Same)</option>
+                    <option value="custom">Custom Name</option>
+                    <option value="prefix_custom">Custom Prefix + Source</option>
+                    <option value="prefix_reel">Reel Prefix (Reel_001_...)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Custom Name Input Box -->
+              <div class="dv-row deliver-row" id="rowCustomFileName">
+                <label class="deliver-label">Custom Name</label>
+                <div class="deliver-controls">
+                  <input type="text" class="dv-deliver-input" id="inpCustomFileName" placeholder="e.g. Marathon_2026 or {source}_edit" value="">
+                </div>
+              </div>
+
+              <!-- Live Filename Preview -->
+              <div class="dv-row deliver-row" style="margin-top: -3px; margin-bottom: 5px;">
+                <label class="deliver-label" style="font-size: 10px; color: #787f95;">Sample Output</label>
+                <div class="deliver-controls" style="font-size: 11px; color: #38bdf8; font-family: ui-monospace, monospace; padding-top: 2px;">
+                  <span id="txtFileNamePreview">STD_2243_vertical.mp4</span>
                 </div>
               </div>
               <div class="dv-row deliver-row">
@@ -1209,10 +1330,10 @@
                 <label class="deliver-label">Duplicates</label>
                 <div class="deliver-controls">
                   <select class="dv-select deliver-select" id="selConflictAction" title="ระบบจัดการเมื่อพบไฟล์หรือภาพซ้ำในโฟลเดอร์ปลายทาง">
-                    <option value="skip" selected>⏭️ Skip (ข้ามไฟล์เดิม / ไม่เรนเดอร์ซ้ำ)</option>
-                    <option value="overwrite">🔁 Overwrite (เขียนทับไฟล์เดิมทั้งหมด)</option>
-                    <option value="change_ext">🔄 Change Extension (เปลี่ยนนามสกุลอัตโนมัติ)</option>
-                    <option value="rename">🔢 Auto-Rename (เพิ่ม _01, _02 ต่อท้าย)</option>
+                    <option value="skip" selected>Skip Existing</option>
+                    <option value="overwrite">Overwrite</option>
+                    <option value="change_ext">Change Extension</option>
+                    <option value="rename">Auto-Rename (_01, _02)</option>
                   </select>
                 </div>
               </div>
@@ -1279,8 +1400,7 @@
                 <div class="speed-boost-panel" id="speedBoostPanel">
                   <div class="speed-boost-header">
                     <div class="speed-boost-title-wrap">
-                      <span class="speed-boost-icon">⚡️</span>
-                      <span class="speed-boost-title">Export Speed &amp; Parallel Boost (กล่องเพิ่มความเร็วการ Export)</span>
+                      <span class="speed-boost-title">Export Speed &amp; Parallel Boost</span>
                     </div>
                     <span class="speed-boost-badge">Apple M-Series GPU</span>
                   </div>
@@ -1289,9 +1409,9 @@
                       <label class="deliver-label">Parallel Engine</label>
                       <div class="deliver-controls">
                         <select class="dv-select deliver-select" id="selWorkers" title="จำนวนคลิปที่ประมวลผลพร้อมกันด้วยชิป M-Series">
-                          <option value="2" selected>⚡️ 2 Workers (Recommended - เร็ว 2.5x-3.2x เสถียร)</option>
-                          <option value="3">⚡️⚡️ 3 Workers (Max Turbo Boost - เร่งสปีดสูงสุด 3.8x)</option>
-                          <option value="1">1 Worker (Sequential - ทีละคลิป มาตรฐาน)</option>
+                          <option value="2" selected>2 Workers (Recommended - Dual Engine)</option>
+                          <option value="3">3 Workers (Max Turbo Boost)</option>
+                          <option value="1">1 Worker (Sequential)</option>
                         </select>
                       </div>
                     </div>
@@ -1353,14 +1473,14 @@
                   <label class="deliver-label">Quality</label>
                   <div class="deliver-controls radio-group quality-radio-group">
                     <label class="dv-radio-label">
-                      <input type="radio" name="qualityMode" value="auto" checked>
+                      <input type="radio" name="qualityMode" value="auto">
                       <span class="dv-radio-circle"></span>
                       <span>Automatic</span>
                     </label>
 
                     <div class="quality-restrict-line">
                       <label class="dv-radio-label">
-                        <input type="radio" name="qualityMode" value="restrict">
+                        <input type="radio" name="qualityMode" value="restrict" checked>
                         <span class="dv-radio-circle"></span>
                         <span>Restrict to</span>
                       </label>
@@ -1409,17 +1529,17 @@
                   <label class="deliver-label">Key Frames</label>
                   <div class="deliver-controls radio-group keyframe-radio-group">
                     <label class="dv-radio-label">
-                      <input type="radio" name="keyframeMode" value="auto" checked>
+                      <input type="radio" name="keyframeMode" value="auto">
                       <span class="dv-radio-circle"></span>
                       <span>Automatic</span>
                     </label>
                     <div class="keyframe-every-line">
                       <label class="dv-radio-label">
-                        <input type="radio" name="keyframeMode" value="every">
+                        <input type="radio" name="keyframeMode" value="every" checked>
                         <span class="dv-radio-circle"></span>
                         <span>Every</span>
                       </label>
-                      <input type="text" class="dv-deliver-input kf-box" id="inpKeyframeInterval" value="30">
+                      <input type="text" class="dv-deliver-input kf-box" id="inpKeyframeInterval" value="25">
                       <span class="unit-tag">frames</span>
                     </div>
                   </div>
@@ -1655,7 +1775,6 @@
         <!-- Persistent Speed Summary Pill -->
         <div class="pinned-speed-pill-row" id="pinnedSpeedRow" title="คลิกเพื่อสลับความเร็ว / ขนาน 2-3 Workers">
           <div class="pinned-speed-badge">
-            <span class="ps-bolt">⚡️</span>
             <span class="ps-label">Speed Engine:</span>
             <span class="ps-value" id="pinnedSpeedValue">2 Workers Parallel (3.2x Turbo)</span>
           </div>
@@ -1663,21 +1782,83 @@
         </div>
 
         <button class="btn-big-export" id="btnBigExport">
-          🚀 1-Click Fast Vertical Export (All Clips)
+          Export All Clips (Vertical 9:16)
         </button>
         <!-- Live Export Pause / Stop Controls -->
         <div class="export-controls-row" id="exportControlsRow" style="display: none;">
           <button class="btn-action-pause" id="btnPauseRender">
-            ⏸ Pause
+            Pause
           </button>
           <button class="btn-action-stop" id="btnStopRender">
-            🛑 Stop Render
+            Stop Render
           </button>
         </div>
         <span class="export-note" id="exportNote">Rendered into destination folder via Apple VideoToolbox</span>
       </div>
     </aside>
   </main>
+
+  <!-- LIVE DASHBOARD VIEW (Batch Telemetry & Render Analytics) -->
+  <section class="ws-overlay-view" id="dashboardView" style="display: none;">
+    <div class="dash-container">
+      <div class="easy-header">
+        <div>
+          <h1 class="easy-title">📊 Studio Live Dashboard — ติดตามสถานะและประสิทธิภาพการเรนเดอร์</h1>
+          <p class="easy-subtitle">ภาพรวมความคืบหน้า ความเร็ว GPU ฮาร์ดแวร์ และคุณภาพไฟล์ส่งออกแบบเรียลไทม์</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <a href="ui-concept.html" target="_blank" class="btn-easy-secondary" style="text-decoration: none; display: inline-flex; align-items: center;">✨ Next-Gen UI Concept</a>
+          <button class="btn-easy-back" id="btnDashBackToPro">🎛️ กลับไป Pro Studio</button>
+        </div>
+      </div>
+
+      <div class="dash-kpi-grid">
+        <div class="dash-kpi-card">
+          <div class="dk-label">ความคืบหน้า (BATCH PROGRESS)</div>
+          <div class="dk-value accent-mint" id="dashPercent">0%</div>
+          <div class="dk-sub" id="dashClipsDone">0 / 0 คลิป</div>
+        </div>
+        <div class="dash-kpi-card">
+          <div class="dk-label">ความเร็วการแปลง (RENDER SPEED)</div>
+          <div class="dk-value accent-cyan" id="dashSpeed">0x</div>
+          <div class="dk-sub" id="dashStatus">Ready</div>
+        </div>
+        <div class="dash-kpi-card">
+          <div class="dk-label">เวลาที่เหลือ (ESTIMATED TIME)</div>
+          <div class="dk-value" id="dashRemaining">00m 00s</div>
+          <div class="dk-sub" id="dashEta">ETA: --:--</div>
+        </div>
+        <div class="dash-kpi-card">
+          <div class="dk-label">รูปแบบส่งออก (OUTPUT PROFILE)</div>
+          <div class="dk-value accent-amber" id="dashProfile">9:16 • MP4</div>
+          <div class="dk-sub" id="dashWorkers">2 Workers Parallel</div>
+        </div>
+      </div>
+
+      <div class="dash-panels-row">
+        <div class="dash-panel">
+          <h3>⚙️ สถานะระบบ &amp; เอนจิน (System Telemetry)</h3>
+          <div class="dash-info-list">
+            <div class="di-row"><span>กำลังประมวลผลไฟล์:</span><strong id="dashCurrentFile">-</strong></div>
+            <div class="di-row"><span>โฟลเดอร์ปลายทาง:</span><strong id="dashOutputDir">-</strong></div>
+            <div class="di-row"><span>ระบบสี (Color Science):</span><strong style="color: #34d399;">1:1 Monitor Matched (Locked)</strong></div>
+            <div class="di-row"><span>การจัดการไฟล์ซ้ำ:</span><strong id="dashConflictMode">Skip Existing</strong></div>
+          </div>
+          <div class="dash-actions-bar">
+            <button class="btn-easy-primary" id="btnDashOpenFolder">📁 เปิดโฟลเดอร์ผลลัพธ์</button>
+            <button class="btn-easy-secondary" id="btnDashClearCache">🧹 เคลียร์ Cache &amp; RAM</button>
+          </div>
+        </div>
+
+        <div class="dash-panel">
+          <h3>✅ คลิปล่าสุดที่ส่งออกสำเร็จ (Recent Completed)</h3>
+          <div class="dash-recent-list" id="dashRecentList">
+            <div class="dash-empty-recent">ยังไม่มีรายการส่งออกในรอบนี้</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- TOAST NOTIFICATION -->
   <div class="toast-notify" id="toastNotify"></div>
@@ -1690,13 +1871,13 @@
         <button class="btn-close-modal" id="btnCloseModal">✕</button>
       </div>
       <div class="modal-body">
-        <!-- TOP ACTIONS: NATIVE FINDER -->
+        <!-- TOP ACTIONS: NATIVE FINDER / EXPLORER -->
         <div class="native-picker-row">
           <button class="btn-native-picker" id="btnLaunchNativePicker">
-            📂 Open macOS Finder Folder Picker
+            📂 Open System Folder Picker (เลือกโฟลเดอร์)
           </button>
           <button class="btn-native-picker-files" id="btnLaunchNativeFiles">
-            📄 Open Finder File Picker
+            📄 Open System File Picker (เลือกไฟล์วิดีโอ)
           </button>
         </div>
 
@@ -1739,9 +1920,10 @@
 
         <!-- In-app Interactive Media Storage Explorer -->
         <div class="folder-browser-widget">
+          <div class="fb-drives-bar" id="fbDrivesBar" style="display:none; padding: 6px 10px; gap: 8px; background: #13151f; border-bottom: 1px solid #232636; align-items: center;"></div>
           <div class="fb-nav-bar">
             <button class="btn-fb-up" id="btnFbUp" title="Go Up Directory">⬆️ Parent</button>
-            <span class="fb-current-path" id="fbCurrentPath">/Users/siamratchongtong/Desktop/STD_VT</span>
+            <span class="fb-current-path" id="fbCurrentPath">Loading...</span>
             <button class="btn-fb-import-here" id="btnFbImportHere">📥 Import This Folder</button>
           </div>
           <div class="fb-entries-list" id="fbEntriesList">
@@ -1753,7 +1935,7 @@
 
         <!-- Method 3: Direct Path Input -->
         <div class="modal-input-row">
-          <input type="text" class="modal-text-input" id="customFolderPath" placeholder="/Users/siamratchongtong/Desktop/..." value="/Users/siamratchongtong/Desktop/STD_VT/100NC_Z8">
+          <input type="text" class="modal-text-input" id="customFolderPath" placeholder="e.g. C:\Users\... or /Users/..." value="">
           <button class="btn-load-path" id="btnLoadCustomPath">Load Folder</button>
         </div>
       </div>

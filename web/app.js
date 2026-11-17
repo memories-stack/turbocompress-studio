@@ -21,8 +21,8 @@ function createDefaultColorSlice() {
   return {
     master:  { den: 0.0, denDepth: 0.0, sat: 1.0, satBal: 0.0, satDepth: 0.0, hue: 0.0 },
     red:     { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
-    skin:    { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
-    yellow:  { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
+    skin:    { center: 0.0, hue: 0.0, den: -0.23, sat: 1.0 },
+    yellow:  { center: 0.0, hue: 0.0, den: -0.13, sat: 1.0 },
     green:   { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
     cyan:    { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
     blue:    { center: 0.0, hue: 0.0, den: 0.0, sat: 1.0 },
@@ -619,7 +619,7 @@ const inspectorState = {
   zoomX: 1.0,
   zoomY: 1.0,
   zoomLinked: true,
-  rotation: 270.0,
+  rotation: 0.0,
   posX: 0.0,
   posY: 0.0,
   anchorX: 0.0,
@@ -653,8 +653,8 @@ const inspectorState = {
   temperature: 0,
   tint: 0,
   exportScope: "all",
-  nikonProfile: "nlog_rec709",
-  nikonStrength: 100,
+  nikonProfile: "none",
+  nikonStrength: 0,
   customLutPath: "",
   skinSoftening: 0,
   portraitHue: 0,
@@ -938,6 +938,15 @@ function gatherCurrentSettings() {
     resH: inpH ? inpH.value : "1920",
     verticalRes: chkVRes ? chkVRes.checked : true,
     bitrateKbps: inpBps ? inpBps.value : "8000",
+    qualityMode: (document.querySelector('input[name="qualityMode"]:checked')?.value || "restrict"),
+    limitDataRate: !!document.getElementById("chkLimitDataRate")?.checked,
+    rateSec: document.getElementById("inpRateSec")?.value || "6",
+    encodingProfile: document.getElementById("selProfile")?.value || "auto",
+    entropyMode: document.getElementById("selEntropy")?.value || "auto",
+    multipass: !!document.getElementById("chkMultipass")?.checked,
+    keyframeMode: (document.querySelector('input[name="keyframeMode"]:checked')?.value || "every"),
+    keyframeInterval: document.getElementById("inpKeyframeInterval")?.value || "25",
+    frameReorder: document.getElementById("chkFrameReorder") ? document.getElementById("chkFrameReorder").checked : true,
     exportAudio: chkAud ? chkAud.checked : true,
     audioCodec: selAudCdc ? selAudCdc.value : "aac",
     audioBitrate: inpAudBps ? inpAudBps.value : "320",
@@ -946,6 +955,8 @@ function gatherCurrentSettings() {
     smartResume: chkRes ? chkRes.checked : true,
     workers: selWrk ? parseInt(selWrk.value) : 2,
     renderSpeed: selSpd ? selSpd.value : "max",
+    namingStyle: document.getElementById("selNamingStyle") ? document.getElementById("selNamingStyle").value : "suffix_vertical",
+    customFileName: document.getElementById("inpCustomFileName") ? document.getElementById("inpCustomFileName").value.trim() : "",
     theme: currentThemeMode
   };
 }
@@ -1010,35 +1021,37 @@ async function loadSavedSettings() {
   if (settings.speed !== undefined) inspectorState.speed = parseFloat(settings.speed);
   if (settings.speedDirection !== undefined) inspectorState.speedDirection = settings.speedDirection;
 
-  if (settings.nikonProfile !== undefined) inspectorState.nikonProfile = settings.nikonProfile;
-  if (settings.nikonStrength !== undefined) inspectorState.nikonStrength = parseInt(settings.nikonStrength);
-  if (settings.customLutPath !== undefined) inspectorState.customLutPath = settings.customLutPath;
-  if (settings.skinSoftening !== undefined) inspectorState.skinSoftening = parseFloat(settings.skinSoftening);
-  if (settings.portraitHue !== undefined) inspectorState.portraitHue = parseFloat(settings.portraitHue);
-  if (settings.portraitBrightness !== undefined) inspectorState.portraitBrightness = parseFloat(settings.portraitBrightness);
-  if (settings.primariesBars && typeof settings.primariesBars === "object") {
-    inspectorState.primariesBars = Object.assign(createDefaultPrimariesBars(), settings.primariesBars);
-  }
-  if (settings.colorSlice && typeof settings.colorSlice === "object") {
-    inspectorState.colorSlice = Object.assign(createDefaultColorSlice(), settings.colorSlice);
-  }
-  if (settings.brightness !== undefined) inspectorState.brightness = parseFloat(settings.brightness);
-  if (settings.contrast !== undefined) inspectorState.contrast = parseFloat(settings.contrast);
-  if (settings.highlights !== undefined) inspectorState.highlights = parseFloat(settings.highlights);
-  if (settings.shadows !== undefined) inspectorState.shadows = parseFloat(settings.shadows);
-  if (settings.whites !== undefined) inspectorState.whites = parseFloat(settings.whites);
-  if (settings.blacks !== undefined) inspectorState.blacks = parseFloat(settings.blacks);
-  if (settings.texture !== undefined) inspectorState.texture = parseFloat(settings.texture);
-  if (settings.clarity !== undefined) inspectorState.clarity = parseFloat(settings.clarity);
-  if (settings.dehaze !== undefined) inspectorState.dehaze = parseFloat(settings.dehaze);
-  if (settings.vibrance !== undefined) inspectorState.vibrance = parseFloat(settings.vibrance);
-  if (settings.saturation !== undefined) inspectorState.saturation = parseFloat(settings.saturation);
+  // Color & Light ALWAYS starts at neutral defaults on every app launch
+  const cleanColorDefaults = {
+    nikonProfile: "none",
+    nikonStrength: 0,
+    customLutPath: "",
+    skinSoftening: 0,
+    portraitHue: 0,
+    portraitBrightness: 0,
+    primariesBars: createDefaultPrimariesBars(),
+    colorSlice: createDefaultColorSlice(),
+    brightness: 0.0,
+    contrast: 1.0,
+    highlights: 0,
+    shadows: 0,
+    whites: 0,
+    blacks: 0,
+    texture: 0,
+    clarity: 0,
+    dehaze: 0,
+    vibrance: 0,
+    saturation: 1.0,
+    temperature: 0,
+    tint: 0
+  };
+  Object.assign(inspectorState, cleanColorDefaults);
 
   if (settings.theme !== undefined) {
     applyTheme(settings.theme, false);
   }
 
-  syncDomWithSettings(settings);
+  syncDomWithSettings(Object.assign({}, settings, cleanColorDefaults));
   applyMonitorTransform();
 }
 
@@ -1100,6 +1113,9 @@ function syncDomWithSettings(s) {
     if (inpRotation) inpRotation.value = parseFloat(s.rotation).toFixed(3);
     const btn270 = document.getElementById("btnRot270");
     if (btn270) btn270.classList.toggle("active", s.rotation === 270 || s.rotation === -90);
+    document.querySelectorAll(".btn-quick-ang").forEach(b => {
+      b.classList.toggle("active", parseFloat(b.dataset.ang) === (parseFloat(s.rotation) || 0));
+    });
   }
   if (s.scaling !== undefined) {
     const selScaling = document.getElementById("selScalingModeTransform");
@@ -1292,6 +1308,14 @@ function syncDomWithSettings(s) {
     const el = document.getElementById("inpFileNamePattern");
     if (el) el.value = s.fileNamePattern;
   }
+  if (s.namingStyle !== undefined) {
+    const el = document.getElementById("selNamingStyle");
+    if (el) el.value = s.namingStyle;
+  }
+  if (s.customFileName !== undefined) {
+    const el = document.getElementById("inpCustomFileName");
+    if (el) el.value = s.customFileName;
+  }
   if (s.format !== undefined) {
     const el = document.getElementById("selFormat");
     if (el) el.value = s.format;
@@ -1319,6 +1343,40 @@ function syncDomWithSettings(s) {
   if (s.bitrateKbps !== undefined) {
     const el = document.getElementById("inpBitrateKbps");
     if (el) el.value = (s.bitrateKbps === "80000" || s.bitrateKbps === "20000") ? "8000" : s.bitrateKbps;
+  }
+  const qMode = s.qualityMode || "restrict";
+  const qRadio = document.querySelector(`input[name="qualityMode"][value="${qMode}"]`);
+  if (qRadio) qRadio.checked = true;
+  if (s.limitDataRate !== undefined) {
+    const el = document.getElementById("chkLimitDataRate");
+    if (el) el.checked = !!s.limitDataRate;
+  }
+  if (s.rateSec !== undefined) {
+    const el = document.getElementById("inpRateSec");
+    if (el) el.value = s.rateSec;
+  }
+  if (s.encodingProfile !== undefined) {
+    const el = document.getElementById("selProfile");
+    if (el) el.value = s.encodingProfile;
+  }
+  if (s.entropyMode !== undefined) {
+    const el = document.getElementById("selEntropy");
+    if (el) el.value = s.entropyMode;
+  }
+  if (s.multipass !== undefined) {
+    const el = document.getElementById("chkMultipass");
+    if (el) el.checked = !!s.multipass;
+  }
+  const kfMode = s.keyframeMode || "every";
+  const kfRadio = document.querySelector(`input[name="keyframeMode"][value="${kfMode}"]`);
+  if (kfRadio) kfRadio.checked = true;
+  if (s.keyframeInterval !== undefined) {
+    const el = document.getElementById("inpKeyframeInterval");
+    if (el) el.value = s.keyframeInterval;
+  }
+  if (s.frameReorder !== undefined) {
+    const el = document.getElementById("chkFrameReorder");
+    if (el) el.checked = !!s.frameReorder;
   }
   if (s.exportAudio !== undefined) {
     const el = document.getElementById("chkExportAudio");
@@ -1381,9 +1439,10 @@ function updatePinnedSpeedDisplay(val) {
 function setupAutoSettingsSync() {
   const allSyncIds = [
     // Deliver Page Settings
-    "inpOutputPath", "inpFileNamePattern", "selFormat", "selCodec",
+    "inpOutputPath", "inpFileNamePattern", "selNamingStyle", "inpCustomFileName", "selFormat", "selCodec",
     "selConflictAction", "selConflictActionFileTab",
     "selResolution", "inpResW", "inpResH", "chkVerticalRes", "inpBitrateKbps",
+    "chkLimitDataRate", "inpRateSec", "selProfile", "selEntropy", "chkMultipass", "inpKeyframeInterval", "chkFrameReorder",
     "chkExportAudio", "selAudioCodec", "inpAudioBitrate", "selAudioChannels",
     "inpFileSubfolder", "chkSmartResume", "selWorkers", "selRenderSpeed",
     // Color Bars & Light & Tone Controls
@@ -1525,6 +1584,8 @@ async function initApp() {
   setupTransport();
   setupKeyboardShortcuts();
   setupAutoSettingsSync();
+  setupWorkspaceModesAndDash();
+  setupAutoTrimBlur();
 
   const selPoolSort = document.getElementById("selPoolSort");
   if (selPoolSort) {
@@ -1618,15 +1679,21 @@ function renderMediaPool() {
         <div class="empty-zone-title">Media Pool is Clean &amp; Ready</div>
         <div class="empty-zone-desc">Drag &amp; drop Nikon Z8 video clips or camera folders here to start your next batch project.</div>
         <div class="empty-zone-actions">
-          <button class="btn-davinci-pill btn-empty-import" id="btnEmptyBrowseFolder">📁 Import Folder...</button>
-          <button class="btn-davinci-pill btn-empty-select" id="btnEmptyBrowseFiles">🎬 Select Files...</button>
+          <button class="btn-davinci-pill btn-empty-import" id="btnEmptyBrowseFolder">Import Folder...</button>
+          <button class="btn-davinci-pill btn-empty-select" id="btnEmptyBrowseFiles">Select Files...</button>
         </div>
       </div>
     `;
     const bF = document.getElementById("btnEmptyBrowseFolder");
-    if (bF) bF.addEventListener("click", () => fetch("/api/browse-folder", { method: "POST" }).then(loadClips));
+    if (bF) bF.addEventListener("click", () => {
+      const btn = document.getElementById("btnImportFolderPool") || document.getElementById("btnImportFolderTop");
+      if (btn) btn.click();
+    });
     const bFi = document.getElementById("btnEmptyBrowseFiles");
-    if (bFi) bFi.addEventListener("click", () => fetch("/api/browse-files", { method: "POST" }).then(loadClips));
+    if (bFi) bFi.addEventListener("click", () => {
+      const btn = document.getElementById("btnImportFilesPool") || document.getElementById("btnImportFilesTop");
+      if (btn) btn.click();
+    });
     return;
   }
 
@@ -1785,13 +1852,13 @@ function updateSelectionHeader() {
   const count = selectedIndices.size;
   if (count === allClips.length && allClips.length > 1) {
     inspClipTitle.textContent = `Media Pool - Multiple Clips (${count.toLocaleString()} clips)`;
-    batchApplyTag.textContent = `⚡️ Batch Multi-Clip (${count.toLocaleString()} clips)`;
+    batchApplyTag.textContent = `Batch Applied (${count.toLocaleString()} clips)`;
     batchApplyTag.style.display = "inline-block";
-    btnSelectAll.textContent = "✓ Selected All";
+    btnSelectAll.textContent = "Selected All";
     btnSelectAll.classList.add("all-selected");
   } else if (count > 1) {
     inspClipTitle.textContent = `Media Pool - Multiple Clips (${count.toLocaleString()} clips)`;
-    batchApplyTag.textContent = `⚡️ Batch Multi-Clip (${count.toLocaleString()} clips)`;
+    batchApplyTag.textContent = `Batch Applied (${count.toLocaleString()} clips)`;
     batchApplyTag.style.display = "inline-block";
     btnSelectAll.textContent = `Select All (${allClips.length.toLocaleString()})`;
     btnSelectAll.classList.remove("all-selected");
@@ -1847,6 +1914,7 @@ function updateMonitorDisplay(idx, force = false) {
 
   applyMonitorTransform();
   updatePlayhead(idx);
+  if (typeof syncTrimControlForCurrentClip === "function") syncTrimControlForCurrentClip();
 }
 
 // Apply Rotation, 3D Transform, Crop, Blend & Speed Live in Monitor
@@ -2600,7 +2668,7 @@ function setupCompareListeners() {
     btnBypassToggle.addEventListener("click", () => {
       isBypassed = !isBypassed;
       btnBypassToggle.classList.toggle("bypassed", isBypassed);
-      btnBypassToggle.textContent = isBypassed ? "⚡️ Bypassed" : "⚡️ Bypass";
+      btnBypassToggle.textContent = isBypassed ? "Bypassed" : "Bypass";
       applyMonitorTransform();
     });
   }
@@ -2645,6 +2713,7 @@ function setupInspectorListeners() {
   // Inspector Tabs Switcher (Transform, Color & Light, Deliver)
   const inspTabs = document.querySelectorAll(".insp-tab");
   const tabPanes = {
+    edit: document.getElementById("paneEdit"),
     transform: document.getElementById("paneTransform"),
     color: document.getElementById("paneColor"),
     deliver: document.getElementById("paneDeliver")
@@ -2808,7 +2877,7 @@ function setupInspectorListeners() {
   document.getElementById("resetTransform").addEventListener("click", () => {
     inspectorState.zoomX = 1.0;
     inspectorState.zoomY = 1.0;
-    inspectorState.rotation = 270.0;
+    inspectorState.rotation = 0.0;
     inspectorState.posX = 0.0;
     inspectorState.posY = 0.0;
     inspectorState.anchorX = 0.0;
@@ -2819,8 +2888,11 @@ function setupInspectorListeners() {
     inspectorState.flipV = false;
     inpZoomX.value = "1.000";
     inpZoomY.value = "1.000";
-    sliderRotation.value = 270;
-    inpRotation.value = "270.000";
+    sliderRotation.value = 0;
+    inpRotation.value = "0.000";
+    document.querySelectorAll(".btn-quick-ang").forEach(b => {
+      b.classList.toggle("active", b.dataset.ang === "0");
+    });
     const inpPitch = document.getElementById("inpPitch");
     const sliderPitch = document.getElementById("sliderPitch");
     if (inpPitch) inpPitch.value = "0.000";
@@ -2986,7 +3058,7 @@ function setupInspectorListeners() {
       e.stopPropagation();
       const isCurrentlyBypassed = !!inspectorState.bypassedCards[key];
       inspectorState.bypassedCards[key] = !isCurrentlyBypassed;
-      dot.textContent = isCurrentlyBypassed ? "🟢" : "⚫";
+      dot.textContent = "";
       dot.classList.toggle("active", isCurrentlyBypassed);
       card.classList.toggle("bypassed", !isCurrentlyBypassed);
       applyMonitorTransform();
@@ -3221,7 +3293,7 @@ function setupInspectorListeners() {
   // Initialize Master Audio VU Meter
   initAudioVuMeter();
 
-  // Color Presets (Master Exposure & Primaries only — preserves White Balance & Portrait Hue)
+  // Color Presets (Lumetri Color & Tone Engine only — preserves White Balance & Portrait Hue)
   const colorPresets = {
     normal: { brightness: 0.0, contrast: 1.0, highlights: 0, shadows: 0, whites: 0, blacks: 0, texture: 0, clarity: 0, dehaze: 0, vibrance: 0, saturation: 1.0 },
     shadows: { brightness: 0.05, contrast: 1.05, highlights: -10, shadows: 40, whites: 0, blacks: 15, texture: 5, clarity: 10, dehaze: 0, vibrance: 10, saturation: 1.10 },
@@ -3264,7 +3336,7 @@ function setupInspectorListeners() {
     });
 
     applyMonitorTransform();
-    saveSettings();
+    triggerSaveSettings();
   }
 
   document.querySelectorAll(".btn-color-preset").forEach(btn => {
@@ -3482,7 +3554,8 @@ function setupInspectorListeners() {
       const descEl = document.getElementById("denoiseDesc");
       if (descEl && DENOISE_DESC_MAP[mode]) descEl.textContent = DENOISE_DESC_MAP[mode];
       if (dotDenoise) {
-        dotDenoise.textContent = (mode === "off") ? "⚫" : "🔴";
+        dotDenoise.textContent = "";
+        dotDenoise.classList.toggle("active", mode !== "off");
       }
     });
   }
@@ -3533,7 +3606,10 @@ function setupInspectorListeners() {
       if (inpDenoiseTemporal) inpDenoiseTemporal.value = "0.0";
       if (rowDenoiseSpatial) rowDenoiseSpatial.style.display = "none";
       if (rowDenoiseTemporal) rowDenoiseTemporal.style.display = "none";
-      if (dotDenoise) dotDenoise.textContent = "⚫";
+      if (dotDenoise) {
+        dotDenoise.textContent = "";
+        dotDenoise.classList.remove("active");
+      }
       const descEl = document.getElementById("denoiseDesc");
       if (descEl) descEl.textContent = DENOISE_DESC_MAP["off"];
       showToast("↺ Reset Noise Reduction to Off");
@@ -3550,8 +3626,97 @@ function setupInspectorListeners() {
       inspectorState.temperature = 0;
       inspectorState.tint = 0;
       inspectorState.portraitHue = 0;
+      if (sliderTemp) sliderTemp.value = 0;
+      if (inpTemp) inpTemp.value = "0";
+      if (sliderTint) sliderTint.value = 0;
+      if (inpTint) inpTint.value = "0";
+      if (typeof updateWhitebalanceBadge === "function") updateWhitebalanceBadge();
+      const autoStatusEl = document.getElementById("autoColorStatus");
+      if (autoStatusEl) { autoStatusEl.style.display = "none"; autoStatusEl.textContent = ""; }
       applyColorPreset("normal");
       showToast("↺ Color & White Balance Reset to Default");
+    });
+  }
+
+  // Offline AI Auto Color Button
+  const btnAutoColor = document.getElementById("btnAutoColor");
+  let isRunningAutoColor = false;
+  if (btnAutoColor) {
+    btnAutoColor.addEventListener("click", async () => {
+      if (isRunningAutoColor) return;
+      const activeClip = (typeof currentPreviewClip !== "undefined" && currentPreviewClip)
+        ? currentPreviewClip
+        : (allClips.find(c => c.selected) || allClips[0] || null);
+      if (!activeClip || !activeClip.path) {
+        showToast("⚠️ กรุณา Import คลิปวิดีโอหรือรูปภาพก่อนกด Auto Color");
+        return;
+      }
+
+      isRunningAutoColor = true;
+      const origHtml = btnAutoColor.innerHTML;
+      btnAutoColor.disabled = true;
+      btnAutoColor.innerHTML = "<span>⏳</span><span>Analyzing...</span>";
+      const autoStatusEl = document.getElementById("autoColorStatus");
+
+      try {
+        const res = await fetch("/api/auto-color", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: activeClip.path })
+        });
+        const data = await res.json();
+        if (!data.success || !data.params) {
+          showToast(`❌ Auto Color: ${data.error || "วิเคราะห์ไม่สำเร็จ"}`);
+          return;
+        }
+
+        const p = data.params;
+        inspectorState.brightness = p.brightness ?? 0;
+        inspectorState.contrast = p.contrast ?? 1.0;
+        inspectorState.highlights = p.highlights ?? 0;
+        inspectorState.shadows = p.shadows ?? 0;
+        inspectorState.temperature = p.temperature ?? 0;
+        inspectorState.tint = p.tint ?? 0;
+        inspectorState.vibrance = p.vibrance ?? 0;
+        inspectorState.saturation = p.saturation ?? 1.0;
+
+        if (sliderBrightness) sliderBrightness.value = inspectorState.brightness;
+        if (inpBrightness) inpBrightness.value = Number(inspectorState.brightness).toFixed(3);
+        if (sliderContrast) sliderContrast.value = inspectorState.contrast;
+        if (inpContrast) inpContrast.value = Number(inspectorState.contrast).toFixed(3);
+        if (sliderSaturation) sliderSaturation.value = inspectorState.saturation;
+        if (inpSaturation) inpSaturation.value = Number(inspectorState.saturation).toFixed(3);
+        if (sliderTemp) sliderTemp.value = inspectorState.temperature;
+        if (inpTemp) inpTemp.value = Math.round(inspectorState.temperature);
+        if (sliderTint) sliderTint.value = inspectorState.tint;
+        if (inpTint) inpTint.value = Math.round(inspectorState.tint);
+
+        ["highlights", "shadows", "vibrance"].forEach(k => {
+          const capKey = k.charAt(0).toUpperCase() + k.slice(1);
+          const sl = document.getElementById(`slider${capKey}`);
+          const inp = document.getElementById(`inp${capKey}`);
+          if (sl) sl.value = inspectorState[k];
+          if (inp) inp.value = Math.round(inspectorState[k]);
+        });
+
+        document.querySelectorAll(".btn-color-preset").forEach(b => b.classList.remove("active"));
+        if (typeof updateWhitebalanceBadge === "function") updateWhitebalanceBadge();
+        applyMonitorTransform();
+        triggerSaveSettings();
+
+        if (autoStatusEl) {
+          autoStatusEl.textContent = `✨ ${data.summary}`;
+          autoStatusEl.style.display = "block";
+        }
+        showToast(`✨ Auto Color: ${data.summary}`);
+      } catch (err) {
+        console.error("Auto Color error:", err);
+        showToast("❌ Auto Color ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+      } finally {
+        isRunningAutoColor = false;
+        btnAutoColor.disabled = false;
+        btnAutoColor.innerHTML = origHtml;
+      }
     });
   }
 
@@ -3666,15 +3831,9 @@ function setupInspectorListeners() {
   const fbEntriesList = document.getElementById("fbEntriesList");
   const btnFbUp = document.getElementById("btnFbUp");
   const btnFbImportHere = document.getElementById("btnFbImportHere");
-  let currentBrowserPath = "/Users/siamratchongtong/Desktop/STD_VT";
-
-  function showToast(msg) {
-    const toast = document.getElementById("toastNotify");
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.style.display = "block";
-    setTimeout(() => { toast.style.display = "none"; }, 4000);
-  }
+  const fbDrivesBar = document.getElementById("fbDrivesBar");
+  let currentBrowserPath = "";
+  let currentParentPath = "";
 
   const openImportModal = () => {
     if (importModal) {
@@ -3694,46 +3853,19 @@ function setupInspectorListeners() {
     });
   }
 
-  // Method 1: Native macOS Finder Folder Picker
+  // Method 1: System Folder Picker
   if (btnLaunchNativePicker) {
     btnLaunchNativePicker.addEventListener("click", async () => {
-      try {
-        btnLaunchNativePicker.textContent = "⏳ Waiting for Finder Selection...";
-        const res = await fetch("/api/browse-folder", { method: "POST" });
-        const data = await res.json();
-        btnLaunchNativePicker.textContent = "📂 Open macOS Finder Folder Picker";
-        if (data.success && data.path) {
-          if (topSourceFolder) {
-            topSourceFolder.textContent = `📁 ${data.path.split("/").filter(Boolean).slice(-2).join(" / ")}`;
-          }
-          closeImportModal();
-          await loadClips();
-          showToast(`✅ Successfully imported ${data.added} clips from ${data.path}!`);
-        }
-      } catch (err) {
-        btnLaunchNativePicker.textContent = "📂 Open macOS Finder Folder Picker";
-        console.error(err);
-      }
+      closeImportModal();
+      await triggerImportFolder();
     });
   }
 
-  // Native macOS Finder Files Picker
+  // Method 1b: System File Picker
   if (btnLaunchNativeFiles) {
     btnLaunchNativeFiles.addEventListener("click", async () => {
-      try {
-        btnLaunchNativeFiles.textContent = "⏳ Waiting for Finder...";
-        const res = await fetch("/api/browse-files", { method: "POST" });
-        const data = await res.json();
-        btnLaunchNativeFiles.textContent = "📄 Open Finder File Picker";
-        if (data.success && data.added > 0) {
-          closeImportModal();
-          await loadClips();
-          showToast(`✅ Successfully imported ${data.added} clips!`);
-        }
-      } catch (err) {
-        btnLaunchNativeFiles.textContent = "📄 Open Finder File Picker";
-        console.error(err);
-      }
+      closeImportModal();
+      await triggerImportFiles();
     });
   }
 
@@ -3756,54 +3888,75 @@ function setupInspectorListeners() {
   // In-App Folder Browser
   async function loadFolderBrowser(targetDir) {
     try {
-      fbCurrentPath.textContent = targetDir;
-      currentBrowserPath = targetDir;
-      fbEntriesList.innerHTML = `<div style="color: #8c91a3; padding: 10px; font-size: 11px;">Loading directory...</div>`;
-      const res = await fetch(`/api/list-dir?path=${encodeURIComponent(targetDir)}`);
+      if (fbCurrentPath) fbCurrentPath.textContent = targetDir || "Loading...";
+      currentBrowserPath = targetDir || "";
+      if (fbEntriesList) fbEntriesList.innerHTML = `<div style="color: #8c91a3; padding: 10px; font-size: 11px;">Loading directory...</div>`;
+      
+      const res = await fetch(`/api/list-dir?path=${encodeURIComponent(targetDir || "")}`);
       const data = await res.json();
-      currentBrowserPath = data.current;
-      fbCurrentPath.textContent = data.current;
+      currentBrowserPath = data.current || "";
+      currentParentPath = data.parent || "";
+      if (fbCurrentPath) fbCurrentPath.textContent = currentBrowserPath;
 
-      fbEntriesList.innerHTML = "";
-      if (!data.entries || data.entries.length === 0) {
-        fbEntriesList.innerHTML = `<div style="color: #63687c; padding: 8px; font-size: 11px;">Empty directory.</div>`;
-        return;
+      // Handle Windows drives
+      if (fbDrivesBar) {
+        if (data.drives && data.drives.length > 0) {
+          fbDrivesBar.style.display = "flex";
+          fbDrivesBar.innerHTML = `<span style="font-size:10px; color:#8c91a3; margin-right:4px;">Drives:</span>` +
+            data.drives.map(d => `<button class="btn-davinci-pill" style="font-size:10px; padding:2px 8px;" onclick="window.zcutNavigateDir('${d.replace(/\\/g, '\\\\')}')">💾 ${d}</button>`).join(" ");
+        } else {
+          fbDrivesBar.style.display = "none";
+        }
       }
 
-      data.entries.forEach(ent => {
-        if (!ent.is_dir) return; // Only list folders in browser
-        const row = document.createElement("div");
-        row.className = "fb-entry-row";
-        row.innerHTML = `
-          <div class="fb-entry-left">
-            <span>📁</span>
-            <span>${ent.name}</span>
-          </div>
-          ${ent.video_count > 0 ? `<span class="fb-badge-clips">${ent.video_count} clips</span>` : `<span style="color:#55596b; font-size:10px;">folder</span>`}
-        `;
-        row.addEventListener("click", () => {
-          loadFolderBrowser(ent.path);
+      if (fbEntriesList) {
+        fbEntriesList.innerHTML = "";
+        if (!data.entries || data.entries.length === 0) {
+          fbEntriesList.innerHTML = `<div style="color: #63687c; padding: 12px; font-size: 11px;">Empty folder or no subfolders found.</div>`;
+          return;
+        }
+
+        data.entries.forEach(ent => {
+          if (!ent.is_dir) return; // Only list folders in browser
+          const row = document.createElement("div");
+          row.className = "fb-entry-row";
+          row.style.cursor = "pointer";
+          row.innerHTML = `
+            <div class="fb-entry-left">
+              <span>📁</span>
+              <span>${ent.name}</span>
+            </div>
+            ${ent.video_count > 0 ? `<span class="fb-badge-clips">${ent.video_count} clips</span>` : `<span style="color:#55596b; font-size:10px;">folder</span>`}
+          `;
+          row.addEventListener("click", () => {
+            loadFolderBrowser(ent.path);
+          });
+          fbEntriesList.appendChild(row);
         });
-        fbEntriesList.appendChild(row);
-      });
+      }
     } catch (err) {
       console.error(err);
+      if (fbEntriesList) fbEntriesList.innerHTML = `<div style="color: #ef4444; padding: 8px; font-size: 11px;">Error loading folder.</div>`;
     }
   }
 
+  window.zcutNavigateDir = function(dir) {
+    loadFolderBrowser(dir);
+  };
+
   if (btnFbUp) {
     btnFbUp.addEventListener("click", () => {
-      const parts = currentBrowserPath.split("/").filter(Boolean);
-      if (parts.length > 1) {
-        parts.pop();
-        loadFolderBrowser("/" + parts.join("/"));
+      if (currentParentPath && currentParentPath !== currentBrowserPath) {
+        loadFolderBrowser(currentParentPath);
       }
     });
   }
 
   if (btnFbImportHere) {
     btnFbImportHere.addEventListener("click", async () => {
-      await loadFolderPath(currentBrowserPath);
+      if (currentBrowserPath) {
+        await loadFolderPath(currentBrowserPath);
+      }
     });
   }
 
@@ -3826,34 +3979,102 @@ function setupInspectorListeners() {
     }
   }
 
-  async function triggerImportFolder() {
+  function getPathFromFile(file) {
+    if (!file) return "";
+    if (window.electronAPI && typeof window.electronAPI.getPathForFile === "function") {
+      try {
+        const p = window.electronAPI.getPathForFile(file);
+        if (p) return p;
+      } catch (e) {}
+    }
+    return file.path || "";
+  }
+
+  let isPickingImportFolder = false;
+  async function triggerImportFolder(e) {
+    if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+    if (isPickingImportFolder) return;
+    isPickingImportFolder = true;
     try {
-      showToast("📂 Opening Mac Finder at source folder (STD_VT)...");
+      if (window.electronAPI && typeof window.electronAPI.selectFolder === "function") {
+        const folderPath = await window.electronAPI.selectFolder();
+        if (folderPath) {
+          showToast(`⏳ Scanning folder: ${folderPath}...`);
+          const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths: [folderPath] })
+          });
+          const data = await res.json();
+          await loadClips();
+          if (topSourceFolder) {
+            topSourceFolder.textContent = `📁 ${folderPath.split(/[\\/]/).filter(Boolean).slice(-2).join(" / ")}`;
+          }
+          showToast(`✅ Successfully imported ${data.added || 0} media clips!`);
+        }
+        return;
+      }
+
+      showToast("📂 Opening Folder Picker...");
       const res = await fetch("/api/browse-folder", { method: "POST" });
       const data = await res.json();
+      if (data.debounced) return;
       if (data.success && data.path) {
         if (topSourceFolder) {
-          topSourceFolder.textContent = `📁 ${data.path.split("/").filter(Boolean).slice(-2).join(" / ")}`;
+          topSourceFolder.textContent = `📁 ${data.path.split(/[\\/]/).filter(Boolean).slice(-2).join(" / ")}`;
         }
         await loadClips();
-        showToast(`✅ Successfully imported ${data.added || allClips.length} clips from ${data.path.split("/").filter(Boolean).pop()}!`);
+        showToast(`✅ Successfully imported ${data.added || allClips.length} clips!`);
+      } else if (data.unsupported) {
+        const nativePicker = document.getElementById("nativeHtmlFolderPicker");
+        if (nativePicker) nativePicker.click();
       }
     } catch (err) {
-      console.error(err);
+      console.error("Folder import picker error:", err);
+      showToast("❌ Could not open folder picker");
+    } finally {
+      isPickingImportFolder = false;
     }
   }
 
-  async function triggerImportFiles() {
+  let isPickingImportFiles = false;
+  async function triggerImportFiles(e) {
+    if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+    if (isPickingImportFiles) return;
+    isPickingImportFiles = true;
     try {
-      showToast("📄 Opening Mac Finder file picker...");
+      if (window.electronAPI && typeof window.electronAPI.selectFiles === "function") {
+        const filePaths = await window.electronAPI.selectFiles();
+        if (filePaths && filePaths.length > 0) {
+          showToast(`⏳ Importing ${filePaths.length} files...`);
+          const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths: filePaths })
+          });
+          const data = await res.json();
+          await loadClips();
+          showToast(`✅ Successfully imported ${data.added || filePaths.length} clips!`);
+        }
+        return;
+      }
+
+      showToast("📄 Opening File Picker...");
       const res = await fetch("/api/browse-files", { method: "POST" });
       const data = await res.json();
+      if (data.debounced) return;
       if (data.success && data.added > 0) {
         await loadClips();
         showToast(`✅ Successfully imported ${data.added} clips!`);
+      } else if (data.unsupported) {
+        const nativePicker = document.getElementById("nativeHtmlFilePicker");
+        if (nativePicker) nativePicker.click();
       }
     } catch (err) {
-      console.error(err);
+      console.error("File import picker error:", err);
+      showToast("❌ Could not open file picker");
+    } finally {
+      isPickingImportFiles = false;
     }
   }
 
@@ -3861,7 +4082,10 @@ function setupInspectorListeners() {
   if (btnImportFolderTop) btnImportFolderTop.addEventListener("click", triggerImportFolder);
 
   const btnImportFolderPool = document.getElementById("btnImportFolderPool");
-  if (btnImportFolderPool) btnImportFolderPool.addEventListener("click", () => {
+  if (btnImportFolderPool) btnImportFolderPool.addEventListener("click", triggerImportFolder);
+
+  const btnImportModalOpen = document.getElementById("btnImportModalOpen");
+  if (btnImportModalOpen) btnImportModalOpen.addEventListener("click", () => {
     openImportModal();
   });
 
@@ -3871,10 +4095,87 @@ function setupInspectorListeners() {
   const btnImportFilesTop = document.getElementById("btnImportFilesTop");
   if (btnImportFilesTop) btnImportFilesTop.addEventListener("click", triggerImportFiles);
 
-  // Set Output / Destination Folder (Browse or Create New Folder via Finder)
-  async function triggerSetOutputFolder() {
+  const nativeHtmlFolderPicker = document.getElementById("nativeHtmlFolderPicker");
+  if (nativeHtmlFolderPicker) {
+    nativeHtmlFolderPicker.addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      const paths = files.map(f => getPathFromFile(f)).filter(Boolean);
+      if (paths.length > 0) {
+        showToast(`⏳ Importing ${paths.length} items from selected folder...`);
+        try {
+          const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths })
+          });
+          const data = await res.json();
+          await loadClips();
+          showToast(`✅ Successfully imported ${data.added || paths.length} media clips!`);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      nativeHtmlFolderPicker.value = "";
+    });
+  }
+
+  const nativeHtmlFilePicker = document.getElementById("nativeHtmlFilePicker");
+  if (nativeHtmlFilePicker) {
+    nativeHtmlFilePicker.addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      const paths = files.map(f => getPathFromFile(f)).filter(Boolean);
+      if (paths.length > 0) {
+        showToast(`⏳ Importing ${paths.length} selected files...`);
+        try {
+          const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths })
+          });
+          const data = await res.json();
+          await loadClips();
+          showToast(`✅ Successfully imported ${data.added || paths.length} media clips!`);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      nativeHtmlFilePicker.value = "";
+    });
+  }
+
+  // Set Output / Destination Folder (Browse or Create New Folder via Dialog)
+  let isPickingOutputFolder = false;
+  async function triggerSetOutputFolder(e) {
+    if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+    if (isPickingOutputFolder) return;
+    isPickingOutputFolder = true;
     try {
-      showToast("📂 Opening Mac Finder to choose or create output folder...");
+      if (window.electronAPI && typeof window.electronAPI.selectOutputDir === "function") {
+        const dirPath = await window.electronAPI.selectOutputDir();
+        if (dirPath) {
+          const res = await fetch("/api/set-output-folder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ output_dir: dirPath })
+          });
+          const data = await res.json();
+          if (data.output_dir) {
+            const inp = document.getElementById("inpOutputPath");
+            if (inp) inp.value = data.output_dir;
+            const inpPinned = document.getElementById("inpOutputPathPinned");
+            if (inpPinned) inpPinned.value = data.output_dir;
+            const topTxt = document.getElementById("topFolderPathText");
+            if (topTxt && data.output_dir) {
+              topTxt.textContent = "Output: " + data.output_dir.split(/[\\/]/).filter(Boolean).slice(-3).join(" / ");
+            }
+            triggerSaveSettings();
+            showToast(`📁 Output destination set to: ${data.output_dir.split(/[\\/]/).filter(Boolean).slice(-2).join(" / ")}`);
+          }
+        }
+        return;
+      }
+
+      showToast("📂 Opening Dialog to choose output folder...");
       const res = await fetch("/api/set-output-folder", { method: "POST" });
       const data = await res.json();
       if (data.success && data.output_dir) {
@@ -3884,18 +4185,26 @@ function setupInspectorListeners() {
         if (inpPinned) inpPinned.value = data.output_dir;
         const topTxt = document.getElementById("topFolderPathText");
         if (topTxt && data.output_dir) {
-          topTxt.textContent = "Output: " + data.output_dir.split("/").filter(Boolean).slice(-3).join(" / ");
+          topTxt.textContent = "Output: " + data.output_dir.split(/[\\/]/).filter(Boolean).slice(-3).join(" / ");
         }
         triggerSaveSettings();
-        showToast(`📁 Output destination set to: ${data.output_dir.split("/").filter(Boolean).slice(-2).join(" / ")}`);
+        showToast(`📁 Output destination set to: ${data.output_dir.split(/[\\/]/).filter(Boolean).slice(-2).join(" / ")}`);
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      isPickingOutputFolder = false;
     }
   }
 
   const btnBrowseOutput = document.getElementById("btnBrowseOutput");
   if (btnBrowseOutput) btnBrowseOutput.addEventListener("click", triggerSetOutputFolder);
+
+  const inpOutputPath = document.getElementById("inpOutputPath");
+  if (inpOutputPath) {
+    inpOutputPath.style.cursor = "pointer";
+    inpOutputPath.addEventListener("click", triggerSetOutputFolder);
+  }
 
   const btnBrowseOutputTop = document.getElementById("btnBrowseOutputTop");
   if (btnBrowseOutputTop) btnBrowseOutputTop.addEventListener("click", triggerSetOutputFolder);
@@ -3912,6 +4221,61 @@ function setupInspectorListeners() {
       fetch("/api/open-folder", { method: "POST" });
     });
   }
+
+  // Live Naming Preview & Auto-Rename System
+  function updateFileNamePreview() {
+    const selStyle = document.getElementById("selNamingStyle");
+    const inpCustom = document.getElementById("inpCustomFileName");
+    const preview = document.getElementById("txtFileNamePreview");
+    const selFmt = document.getElementById("selFormat");
+    if (!preview) return;
+
+    const style = selStyle ? selStyle.value : "suffix_vertical";
+    const custom = inpCustom ? inpCustom.value.trim() : "";
+    const ext = (selFmt ? selFmt.value : "mp4").toLowerCase().replace("quicktime", "mov");
+    const sampleStem = allClips.length > 0 ? (allClips[0].name.replace(/\.[^/.]+$/, "")) : "STD_2243";
+
+    let outName = "";
+    if (custom) {
+      if (custom.includes("{source}") || custom.includes("{name}") || custom.includes("{stem}") || custom.includes("{index}") || custom.includes("{seq}") || custom.includes("{date}")) {
+        outName = custom.replace(/\{source\}|\{name\}|\{stem\}/gi, sampleStem)
+                        .replace(/\{index\}|\{seq\}/gi, "0001")
+                        .replace(/\{date\}/gi, new Date().toISOString().slice(0,10).replace(/-/g,""));
+      } else if (style === "prefix_custom") {
+        const sep = (custom.endsWith("_") || custom.endsWith("-")) ? "" : "_";
+        outName = `${custom}${sep}${sampleStem}`;
+      } else if (style === "custom") {
+        const sep = (custom.endsWith("_") || custom.endsWith("-")) ? "" : "_";
+        outName = `${custom}${sep}0001`;
+      } else {
+        outName = custom;
+      }
+    } else if (style === "original_same") {
+      outName = sampleStem;
+    } else if (style === "prefix_reel") {
+      outName = `Reel_001_${sampleStem}`;
+    } else if (style === "custom") {
+      outName = `Clip_0001`;
+    } else {
+      outName = `${sampleStem}_vertical`;
+    }
+
+    preview.textContent = `${outName}.${ext}`;
+  }
+
+  const selNamingStyle = document.getElementById("selNamingStyle");
+  const inpCustomFileName = document.getElementById("inpCustomFileName");
+  const selFormat = document.getElementById("selFormat");
+  if (selNamingStyle) selNamingStyle.addEventListener("change", () => {
+    updateFileNamePreview();
+    triggerSaveSettings();
+  });
+  if (inpCustomFileName) inpCustomFileName.addEventListener("input", () => {
+    updateFileNamePreview();
+    triggerSaveSettings();
+  });
+  if (selFormat) selFormat.addEventListener("change", updateFileNamePreview);
+  updateFileNamePreview();
 
   // Open Folder (including clicking Top Center Output Folder Pill)
   const btnOpenFolder = document.getElementById("btnOpenFolder");
@@ -4058,7 +4422,7 @@ function setupDragAndDrop() {
     dropZone.style.background = "";
     const files = Array.from(e.dataTransfer.files || []);
     if (files.length === 0) return;
-    const paths = files.map(f => f.path).filter(Boolean);
+    const paths = files.map(f => getPathFromFile(f)).filter(Boolean);
     if (paths.length > 0) {
       showToast(`⏳ Importing ${paths.length} items into Media Pool...`);
       try {
@@ -4085,7 +4449,7 @@ function setupDragAndDrop() {
     // Only handle if dropped outside input elements and not already handled by dropZone
     if (e.target.closest("#dropZone")) return;
     const files = Array.from(e.dataTransfer.files || []);
-    const paths = files.map(f => f.path).filter(Boolean);
+    const paths = files.map(f => getPathFromFile(f)).filter(Boolean);
     if (paths.length > 0) {
       e.preventDefault();
       showToast(`⏳ Importing ${paths.length} dropped items...`);
@@ -4441,10 +4805,10 @@ async function startBatchExport() {
   isPaused = false;
   if (btnQuickExport) {
     btnQuickExport.disabled = true;
-    btnQuickExport.textContent = "⏳ Rendering...";
+    btnQuickExport.textContent = "Rendering...";
   }
   btnBigExport.disabled = true;
-  btnBigExport.textContent = `⏳ Rendering ${count.toLocaleString()} clips via VideoToolbox...`;
+  btnBigExport.textContent = `Rendering ${count.toLocaleString()} clips via VideoToolbox...`;
   exportStatusText.textContent = `Starting batch export of ${count.toLocaleString()} clips...`;
 
   // Show Pause & Stop controls
@@ -4455,9 +4819,9 @@ async function startBatchExport() {
   if (exportControlsRow) exportControlsRow.style.display = "flex";
   if (btnPauseTop) {
     btnPauseTop.style.display = "inline-block";
-    btnPauseTop.textContent = "⏸ Pause";
+    btnPauseTop.textContent = "Pause";
   }
-  if (btnPauseRender) btnPauseRender.textContent = "⏸ Pause";
+  if (btnPauseRender) btnPauseRender.textContent = "Pause";
   if (btnStopTop) btnStopTop.style.display = "inline-block";
 
   // Reset rendering classes on cards
@@ -4508,6 +4872,12 @@ async function startBatchExport() {
   const selCodec = document.getElementById("selCodec");
   const selConflict = document.getElementById("selConflictAction") || document.getElementById("selConflictActionFileTab");
   const conflictAction = selConflict ? selConflict.value : "skip";
+
+  const chkAutoTrimExp = document.getElementById("chkAutoTrimBeforeExport");
+  if (chkAutoTrimExp && chkAutoTrimExp.checked && typeof window.runAutoBlurScan === "function") {
+    if (exportStatusText) exportStatusText.textContent = `✂️ AI กำลังสแกนตัดช็อตเบลอ ${selectedPaths.length} คลิปก่อน Export...`;
+    await window.runAutoBlurScan(selectedPaths, false, true);
+  }
 
   const isTrBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.transform;
   const isCropBypassed = inspectorState.bypassedCards && inspectorState.bypassedCards.crop;
@@ -4594,7 +4964,8 @@ async function startBatchExport() {
     denoise_spatial: inspectorState.denoiseSpatial || 0,
     denoise_temporal: inspectorState.denoiseTemporal || 0,
     nlog_normalize: (inspectorState.nikonProfile === "nlog_rec709"),
-    naming_pattern: selNamingPattern ? selNamingPattern.value : "suffix_vertical",
+    naming_pattern: document.getElementById("selNamingStyle") ? document.getElementById("selNamingStyle").value : "suffix_vertical",
+    custom_name: document.getElementById("inpCustomFileName") ? document.getElementById("inpCustomFileName").value.trim() : "",
     brightness: isPrimariesBypassed ? 0.0 : (inspectorState.brightness || 0.0),
     contrast: isPrimariesBypassed ? 1.0 : (inspectorState.contrast !== undefined ? inspectorState.contrast : 1.0),
     highlights: isPrimariesBypassed ? 0 : (inspectorState.highlights || 0),
@@ -4613,6 +4984,7 @@ async function startBatchExport() {
     audio_bitrate: (inpAudioBitrate ? inpAudioBitrate.value : "320") + "k",
     subfolder: inpFileSubfolder ? inpFileSubfolder.value.trim() : "",
     output_dir: outDir,
+    clip_trims: clipTrimStarts,
     paths: selectedPaths
   };
 
@@ -4628,14 +5000,14 @@ async function startBatchExport() {
     isExporting = false;
     if (btnQuickExport) {
       btnQuickExport.disabled = false;
-      btnQuickExport.textContent = "🚀 Quick Export";
+      btnQuickExport.textContent = "Quick Export";
     }
     btnBigExport.disabled = false;
-    btnBigExport.textContent = "🚀 1-Click Fast Vertical Export (All Clips)";
+    btnBigExport.textContent = "Export All Clips (Vertical 9:16)";
     if (exportControlsRow) exportControlsRow.style.display = "none";
     if (btnPauseTop) btnPauseTop.style.display = "none";
     if (btnStopTop) btnStopTop.style.display = "none";
-    showToast("❌ Error starting export: " + err.message);
+    showToast("Error starting export: " + err.message);
   }
 }
 
@@ -4647,8 +5019,8 @@ async function pollExportStatus() {
     isPaused = !!st.is_paused;
     const btnPauseRender = document.getElementById("btnPauseRender");
     const btnPauseTop = document.getElementById("btnPauseTop");
-    if (btnPauseRender) btnPauseRender.textContent = isPaused ? "▶️ Resume" : "⏸ Pause";
-    if (btnPauseTop) btnPauseTop.textContent = isPaused ? "▶️ Resume" : "⏸ Pause";
+    if (btnPauseRender) btnPauseRender.textContent = isPaused ? "Resume" : "Pause";
+    if (btnPauseTop) btnPauseTop.textContent = isPaused ? "Resume" : "Pause";
 
     // Mark completed paths with Vibrant Green & ✅ DONE badge
     if (Array.isArray(st.completed_paths)) {
@@ -4708,6 +5080,7 @@ async function pollExportStatus() {
       if (activeIdx !== currentMonitorIdx) {
         updateMonitorDisplay(activeIdx);
       }
+      syncWorkspaceOverlayTelemetry(st);
     } else if (st.status === "Completed") {
       clearInterval(exportPollTimer);
       isExporting = false;
@@ -4715,11 +5088,11 @@ async function pollExportStatus() {
       if (fillBar) fillBar.style.width = "100%";
       if (btnQuickExport) {
         btnQuickExport.disabled = false;
-        btnQuickExport.textContent = "🚀 Quick Export";
+        btnQuickExport.textContent = "Quick Export";
       }
       btnBigExport.disabled = false;
-      btnBigExport.textContent = "🚀 1-Click Fast Vertical Export (All Clips)";
-      exportStatusText.textContent = `🎉 Export completed successfully for all selected clips in destination folder!`;
+      btnBigExport.textContent = "Export All Clips (Vertical 9:16)";
+      exportStatusText.textContent = `Export completed successfully for all selected clips in destination folder.`;
       exportSpeedBadge.textContent = "";
 
       const exportControlsRow = document.getElementById("exportControlsRow");
@@ -4730,20 +5103,21 @@ async function pollExportStatus() {
       if (btnStopTop) btnStopTop.style.display = "none";
 
       playCompletionChime();
-      showToast("🎉 Rendering completed successfully! Saved to destination folder.");
+      showToast("Rendering completed successfully! Saved to destination folder.");
       // Automatically purge RAM and flush file buffers upon export completion
       fetch("/api/clear-cache", { method: "POST" }).catch(() => {});
+      syncWorkspaceOverlayTelemetry({ ...st, percent: 100, status: "Completed" });
     } else if (st.status === "Stopped") {
       clearInterval(exportPollTimer);
       isExporting = false;
       fetch("/api/clear-cache", { method: "POST" }).catch(() => {});
       if (btnQuickExport) {
         btnQuickExport.disabled = false;
-        btnQuickExport.textContent = "🚀 Quick Export";
+        btnQuickExport.textContent = "Quick Export";
       }
       btnBigExport.disabled = false;
-      btnBigExport.textContent = "🚀 1-Click Fast Vertical Export (All Clips)";
-      exportStatusText.textContent = "🛑 Render stopped by user.";
+      btnBigExport.textContent = "Export All Clips (Vertical 9:16)";
+      exportStatusText.textContent = "Render stopped by user.";
       exportSpeedBadge.textContent = "";
 
       document.querySelectorAll(".clip-card.rendering").forEach(c => {
@@ -4760,16 +5134,17 @@ async function pollExportStatus() {
       if (btnPauseTop) btnPauseTop.style.display = "none";
       if (btnStopTop) btnStopTop.style.display = "none";
 
-      showToast("🛑 Render stopped.");
+      showToast("Render stopped.");
+      syncWorkspaceOverlayTelemetry(st);
     } else if (!st.is_exporting) {
       clearInterval(exportPollTimer);
       isExporting = false;
       if (btnQuickExport) {
         btnQuickExport.disabled = false;
-        btnQuickExport.textContent = "🚀 Quick Export";
+        btnQuickExport.textContent = "Quick Export";
       }
       btnBigExport.disabled = false;
-      btnBigExport.textContent = "🚀 1-Click Fast Vertical Export (All Clips)";
+      btnBigExport.textContent = "Export All Clips (Vertical 9:16)";
       const exportControlsRow = document.getElementById("exportControlsRow");
       const btnPauseTop = document.getElementById("btnPauseTop");
       const btnStopTop = document.getElementById("btnStopTop");
@@ -5641,6 +6016,13 @@ function getCurrentColorPresetState() {
     brightness: parseFloat(inspectorState.brightness) || 0.0,
     contrast: inspectorState.contrast !== undefined ? parseFloat(inspectorState.contrast) : 1.0,
     shadows: parseFloat(inspectorState.shadows) || 0.0,
+    highlights: parseFloat(inspectorState.highlights) || 0.0,
+    whites: parseFloat(inspectorState.whites) || 0.0,
+    blacks: parseFloat(inspectorState.blacks) || 0.0,
+    texture: parseFloat(inspectorState.texture) || 0.0,
+    clarity: parseFloat(inspectorState.clarity) || 0.0,
+    dehaze: parseFloat(inspectorState.dehaze) || 0.0,
+    vibrance: parseFloat(inspectorState.vibrance) || 0.0,
     saturation: inspectorState.saturation !== undefined ? parseFloat(inspectorState.saturation) : 1.0,
     nikonProfile: inspectorState.nikonProfile || "portrait",
     nikonStrength: inspectorState.nikonStrength !== undefined ? parseFloat(inspectorState.nikonStrength) : 100,
@@ -5678,11 +6060,11 @@ function setupColorMasterToolbar() {
       presets = [];
     }
 
-    selPresets.innerHTML = '<option value="" selected>📁 เลือก Preset...</option>';
+    selPresets.innerHTML = '<option value="" selected>Presets...</option>';
     presets.forEach((p, idx) => {
       const opt = document.createElement("option");
       opt.value = p.id || idx;
-      opt.textContent = `🎨 ${p.name}`;
+      opt.textContent = p.name;
       selPresets.appendChild(opt);
     });
 
@@ -5793,6 +6175,13 @@ function setupColorMasterToolbar() {
         brightness: 0.0,
         contrast: 1.0,
         shadows: 0.0,
+        highlights: 0.0,
+        whites: 0.0,
+        blacks: 0.0,
+        texture: 0.0,
+        clarity: 0.0,
+        dehaze: 0.0,
+        vibrance: 0.0,
         saturation: 1.0,
         nikonProfile: "portrait",
         nikonStrength: 100,
@@ -5833,14 +6222,546 @@ function setupColorMasterToolbar() {
   // Initialize presets list
   refreshPresetDropdown();
 
-  // Apply user-saved Default if exists and no clip-specific overrides yet
+  // Color & Light starts fresh at neutral defaults on every open (skip auto-applying previous job color state)
+}
+
+// =========================================================================
+// WORKSPACE MODE SWITCHER (Pro Studio / Easy Mode / Live Dashboard)
+// =========================================================================
+
+function showToast(msg) {
+  const toast = document.getElementById("toastNotify");
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(() => { toast.style.display = "none"; }, 4000);
+}
+
+function syncWorkspaceOverlayTelemetry(st) {
+  const clipsArr = Array.isArray(allClips) ? allClips : [];
+  const totalClips = st && typeof st.total === "number" && st.total > 0 ? st.total : clipsArr.length;
+  const doneCount = st && Array.isArray(st.completed_paths) ? st.completed_paths.length : completedPaths.size;
+  const pct = st && typeof st.percent === "number"
+    ? Math.max(0, Math.min(100, st.percent))
+    : (st && st.status === "Completed" ? 100 : 0);
+
+  const outPath = (document.getElementById("inpOutputPath")?.value || "").trim()
+    || (document.getElementById("topFolderPathText")?.textContent || "").trim()
+    || "-";
+
+  const fmtVal = (document.getElementById("selFormat")?.value || "mp4").toUpperCase();
+  const codecVal = (document.getElementById("selCodec")?.value || "h264").toUpperCase();
+  const workersVal = document.getElementById("selWorkers")?.value || "2";
+  const conflictEl = document.getElementById("selOutputConflict");
+  const conflictText = conflictEl && conflictEl.options[conflictEl.selectedIndex]
+    ? conflictEl.options[conflictEl.selectedIndex].text
+    : "Skip Existing";
+
+  // Dashboard UI
+  const dashPercent = document.getElementById("dashPercent");
+  const dashClipsDone = document.getElementById("dashClipsDone");
+  const dashSpeed = document.getElementById("dashSpeed");
+  const dashStatus = document.getElementById("dashStatus");
+  const dashRemaining = document.getElementById("dashRemaining");
+  const dashEta = document.getElementById("dashEta");
+  const dashProfile = document.getElementById("dashProfile");
+  const dashWorkers = document.getElementById("dashWorkers");
+  const dashCurrentFile = document.getElementById("dashCurrentFile");
+  const dashOutputDir = document.getElementById("dashOutputDir");
+  const dashConflictMode = document.getElementById("dashConflictMode");
+  const dashRecentList = document.getElementById("dashRecentList");
+
+  if (dashPercent) dashPercent.textContent = `${pct.toFixed(0)}%`;
+  if (dashClipsDone) dashClipsDone.textContent = `${doneCount} / ${totalClips} คลิป`;
+  if (dashSpeed) dashSpeed.textContent = (st && st.speed) ? st.speed : "0x";
+  if (dashStatus) dashStatus.textContent = (st && st.status) ? st.status : (isExporting ? "Rendering..." : "Ready");
+  if (dashRemaining) dashRemaining.textContent = (st && st.remaining_str) ? st.remaining_str : "00m 00s";
+  if (dashEta) dashEta.textContent = `ETA: ${(st && st.eta_str) ? st.eta_str : "--:--"}`;
+  if (dashProfile) dashProfile.textContent = `9:16 • ${fmtVal} (${codecVal})`;
+  if (dashWorkers) dashWorkers.textContent = `${workersVal} Workers Parallel`;
+  if (dashCurrentFile) dashCurrentFile.textContent = (st && st.current_name) ? st.current_name : "-";
+  if (dashOutputDir) dashOutputDir.textContent = outPath;
+  if (dashConflictMode) dashConflictMode.textContent = conflictText;
+
+  if (dashRecentList) {
+    if (clipsArr.length === 0) {
+      dashRecentList.innerHTML = `<div class="dash-empty">ยังไม่มีคลิปในคิว — นำเข้าคลิปเพื่อเริ่มตรวจสอบสถานะ</div>`;
+    } else {
+      const slice = clipsArr.slice(0, 12);
+      dashRecentList.innerHTML = slice.map((c, idx) => {
+        const isDone = completedPaths.has(c.path);
+        const isCurr = st && st.is_exporting && (st.current_idx - 1 === idx);
+        const badgeClass = isDone ? "done" : (isCurr ? "active" : "queued");
+        const badgeText = isDone ? "DONE" : (isCurr ? "RENDERING" : "QUEUED");
+        return `<div class="dash-recent-item"><span class="dri-name">${c.name || c.path}</span><span class="dri-badge ${badgeClass}">${badgeText}</span></div>`;
+      }).join("");
+    }
+  }
+}
+
+function setupWorkspaceModesAndDash() {
+  const WS_MODE_KEY = "zcut_workspace_mode";
+  const dashView = document.getElementById("dashboardView");
+  const modeBtns = document.querySelectorAll(".btn-ws-mode");
+
+  function setWorkspaceMode(mode) {
+    const valid = ["pro", "dash"].includes(mode) ? mode : "pro";
+    modeBtns.forEach(b => b.classList.toggle("active", b.dataset.wsmode === valid));
+    if (dashView) dashView.style.display = valid === "dash" ? "flex" : "none";
+    try { localStorage.setItem(WS_MODE_KEY, valid); } catch (e) {}
+    syncWorkspaceOverlayTelemetry(null);
+  }
+
+  modeBtns.forEach(btn => {
+    btn.addEventListener("click", () => setWorkspaceMode(btn.dataset.wsmode));
+  });
+
+  const btnDashBackToPro = document.getElementById("btnDashBackToPro");
+  if (btnDashBackToPro) btnDashBackToPro.addEventListener("click", () => setWorkspaceMode("pro"));
+
+  // Dashboard Quick Actions
+  const btnDashOpenFolder = document.getElementById("btnDashOpenFolder");
+  if (btnDashOpenFolder) {
+    btnDashOpenFolder.addEventListener("click", () => {
+      fetch("/api/open-folder", { method: "POST" });
+      showToast("📂 กำลังเปิดโฟลเดอร์ผลลัพธ์...");
+    });
+  }
+
+  const btnDashClearCache = document.getElementById("btnDashClearCache");
+  if (btnDashClearCache) {
+    btnDashClearCache.addEventListener("click", async () => {
+      await fetch("/api/clear-cache", { method: "POST" }).catch(() => {});
+      showToast("🧹 เคลียร์ Cache & RAM เรียบร้อยแล้ว");
+    });
+  }
+
+  // Keep Dashboard telemetry fresh periodically while visible
+  setInterval(() => {
+    const dashOpen = dashView && dashView.style.display !== "none";
+    if (dashOpen && !isExporting) {
+      syncWorkspaceOverlayTelemetry(null);
+    }
+  }, 1500);
+
+  // Restore saved workspace mode (default to 'pro' so existing workflow is unchanged)
   try {
-    const savedDef = localStorage.getItem(DEFAULT_KEY);
-    if (savedDef) {
-      const defObj = JSON.parse(savedDef);
-      if (defObj && typeof defObj === "object") {
-        syncDomWithSettings(defObj);
-      }
+    const savedMode = localStorage.getItem(WS_MODE_KEY);
+    if (savedMode && ["pro", "dash"].includes(savedMode)) {
+      setWorkspaceMode(savedMode);
+    } else {
+      setWorkspaceMode("pro");
     }
   } catch (e) {}
 }
+
+// =========================================================================
+// AI AUTO-TRIM BLURRY INTRO (OFFLINE OPENCV SHARPNESS + MOTION DETECTOR)
+// =========================================================================
+const CLIP_TRIMS_KEY = "zcut_clip_trims_v1";
+let clipTrimStarts = {};
+try {
+  const savedTrims = localStorage.getItem(CLIP_TRIMS_KEY);
+  if (savedTrims) clipTrimStarts = JSON.parse(savedTrims) || {};
+} catch (e) {
+  clipTrimStarts = {};
+}
+
+function saveClipTrims() {
+  try {
+    localStorage.setItem(CLIP_TRIMS_KEY, JSON.stringify(clipTrimStarts));
+  } catch (e) {}
+}
+
+function refreshClipTrimBadges() {
+  allClips.forEach((clip, idx) => {
+    const card = document.getElementById(`card-${idx}`);
+    if (!card) return;
+    const oldBadge = card.querySelector(".clip-badge-trimmed");
+    const t = Number(clipTrimStarts[clip.path] || 0);
+    if (t > 0.05) {
+      if (oldBadge) {
+        oldBadge.textContent = `✂️ ${t.toFixed(1)}s`;
+      } else {
+        const badge = document.createElement("span");
+        badge.className = "clip-badge-trimmed";
+        badge.title = `AI Trim Intro: ตัดช่วงเบลอ ${t.toFixed(1)} วินาทีแรก`;
+        badge.textContent = `✂️ ${t.toFixed(1)}s`;
+        card.appendChild(badge);
+      }
+    } else if (oldBadge) {
+      oldBadge.remove();
+    }
+  });
+}
+
+function syncTrimControlForCurrentClip() {
+  const rng = document.getElementById("rngClipTrimStart");
+  const val = document.getElementById("valClipTrimStart");
+  const clip = allClips[currentMonitorIdx];
+  const t = clip ? Number(clipTrimStarts[clip.path] || 0) : 0;
+  if (rng) rng.value = t.toFixed(1);
+  if (val) val.textContent = `${t.toFixed(1)}s`;
+  refreshClipTrimBadges();
+}
+
+function jumpPreviewToTrimStart(seconds) {
+  const clip = allClips[currentMonitorIdx];
+  if (!clip || !monitorVideo) return;
+  const t = Math.max(0, Number(seconds || 0));
+  if (monitorImg) monitorImg.style.display = "none";
+  monitorVideo.style.display = "block";
+  const seekAndPause = () => {
+    try {
+      monitorVideo.currentTime = t;
+      monitorVideo.pause();
+      if (btnPlay) btnPlay.textContent = "▶";
+    } catch (e) {}
+  };
+  if (monitorVideo.readyState >= 1) {
+    seekAndPause();
+  } else {
+    monitorVideo.addEventListener("loadedmetadata", seekAndPause, { once: true });
+    monitorVideo.load();
+  }
+}
+
+function setupAutoTrimBlur() {
+  const btnScanCurrent = document.getElementById("btnScanCurrentBlur");
+  const btnScanAll = document.getElementById("btnScanAllBlur");
+  const btnJump = document.getElementById("btnJumpTrimStart");
+  const btnClearAll = document.getElementById("btnClearAllTrims");
+  const btnReset = document.getElementById("resetAutoTrimBlur");
+  const rngTrim = document.getElementById("rngClipTrimStart");
+  const valTrim = document.getElementById("valClipTrimStart");
+  const selSens = document.getElementById("selBlurSensitivity");
+  const selMaxSec = document.getElementById("selBlurMaxSec");
+  const chkAutoExp = document.getElementById("chkAutoTrimBeforeExport");
+  const progWrap = document.getElementById("blurScanProgressWrap");
+  const progLabel = document.getElementById("blurScanStepLabel");
+  const progPct = document.getElementById("blurScanProgressPct");
+  const progFill = document.getElementById("blurScanProgressFill");
+  const summaryEl = document.getElementById("autoTrimBlurSummary");
+
+  const AUTO_TRIM_EXP_KEY = "zcut_auto_trim_before_export";
+  if (chkAutoExp) {
+    try {
+      chkAutoExp.checked = localStorage.getItem(AUTO_TRIM_EXP_KEY) === "1";
+    } catch (e) {}
+    chkAutoExp.addEventListener("change", () => {
+      try {
+        localStorage.setItem(AUTO_TRIM_EXP_KEY, chkAutoExp.checked ? "1" : "0");
+      } catch (e) {}
+    });
+  }
+
+  async function runBlurScan(targetPaths, jumpCurrentAfter = false, silentToast = false) {
+    if (!targetPaths || targetPaths.length === 0) {
+      if (!silentToast) showToast("กรุณานำเข้าคลิปก่อนสแกนหาช็อตเบลอ");
+      return;
+    }
+    const sensitivity = selSens ? selSens.value : "balanced";
+    const maxSec = selMaxSec ? parseFloat(selMaxSec.value) : 5.0;
+
+    [btnScanCurrent, btnScanAll].forEach(b => { if (b) b.disabled = true; });
+    if (progWrap) progWrap.style.display = "block";
+    if (progFill) progFill.style.width = "0%";
+    if (progPct) progPct.textContent = "0%";
+    if (progLabel) progLabel.textContent = `กำลังวิเคราะห์ 0/${targetPaths.length} คลิป...`;
+    if (summaryEl) summaryEl.textContent = `⏳ AI ออฟไลน์กำลังวิเคราะห์ 0–${maxSec} วิแรก (${targetPaths.length} คลิป)...`;
+
+    let trimmedCount = 0;
+    let errCount = 0;
+    let processed = 0;
+    const chunkSize = 2;
+
+    try {
+      for (let i = 0; i < targetPaths.length; i += chunkSize) {
+        const chunk = targetPaths.slice(i, i + chunkSize);
+        const firstName = (chunk[0] || "").split(/[\\/]/).pop();
+        if (progLabel) progLabel.textContent = `สแกน ${Math.min(i + 1, targetPaths.length)}/${targetPaths.length}: ${firstName}`;
+        if (silentToast && exportStatusText) {
+          exportStatusText.textContent = `✂️ AI กำลังสแกนตัดเบลอ [${Math.min(i + 1, targetPaths.length)}/${targetPaths.length}]: ${firstName}`;
+        }
+
+        const res = await fetch("/api/analyze-blur", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paths: chunk,
+            max_seconds: maxSec,
+            sensitivity
+          })
+        });
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.results)) {
+          throw new Error(data.error || "ไม่สามารถวิเคราะห์คลิปได้");
+        }
+
+        data.results.forEach(r => {
+          processed++;
+          if (r.error) {
+            errCount++;
+            return;
+          }
+          const t = Number(r.trim_start || 0);
+          if (t > 0.05) {
+            clipTrimStarts[r.path] = t;
+            trimmedCount++;
+          } else {
+            delete clipTrimStarts[r.path];
+          }
+        });
+
+        const pct = Math.round((processed / targetPaths.length) * 100);
+        if (progFill) progFill.style.width = `${pct}%`;
+        if (progPct) progPct.textContent = `${pct}%`;
+        saveClipTrims();
+        syncTrimControlForCurrentClip();
+      }
+
+      const currClip = allClips[currentMonitorIdx];
+      if (jumpCurrentAfter && currClip) {
+        jumpPreviewToTrimStart(clipTrimStarts[currClip.path] || 0);
+      }
+
+      const msg = trimmedCount > 0
+        ? `✂️ สแกนครบ ${processed} คลิป — พบและตั้งตัดเบลอ ${trimmedCount} คลิป`
+        : `✅ สแกนครบ ${processed} คลิป — คมชัดตั้งแต่ต้นทั้งหมด`;
+      if (progLabel) progLabel.textContent = "วิเคราะห์เสร็จสิ้น";
+      if (summaryEl) {
+        summaryEl.textContent = errCount > 0 ? `${msg} (ข้าม ${errCount} ไฟล์)` : msg;
+      }
+      if (!silentToast) showToast(msg);
+    } catch (err) {
+      if (summaryEl) summaryEl.textContent = `❌ เกิดข้อผิดพลาด: ${err.message}`;
+      if (!silentToast) showToast("เกิดข้อผิดพลาดในการสแกนเบลอ: " + err.message);
+    } finally {
+      [btnScanCurrent, btnScanAll].forEach(b => { if (b) b.disabled = false; });
+    }
+  }
+
+  window.runAutoBlurScan = runBlurScan;
+
+  if (btnScanAll) {
+    btnScanAll.addEventListener("click", () => {
+      const paths = Array.from(selectedIndices).map(i => allClips[i]?.path).filter(Boolean);
+      const target = paths.length > 0 ? paths : allClips.map(c => c.path);
+      runBlurScan(target, true);
+    });
+  }
+
+  if (btnScanCurrent) {
+    btnScanCurrent.addEventListener("click", () => {
+      const curr = allClips[currentMonitorIdx];
+      if (!curr) {
+        showToast("กรุณาเลือกคลิปที่ต้องการสแกนก่อน");
+        return;
+      }
+      runBlurScan([curr.path], true);
+    });
+  }
+
+  if (rngTrim) {
+    rngTrim.addEventListener("input", () => {
+      const t = parseFloat(rngTrim.value) || 0;
+      if (valTrim) valTrim.textContent = `${t.toFixed(1)}s`;
+      const curr = allClips[currentMonitorIdx];
+      if (curr) {
+        if (t > 0.05) clipTrimStarts[curr.path] = t;
+        else delete clipTrimStarts[curr.path];
+        saveClipTrims();
+        refreshClipTrimBadges();
+      }
+    });
+  }
+
+  if (btnJump) {
+    btnJump.addEventListener("click", () => {
+      const curr = allClips[currentMonitorIdx];
+      if (!curr) return;
+      jumpPreviewToTrimStart(clipTrimStarts[curr.path] || 0);
+    });
+  }
+
+  const clearAllHandler = () => {
+    clipTrimStarts = {};
+    saveClipTrims();
+    syncTrimControlForCurrentClip();
+    if (summaryEl) summaryEl.textContent = "ล้างค่า Trim In ทั้งหมดแล้ว (เริ่มที่ 0.0s)";
+    showToast("↺ ล้างจุดตัดช็อตเบลอทั้งหมดแล้ว");
+  };
+
+  if (btnClearAll) btnClearAll.addEventListener("click", clearAllHandler);
+  if (btnReset) btnReset.addEventListener("click", clearAllHandler);
+
+  // Whole-Clip Blur Screener
+  const btnScanWhole = document.getElementById("btnScanWholeBlur");
+  const btnClearWhole = document.getElementById("btnClearWholeBlur");
+  const selWholeSens = document.getElementById("selWholeBlurSensitivity");
+  const chkDeselectBlurry = document.getElementById("chkDeselectBlurry");
+  const wProgWrap = document.getElementById("wholeBlurProgressWrap");
+  const wProgLabel = document.getElementById("wholeBlurStepLabel");
+  const wProgPct = document.getElementById("wholeBlurProgressPct");
+  const wProgFill = document.getElementById("wholeBlurProgressFill");
+  const wSummary = document.getElementById("wholeBlurSummary");
+
+  if (btnScanWhole) {
+    btnScanWhole.addEventListener("click", async () => {
+      const targetIndices = selectedIndices.size > 0
+        ? Array.from(selectedIndices)
+        : allClips.map((_, i) => i);
+      const targetPaths = targetIndices.map(i => allClips[i]?.path).filter(Boolean);
+      if (targetPaths.length === 0) {
+        showToast("กรุณานำเข้าคลิปก่อนคัดกรองภาพเบลอ");
+        return;
+      }
+
+      const sensitivity = selWholeSens ? selWholeSens.value : "balanced";
+      const deselectBlurry = chkDeselectBlurry ? chkDeselectBlurry.checked : true;
+
+      btnScanWhole.disabled = true;
+      if (wProgWrap) wProgWrap.style.display = "block";
+      if (wProgFill) wProgFill.style.width = "0%";
+      if (wProgPct) wProgPct.textContent = "0%";
+      if (wProgLabel) wProgLabel.textContent = `กำลังคัดกรอง 0/${targetPaths.length}...`;
+      if (wSummary) wSummary.textContent = `⏳ กำลังตรวจภาพเบลอทั้งคลิป (${targetPaths.length} คลิป)...`;
+
+      let blurryCount = 0;
+      let processed = 0;
+      const chunkSize = 4;
+
+      try {
+        for (let i = 0; i < targetPaths.length; i += chunkSize) {
+          const chunk = targetPaths.slice(i, i + chunkSize);
+          const firstName = (chunk[0] || "").split(/[\\/]/).pop();
+          if (wProgLabel) wProgLabel.textContent = `ตรวจ ${Math.min(i + 1, targetPaths.length)}/${targetPaths.length}: ${firstName}`;
+
+          const res = await fetch("/api/analyze-whole-blur", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths: chunk, sensitivity })
+          });
+          const data = await res.json();
+          if (!data.success || !Array.isArray(data.results)) {
+            throw new Error(data.error || "ไม่สามารถวิเคราะห์คลิปได้");
+          }
+
+          data.results.forEach(r => {
+            processed++;
+            if (r.is_blurry) {
+              blurryCount++;
+              if (!clipRatings[r.path]) clipRatings[r.path] = {};
+              clipRatings[r.path].rejected = true;
+              clipRatings[r.path].rating = 0;
+              if (deselectBlurry) {
+                const idx = allClips.findIndex(c => c.path === r.path);
+                if (idx !== -1) selectedIndices.delete(idx);
+              }
+            }
+          });
+
+          const pct = Math.round((processed / targetPaths.length) * 100);
+          if (wProgFill) wProgFill.style.width = `${pct}%`;
+          if (wProgPct) wProgPct.textContent = `${pct}%`;
+        }
+
+        saveClipRatings();
+        renderMediaPool();
+        updateSelectionHeader();
+
+        const msg = blurryCount > 0
+          ? `🔍 พบคลิปเบลอทั้งภาพ ${blurryCount}/${processed} คลิป (ติดป้าย Rejected${deselectBlurry ? " และติ๊กออกให้แล้ว" : ""})`
+          : `✅ ตรวจครบ ${processed} คลิป — ไม่พบคลิปที่เบลอทั้งภาพ`;
+        if (wProgLabel) wProgLabel.textContent = "คัดกรองเสร็จสิ้น";
+        if (wSummary) wSummary.textContent = msg;
+        showToast(msg);
+      } catch (err) {
+        if (wSummary) wSummary.textContent = `❌ เกิดข้อผิดพลาด: ${err.message}`;
+        showToast("เกิดข้อผิดพลาดในการคัดคลิปเบลอ: " + err.message);
+      } finally {
+        btnScanWhole.disabled = false;
+      }
+    });
+  }
+
+  if (btnClearWhole) {
+    btnClearWhole.addEventListener("click", () => {
+      allClips.forEach((c, idx) => {
+        if (clipRatings[c.path]?.rejected) {
+          delete clipRatings[c.path].rejected;
+          selectedIndices.add(idx);
+        }
+      });
+      saveClipRatings();
+      renderMediaPool();
+      updateSelectionHeader();
+      if (wSummary) wSummary.textContent = "ล้างป้าย Rejected และเลือกคลิปกลับมาทั้งหมดแล้ว";
+      showToast("↺ ล้างป้ายคลิปเบลอทั้งหมดแล้ว");
+    });
+  }
+
+  syncTrimControlForCurrentClip();
+}
+
+// Auto-Update Checker & 1-Click Updater
+(function setupAutoUpdater() {
+  const btn = document.getElementById("btnAppUpdate");
+  if (!btn) return;
+  let updateInfo = null;
+
+  async function checkUpdate(manual = false) {
+    if (manual) btn.textContent = "⏳ Checking...";
+    try {
+      const res = await fetch("/api/check-update");
+      const data = await res.json();
+      updateInfo = data;
+      const cur = data.current_version || "2.1.0";
+      if (data.has_update && data.latest_version) {
+        btn.textContent = `⬇️ อัปเดต v${data.latest_version}`;
+        btn.style.background = "linear-gradient(135deg, rgba(16,185,129,0.28), rgba(59,130,246,0.28))";
+        btn.style.borderColor = "rgba(52,211,153,0.65)";
+        btn.style.color = "#ecfdf5";
+        btn.title = `มีเวอร์ชันใหม่ v${data.latest_version}\n${data.release_notes || ""}`;
+        if (manual) showToast(`🔔 พบอัปเดตใหม่ v${data.latest_version}`);
+      } else {
+        btn.textContent = `v${cur}`;
+        if (manual) showToast(`✅ ZCut PRO v${cur} เป็นเวอร์ชันล่าสุดแล้ว`);
+      }
+    } catch (err) {
+      if (manual) showToast("⚠️ ไม่สามารถเช็กอัปเดตได้ (โหมดออฟไลน์)");
+    }
+  }
+
+  btn.addEventListener("click", async () => {
+    if (!updateInfo || !updateInfo.has_update) {
+      await checkUpdate(true);
+      return;
+    }
+    const ok = confirm(`พบอัปเดตใหม่ ZCut PRO v${updateInfo.latest_version}\n\n${updateInfo.release_notes || ""}\n\nต้องการอัปเดตทันทีเลยไหม?`);
+    if (!ok) return;
+    btn.disabled = true;
+    btn.textContent = "⏳ Updating...";
+    try {
+      const res = await fetch("/api/apply-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ update_zip_url: updateInfo.update_zip_url || "" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("✅ อัปเดตเรียบร้อย! กรุณาปิดและเปิด ZCut PRO ใหม่");
+        btn.textContent = "✅ Restart App";
+      } else {
+        showToast(`❌ อัปเดตไม่สำเร็จ: ${data.error || "Unknown"}`);
+        btn.textContent = `⬇️ อัปเดต v${updateInfo.latest_version}`;
+      }
+    } catch (e) {
+      showToast("❌ อัปเดตไม่สำเร็จ");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  setTimeout(() => checkUpdate(false), 1800);
+})();

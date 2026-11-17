@@ -1,6 +1,7 @@
 {
   "name": "turbocompress",
-  "version": "1.0.0",
+  "version": "2.1.0",
+  "releaseNotes": "AI Auto Color (Offline), AI Whole-Clip Blur Screener, AI Intro Blur Trim, Single-Flight Import/Export Dialogs, Transform 0° Default, Deliver 1080x1920 8000Kb/s",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
