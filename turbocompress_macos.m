@@ -37,6 +37,12 @@ static void ensure_server_running(void) {
     if (!realpath(exe_path, real_exe)) strncpy(real_exe, exe_path, sizeof(real_exe));
     char *dir = dirname(real_exe);
 
+    char res_dir[2048];
+    snprintf(res_dir, sizeof(res_dir), "%s/../Resources", dir);
+
+    char standalone_bin[2048];
+    snprintf(standalone_bin, sizeof(standalone_bin), "%s/../Resources/zcut_server_dist/zcut_server", dir);
+
     char server_script[2048];
     snprintf(server_script, sizeof(server_script), "%s/../Resources/server.py", dir);
     if (access(server_script, F_OK) != 0) {
@@ -45,6 +51,10 @@ static void ensure_server_running(void) {
 
     pid_t pid = fork();
     if (pid == 0) {
+        if (access(standalone_bin, X_OK) == 0) {
+            chdir(res_dir);
+            execl(standalone_bin, "zcut_server", NULL);
+        }
         char *s_dir = dirname(strdup(server_script));
         chdir(s_dir);
         execl("/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",

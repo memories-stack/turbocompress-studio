@@ -1,7 +1,7 @@
 {
   "name": "turbocompress",
-  "version": "2.1.2",
-  "releaseNotes": "Fix macOS codesign + Universal Binary (arm64+x86_64), Silent Auto-Update (SnapPro style)",
+  "version": "2.1.3",
+  "releaseNotes": "100% Standalone macOS App (Bundled Python + OpenCV/NumPy/Pillow + FFmpeg, zero Xcode CLT needed)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

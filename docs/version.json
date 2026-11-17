@@ -1,7 +1,7 @@
 {
-  "version": "2.1.2",
+  "version": "2.1.3",
   "releaseDate": "2026-11-17",
-  "releaseNotes": "Fix macOS codesign + Universal Binary (arm64+x86_64), Silent Auto-Update (SnapPro style)",
+  "releaseNotes": "100% Standalone macOS App (Bundled Python + OpenCV/NumPy/Pillow + FFmpeg, zero Xcode CLT needed)",
   "dmgUrl": "https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg",
   "updateZipUrl": "https://memories-stack.github.io/turbocompress-studio/zcut-update.zip"
 }

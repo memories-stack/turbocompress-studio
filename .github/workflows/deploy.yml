@@ -48,12 +48,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build ZCut.app & ZCut_PRO_Installer.dmg
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller numpy opencv-python-headless pillow imageio-ffmpeg
+
+      - name: Build Standalone ZCut.app & All-in-One ZCut_PRO_Installer.dmg
         run: |
           VERSION=$(node -p "require('./package.json').version")
           NOTES=$(node -p "require('./package.json').releaseNotes || 'ZCut PRO Release'")
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           echo "APP_NOTES=$NOTES" >> $GITHUB_ENV
+
+          python -m PyInstaller --onedir --noconfirm --clean \
+            --name zcut_server \
+            --hidden-import cv2 --hidden-import numpy --hidden-import PIL \
+            server.py
 
           clang -fobjc-arc -O2 -arch arm64 -arch x86_64 -framework Cocoa -framework WebKit turbocompress_macos.m -o TurboCompressStudio_bin
           chmod +x TurboCompressStudio_bin
@@ -64,6 +79,10 @@ jobs:
           cp server.py build_mac/ZCut.app/Contents/Resources/server.py
           cp -R web/* build_mac/ZCut.app/Contents/Resources/web/
           cp AppIcon.icns build_mac/ZCut.app/Contents/Resources/AppIcon.icns
+          cp -R dist/zcut_server build_mac/ZCut.app/Contents/Resources/zcut_server_dist
+          chmod +x build_mac/ZCut.app/Contents/Resources/zcut_server_dist/zcut_server
+          python -c "import imageio_ffmpeg, shutil; shutil.copy2(imageio_ffmpeg.get_ffmpeg_exe(), 'build_mac/ZCut.app/Contents/Resources/ffmpeg')"
+          chmod +x build_mac/ZCut.app/Contents/Resources/ffmpeg
 
           cat > build_mac/ZCut.app/Contents/Info.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>

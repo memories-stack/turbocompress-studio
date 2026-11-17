@@ -6,7 +6,11 @@ Powers the DaVinci Resolve Cut Page Web App with Apple Silicon Hardware Engine
 
 import os
 import sys
-_LOCAL_PY_DEPS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "py_deps")
+if getattr(sys, "frozen", False):
+    APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(sys.executable)))
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+_LOCAL_PY_DEPS = os.path.join(APP_DIR, "py_deps")
 if os.path.isdir(_LOCAL_PY_DEPS) and _LOCAL_PY_DEPS not in sys.path:
     sys.path.insert(0, _LOCAL_PY_DEPS)
 import re
@@ -25,7 +29,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.2"
+ZCUT_VERSION = "2.1.3"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -101,7 +105,7 @@ def purge_system_and_process_ram(filepath=None):
             pass
 
 PORT = 8765
-WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+WEB_DIR = os.path.join(APP_DIR, "web")
 SETTINGS_PATH = os.path.expanduser("~/.turbocompress_studio_settings.json")
 
 DEFAULT_SETTINGS = {
@@ -214,7 +218,7 @@ def save_app_settings(new_data):
         return False
 
 def get_ffmpeg_bin():
-    local_dir = os.path.dirname(os.path.abspath(__file__))
+    local_dir = APP_DIR
     candidates = [
         os.path.join(local_dir, "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"),
         os.path.join(local_dir, "bin", "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"),
@@ -1056,7 +1060,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.2"
+ZCUT_VERSION = "2.1.3"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -2352,7 +2356,7 @@ def apply_remote_update(zip_url=""):
     if not zip_url:
         return {"success": False, "error": "ไม่พบลิงก์ไฟล์อัปเดต"}
 
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = APP_DIR
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             zip_path = os.path.join(tmpdir, "zcut-update.zip")
@@ -2384,7 +2388,10 @@ def apply_remote_update(zip_url=""):
                     SERVER_INSTANCE.server_close()
             except Exception:
                 pass
-            os.execv(sys.executable, [sys.executable, os.path.abspath(__file__)])
+            if getattr(sys, "frozen", False):
+                os.execv(sys.executable, [sys.executable])
+            else:
+                os.execv(sys.executable, [sys.executable, os.path.abspath(__file__)])
 
         threading.Thread(target=_delayed_exec_restart, daemon=True).start()
         return {"success": True, "restarting": True, "message": "อัปเดตอัตโนมัติเรียบร้อย กำลังรีโหลดโปรแกรม..."}
