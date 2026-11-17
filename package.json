@@ -1,7 +1,7 @@
 {
   "name": "turbocompress",
-  "version": "2.1.1",
-  "releaseNotes": "Silent Auto-Update & Auto-Reload (like SnapPro), AI Auto Color (Offline), AI Blur Screener",
+  "version": "2.1.2",
+  "releaseNotes": "Fix macOS codesign + Universal Binary (arm64+x86_64), Silent Auto-Update (SnapPro style)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

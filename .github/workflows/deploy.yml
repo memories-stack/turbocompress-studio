@@ -55,7 +55,7 @@ jobs:
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           echo "APP_NOTES=$NOTES" >> $GITHUB_ENV
 
-          clang -fobjc-arc -framework Cocoa -framework WebKit turbocompress_macos.m -o TurboCompressStudio_bin
+          clang -fobjc-arc -O2 -arch arm64 -arch x86_64 -framework Cocoa -framework WebKit turbocompress_macos.m -o TurboCompressStudio_bin
           chmod +x TurboCompressStudio_bin
 
           mkdir -p build_mac/ZCut.app/Contents/MacOS
@@ -81,6 +81,8 @@ jobs:
           </dict>
           </plist>
           EOF
+
+          codesign --force --deep --sign - build_mac/ZCut.app
 
           mkdir -p dmg_stage
           cp -R build_mac/ZCut.app dmg_stage/ZCut.app
