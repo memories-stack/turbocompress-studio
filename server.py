@@ -29,7 +29,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.3"
+ZCUT_VERSION = "2.1.4"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -1060,7 +1060,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.3"
+ZCUT_VERSION = "2.1.4"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -1444,7 +1444,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
             target_w = (target_w // 2) * 2
             target_h = (target_h // 2) * 2
 
-    scale_range = ""
+    scale_range = ":in_range=full:out_range=tv" if is_full_range else ""
     if scaling_mode == "crop":
         vf.append(f"scale={target_w}:{target_h}{scale_range}:force_original_aspect_ratio=increase,crop={target_w}:{target_h}")
     elif scaling_mode == "stretch":
@@ -1689,10 +1689,11 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
     if (abs(r_gain - 1.0) > 0.003 or abs(g_gain - 1.0) > 0.003 or abs(b_gain - 1.0) > 0.003):
         vf.append(f"colorchannelmixer=rr={r_gain:.3f}:gg={g_gain:.3f}:bb={b_gain:.3f}")
 
+    tot_gamma = max(0.3, min(2.5, tot_gamma))
     if is_mono:
-        vf.append(f"hue=s=0,eq=contrast={tot_contrast:.3f}")
-    elif (abs(tot_contrast - 1.0) > 0.003 or abs(tot_saturation - 1.0) > 0.003):
-        vf.append(f"eq=contrast={tot_contrast:.3f}:saturation={tot_saturation:.3f}")
+        vf.append(f"hue=s=0,eq=contrast={tot_contrast:.3f}:gamma={tot_gamma:.3f}")
+    elif (abs(tot_contrast - 1.0) > 0.003 or abs(tot_saturation - 1.0) > 0.003 or abs(tot_gamma - 1.0) > 0.003):
+        vf.append(f"eq=contrast={tot_contrast:.3f}:saturation={tot_saturation:.3f}:gamma={tot_gamma:.3f}")
 
     # DaVinci ColorSlice (7-Vector) + Primaries Color Bars (Lift/Gamma/Gain/Offset) + Selective Skin Tone -> 3D LUT (.cube)
     if render_timeline_effects:
@@ -1746,7 +1747,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         elif is_hevc:
             cmd.extend([
                 "-c:v", enc_codec, "-b:v", bitrate,
-                "-pix_fmt", "yuv420p", "-tag:v", "hvc1",
+                "-pix_fmt", "yuv420p", "-color_range", "tv", "-tag:v", "hvc1",
                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"
             ])
             if enc_codec == "libx265":
@@ -1759,7 +1760,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         else:
             cmd.extend([
                 "-c:v", enc_codec, "-b:v", bitrate,
-                "-pix_fmt", "yuv420p",
+                "-pix_fmt", "yuv420p", "-color_range", "tv",
                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"
             ])
             if enc_codec == "h264_videotoolbox":

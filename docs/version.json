@@ -1,7 +1,7 @@
 {
-  "version": "2.1.3",
+  "version": "2.1.4",
   "releaseDate": "2026-11-17",
-  "releaseNotes": "100% Standalone macOS App (Bundled Python + OpenCV/NumPy/Pillow + FFmpeg, zero Xcode CLT needed)",
+  "releaseNotes": "Fix preview vs export color/gamma parity (Full->TV range mapping + eq gamma + color_range tv)",
   "dmgUrl": "https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg",
   "updateZipUrl": "https://memories-stack.github.io/turbocompress-studio/zcut-update.zip"
 }
