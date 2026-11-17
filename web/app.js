@@ -6713,8 +6713,16 @@ function setupAutoTrimBlur() {
 
   async function performAutoUpdate(silent = true) {
     if (isUpdating || !updateInfo || !updateInfo.has_update) return;
-    // Skip auto-update while a batch export is actively rendering
-    if (typeof isExporting !== "undefined" && isExporting) return;
+    // Match SnapPro: never auto-reload over an active export or loaded Media Pool clips
+    const hasActiveClips = Array.isArray(allClips) && allClips.length > 0;
+    const busyExport = typeof isExporting !== "undefined" && isExporting;
+    if (busyExport || (silent && hasActiveClips)) {
+      btn.textContent = `⬇️ อัปเดต v${updateInfo.latest_version}`;
+      if (silent && hasActiveClips) {
+        showToast(`🔔 มีเวอร์ชันใหม่ v${updateInfo.latest_version} — กดปุ่มมุมขวาบนเพื่ออัปเดตเมื่อทำงานเสร็จ`);
+      }
+      return;
+    }
 
     isUpdating = true;
     btn.disabled = true;
@@ -6775,6 +6783,10 @@ function setupAutoTrimBlur() {
     }
   });
 
-  setTimeout(() => checkUpdate(false), 1800);
-  setInterval(() => checkUpdate(false), 30 * 60 * 1000);
+  setTimeout(() => checkUpdate(false), 2500);
+  setInterval(() => {
+    const busyExport = typeof isExporting !== "undefined" && isExporting;
+    const hasActiveClips = Array.isArray(allClips) && allClips.length > 0;
+    if (!busyExport && !hasActiveClips) checkUpdate(false);
+  }, 30 * 60 * 1000);
 })();
