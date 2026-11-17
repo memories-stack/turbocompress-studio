@@ -6704,26 +6704,60 @@ function setupAutoTrimBlur() {
   syncTrimControlForCurrentClip();
 }
 
-// Auto-Update Checker & 1-Click Updater
+// Auto-Update Checker & Silent Auto-Updater (like SnapPro)
 (function setupAutoUpdater() {
   const btn = document.getElementById("btnAppUpdate");
   if (!btn) return;
   let updateInfo = null;
+  let isUpdating = false;
+
+  async function performAutoUpdate(silent = true) {
+    if (isUpdating || !updateInfo || !updateInfo.has_update) return;
+    // Skip auto-update while a batch export is actively rendering
+    if (typeof isExporting !== "undefined" && isExporting) return;
+
+    isUpdating = true;
+    btn.disabled = true;
+    btn.textContent = `⏳ Auto-Updating v${updateInfo.latest_version}...`;
+    showToast(`⬇️ พบเวอร์ชันใหม่ v${updateInfo.latest_version} กำลังอัปเดตอัตโนมัติ...`);
+    try {
+      const res = await fetch("/api/apply-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ update_zip_url: updateInfo.update_zip_url || "" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        btn.textContent = `✅ Updated v${updateInfo.latest_version}`;
+        showToast(`✅ อัปเดตเป็น v${updateInfo.latest_version} สำเร็จ! กำลังรีโหลด...`);
+        setTimeout(() => window.location.reload(), data.restarting ? 1500 : 600);
+      } else {
+        if (!silent) showToast(`❌ อัปเดตไม่สำเร็จ: ${data.error || "Unknown"}`);
+        btn.textContent = `⬇️ อัปเดต v${updateInfo.latest_version}`;
+      }
+    } catch (e) {
+      if (!silent) showToast("❌ อัปเดตไม่สำเร็จ");
+      btn.textContent = `⬇️ อัปเดต v${updateInfo.latest_version}`;
+    } finally {
+      isUpdating = false;
+      btn.disabled = false;
+    }
+  }
 
   async function checkUpdate(manual = false) {
+    if (isUpdating) return;
     if (manual) btn.textContent = "⏳ Checking...";
     try {
       const res = await fetch("/api/check-update");
       const data = await res.json();
       updateInfo = data;
-      const cur = data.current_version || "2.1.0";
+      const cur = data.current_version || "2.1.1";
       if (data.has_update && data.latest_version) {
-        btn.textContent = `⬇️ อัปเดต v${data.latest_version}`;
         btn.style.background = "linear-gradient(135deg, rgba(16,185,129,0.28), rgba(59,130,246,0.28))";
         btn.style.borderColor = "rgba(52,211,153,0.65)";
         btn.style.color = "#ecfdf5";
-        btn.title = `มีเวอร์ชันใหม่ v${data.latest_version}\n${data.release_notes || ""}`;
-        if (manual) showToast(`🔔 พบอัปเดตใหม่ v${data.latest_version}`);
+        btn.title = `กำลังอัปเดตเป็น v${data.latest_version}\n${data.release_notes || ""}`;
+        await performAutoUpdate(!manual);
       } else {
         btn.textContent = `v${cur}`;
         if (manual) showToast(`✅ ZCut PRO v${cur} เป็นเวอร์ชันล่าสุดแล้ว`);
@@ -6734,34 +6768,13 @@ function setupAutoTrimBlur() {
   }
 
   btn.addEventListener("click", async () => {
-    if (!updateInfo || !updateInfo.has_update) {
+    if (updateInfo && updateInfo.has_update) {
+      await performAutoUpdate(false);
+    } else {
       await checkUpdate(true);
-      return;
-    }
-    const ok = confirm(`พบอัปเดตใหม่ ZCut PRO v${updateInfo.latest_version}\n\n${updateInfo.release_notes || ""}\n\nต้องการอัปเดตทันทีเลยไหม?`);
-    if (!ok) return;
-    btn.disabled = true;
-    btn.textContent = "⏳ Updating...";
-    try {
-      const res = await fetch("/api/apply-update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ update_zip_url: updateInfo.update_zip_url || "" })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast("✅ อัปเดตเรียบร้อย! กรุณาปิดและเปิด ZCut PRO ใหม่");
-        btn.textContent = "✅ Restart App";
-      } else {
-        showToast(`❌ อัปเดตไม่สำเร็จ: ${data.error || "Unknown"}`);
-        btn.textContent = `⬇️ อัปเดต v${updateInfo.latest_version}`;
-      }
-    } catch (e) {
-      showToast("❌ อัปเดตไม่สำเร็จ");
-    } finally {
-      btn.disabled = false;
     }
   });
 
   setTimeout(() => checkUpdate(false), 1800);
+  setInterval(() => checkUpdate(false), 30 * 60 * 1000);
 })();

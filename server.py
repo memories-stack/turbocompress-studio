@@ -25,9 +25,10 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.0"
+ZCUT_VERSION = "2.1.1"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
+SERVER_INSTANCE = None
 
 THUMB_CACHE_DIR = os.path.join(tempfile.gettempdir(), "tc_thumbs")
 
@@ -1055,9 +1056,10 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.0"
+ZCUT_VERSION = "2.1.1"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
+SERVER_INSTANCE = None
 import colorsys
 
 _BAKED_LUT_CACHE = {"hash": None, "path": None}
@@ -2375,17 +2377,29 @@ def apply_remote_update(zip_url=""):
                 web_dst = os.path.join(base_dir, "web")
                 shutil.copytree(web_src, web_dst, dirs_exist_ok=True)
 
-        return {"success": True, "restart_required": True, "message": "อัปเดตไฟล์เรียบร้อย กรุณาปิดและเปิดโปรแกรมใหม่"}
+        def _delayed_exec_restart():
+            time.sleep(0.45)
+            try:
+                if SERVER_INSTANCE is not None:
+                    SERVER_INSTANCE.server_close()
+            except Exception:
+                pass
+            os.execv(sys.executable, [sys.executable, os.path.abspath(__file__)])
+
+        threading.Thread(target=_delayed_exec_restart, daemon=True).start()
+        return {"success": True, "restarting": True, "message": "อัปเดตอัตโนมัติเรียบร้อย กำลังรีโหลดโปรแกรม..."}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 
 def main():
+    global SERVER_INSTANCE
     # Media Pool starts fresh and empty for new jobs
     # Settings are saved and loaded from ~/.turbocompress_studio_settings.json
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), StudioHandler)
+    ThreadingHTTPServer.allow_reuse_address = True
+    SERVER_INSTANCE = ThreadingHTTPServer(("127.0.0.1", PORT), StudioHandler)
     print(f"TurboCompress Studio Server running on http://127.0.0.1:{PORT}")
-    server.serve_forever()
+    SERVER_INSTANCE.serve_forever()
 
 if __name__ == "__main__":
     main()
