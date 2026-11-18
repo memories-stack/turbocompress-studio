@@ -54,6 +54,9 @@ try:
 except ImportError:
     fcntl = None
 
+_PICKER_LOCK = threading.Lock()
+_LAST_PICKER_CLOSE_TS = 0.0
+
 def purge_system_and_process_ram(filepath=None):
     """
     Actively clear RAM, purge file from OS unified buffer cache,
@@ -682,18 +685,16 @@ class StudioHandler(SimpleHTTPRequestHandler):
             return
 
         elif url.path == "/api/browse-folder":
-            if not hasattr(StudioHandler, "_browse_folder_lock"):
-                StudioHandler._browse_folder_lock = threading.Lock()
+            global _LAST_PICKER_CLOSE_TS
             now_ts = time.time()
-            last_ts = getattr(StudioHandler, "_last_browse_folder_ts", 0.0)
-            if (now_ts - last_ts < 1.5) or (not StudioHandler._browse_folder_lock.acquire(blocking=False)):
+            if (now_ts - _LAST_PICKER_CLOSE_TS < 2.5) or (not _PICKER_LOCK.acquire(blocking=False)):
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": False, "debounced": True}).encode())
                 return
             try:
-                StudioHandler._last_browse_folder_ts = now_ts
+                _LAST_PICKER_CLOSE_TS = now_ts
 
                 chosen = ""
                 unsupported = sys.platform not in ("darwin", "win32")
@@ -731,14 +732,14 @@ class StudioHandler(SimpleHTTPRequestHandler):
                 added = 0
                 if chosen and os.path.exists(chosen):
                     added = scan_files([chosen])
-                StudioHandler._last_browse_folder_ts = time.time()
+                _LAST_PICKER_CLOSE_TS = time.time()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": bool(chosen), "added": added, "path": chosen, "total": len(STATE["clips"]), "unsupported": unsupported}).encode())
                 return
             finally:
-                StudioHandler._browse_folder_lock.release()
+                _PICKER_LOCK.release()
 
         elif url.path == "/api/browse-files":
             now_ts = time.time()
@@ -835,18 +836,15 @@ class StudioHandler(SimpleHTTPRequestHandler):
         elif url.path == "/api/set-output-folder":
             chosen = data.get("output_dir", "").strip()
             if not chosen:
-                if not hasattr(StudioHandler, "_set_output_lock"):
-                    StudioHandler._set_output_lock = threading.Lock()
                 now_ts = time.time()
-                last_ts = getattr(StudioHandler, "_last_set_output_ts", 0.0)
-                if (now_ts - last_ts < 1.5) or (not StudioHandler._set_output_lock.acquire(blocking=False)):
+                if (now_ts - _LAST_PICKER_CLOSE_TS < 2.5) or (not _PICKER_LOCK.acquire(blocking=False)):
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({"success": False, "debounced": True, "output_dir": STATE.get("output_dir", "")}).encode())
                     return
                 try:
-                    StudioHandler._last_set_output_ts = now_ts
+                    _LAST_PICKER_CLOSE_TS = now_ts
                     cur_loc = STATE.get("output_dir") or get_default_output_dir()
                     if not os.path.exists(cur_loc):
                         cur_loc = get_user_desktop()
@@ -879,9 +877,9 @@ class StudioHandler(SimpleHTTPRequestHandler):
                             chosen = res.stdout.strip()
                         except Exception:
                             pass
-                    StudioHandler._last_set_output_ts = time.time()
+                    _LAST_PICKER_CLOSE_TS = time.time()
                 finally:
-                    StudioHandler._set_output_lock.release()
+                    _PICKER_LOCK.release()
 
             if chosen:
                 os.makedirs(chosen, exist_ok=True)

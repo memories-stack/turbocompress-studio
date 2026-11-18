@@ -3995,7 +3995,8 @@ function setupInspectorListeners() {
   async function triggerImportFolder(e) {
     if (e && typeof e.stopPropagation === "function") e.stopPropagation();
     if (e && typeof e.preventDefault === "function") e.preventDefault();
-    if (isPickingImportFolder || Date.now() - lastImportFolderDoneAt < 1200) return;
+    if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
+    if (isPickingImportFolder || Date.now() - lastImportFolderDoneAt < 2500) return;
     isPickingImportFolder = true;
     try {
       if (window.electronAPI && typeof window.electronAPI.selectFolder === "function") {
@@ -4152,7 +4153,8 @@ function setupInspectorListeners() {
   async function triggerSetOutputFolder(e) {
     if (e && typeof e.stopPropagation === "function") e.stopPropagation();
     if (e && typeof e.preventDefault === "function") e.preventDefault();
-    if (isPickingOutputFolder || Date.now() - lastOutputFolderDoneAt < 1200) return;
+    if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
+    if (isPickingOutputFolder || Date.now() - lastOutputFolderDoneAt < 2500) return;
     isPickingOutputFolder = true;
     try {
       if (window.electronAPI && typeof window.electronAPI.selectOutputDir === "function") {
