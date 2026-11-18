@@ -6773,7 +6773,7 @@ function setupAutoTrimBlur() {
         btn.title = `กำลังอัปเดตเป็น v${data.latest_version}\n${data.release_notes || ""}`;
         await performAutoUpdate(!manual);
       } else {
-        btn.textContent = `v${cur}`;
+        btn.textContent = `☁️ v${cur}`;
         if (manual) showToast(`✅ ZCut PRO v${cur} เป็นเวอร์ชันล่าสุดแล้ว`);
       }
     } catch (err) {
