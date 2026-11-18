@@ -3991,9 +3991,11 @@ function setupInspectorListeners() {
   }
 
   let isPickingImportFolder = false;
+  let lastImportFolderDoneAt = 0;
   async function triggerImportFolder(e) {
     if (e && typeof e.stopPropagation === "function") e.stopPropagation();
-    if (isPickingImportFolder) return;
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
+    if (isPickingImportFolder || Date.now() - lastImportFolderDoneAt < 1200) return;
     isPickingImportFolder = true;
     try {
       if (window.electronAPI && typeof window.electronAPI.selectFolder === "function") {
@@ -4033,6 +4035,7 @@ function setupInspectorListeners() {
       console.error("Folder import picker error:", err);
       showToast("❌ Could not open folder picker");
     } finally {
+      lastImportFolderDoneAt = Date.now();
       isPickingImportFolder = false;
     }
   }

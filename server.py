@@ -682,57 +682,63 @@ class StudioHandler(SimpleHTTPRequestHandler):
             return
 
         elif url.path == "/api/browse-folder":
+            if not hasattr(StudioHandler, "_browse_folder_lock"):
+                StudioHandler._browse_folder_lock = threading.Lock()
             now_ts = time.time()
             last_ts = getattr(StudioHandler, "_last_browse_folder_ts", 0.0)
-            if now_ts - last_ts < 1.0:
+            if (now_ts - last_ts < 1.5) or (not StudioHandler._browse_folder_lock.acquire(blocking=False)):
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": False, "debounced": True}).encode())
                 return
-            StudioHandler._last_browse_folder_ts = now_ts
+            try:
+                StudioHandler._last_browse_folder_ts = now_ts
 
-            chosen = ""
-            unsupported = sys.platform not in ("darwin", "win32")
-            default_dir = get_user_desktop()
-            if sys.platform == "darwin":
-                osa_script = (
-                    'try\n'
-                    f'    set defLoc to POSIX file "{default_dir}"\n'
-                    '    tell application "System Events" to activate\n'
-                    '    set sel to choose folder with prompt "Select Video Folder / เลือกโฟลเดอร์วิดีโอ" default location (defLoc as alias)\n'
-                    '    return POSIX path of sel\n'
-                    'on error\n'
-                    '    return ""\n'
-                    'end try'
-                )
-                try:
-                    res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
-                    chosen = res.stdout.strip()
-                except Exception:
-                    pass
-            elif sys.platform == "win32":
-                ps_script = (
-                    'Add-Type -AssemblyName System.Windows.Forms; '
-                    '$d = New-Object System.Windows.Forms.FolderBrowserDialog; '
-                    '$d.ShowNewFolderButton = $true; '
-                    '$d.Description = "Select Video Folder / เลือกโฟลเดอร์วิดีโอ"; '
-                    'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }'
-                )
-                try:
-                    res = subprocess.run(["powershell.exe", "-NoProfile", "-STA", "-Command", ps_script], capture_output=True, text=True)
-                    chosen = res.stdout.strip()
-                except Exception:
-                    pass
+                chosen = ""
+                unsupported = sys.platform not in ("darwin", "win32")
+                default_dir = get_user_desktop()
+                if sys.platform == "darwin":
+                    osa_script = (
+                        'try\n'
+                        f'    set defLoc to POSIX file "{default_dir}"\n'
+                        '    tell application "System Events" to activate\n'
+                        '    set sel to choose folder with prompt "Select Video Folder / เลือกโฟลเดอร์วิดีโอ" default location (defLoc as alias)\n'
+                        '    return POSIX path of sel\n'
+                        'on error\n'
+                        '    return ""\n'
+                        'end try'
+                    )
+                    try:
+                        res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
+                        chosen = res.stdout.strip()
+                    except Exception:
+                        pass
+                elif sys.platform == "win32":
+                    ps_script = (
+                        'Add-Type -AssemblyName System.Windows.Forms; '
+                        '$d = New-Object System.Windows.Forms.FolderBrowserDialog; '
+                        '$d.ShowNewFolderButton = $true; '
+                        '$d.Description = "Select Video Folder / เลือกโฟลเดอร์วิดีโอ"; '
+                        'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }'
+                    )
+                    try:
+                        res = subprocess.run(["powershell.exe", "-NoProfile", "-STA", "-Command", ps_script], capture_output=True, text=True)
+                        chosen = res.stdout.strip()
+                    except Exception:
+                        pass
 
-            added = 0
-            if chosen and os.path.exists(chosen):
-                added = scan_files([chosen])
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"success": bool(chosen), "added": added, "path": chosen, "total": len(STATE["clips"]), "unsupported": unsupported}).encode())
-            return
+                added = 0
+                if chosen and os.path.exists(chosen):
+                    added = scan_files([chosen])
+                StudioHandler._last_browse_folder_ts = time.time()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": bool(chosen), "added": added, "path": chosen, "total": len(STATE["clips"]), "unsupported": unsupported}).encode())
+                return
+            finally:
+                StudioHandler._browse_folder_lock.release()
 
         elif url.path == "/api/browse-files":
             now_ts = time.time()
