@@ -1,7 +1,7 @@
 {
   "name": "turbocompress",
-  "version": "2.1.6",
-  "releaseNotes": "Fix Export vs Preview BT.709 color matrix & gamma parity",
+  "version": "2.1.7",
+  "releaseNotes": "Calibrate Whole-Clip Blur Screener (240x240 aspect-safe, short-clip fallback, 160/260/400 thresholds)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

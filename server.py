@@ -29,7 +29,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.6"
+ZCUT_VERSION = "2.1.7"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -1079,7 +1079,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.6"
+ZCUT_VERSION = "2.1.7"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -2144,7 +2144,7 @@ def batch_analyze_blurry_intros(paths, max_seconds=5.0, sensitivity="balanced"):
 
 
 def analyze_whole_clip_blur(filepath, sensitivity="balanced"):
-    """Offline AI/CV whole-clip blur screener using FFmpeg + OpenCV Laplacian."""
+    """Offline AI/CV whole-clip blur screener using FFmpeg + OpenCV Laplacian (aspect-preserving 240x240 center)."""
     try:
         import cv2
         import numpy as np
@@ -2158,18 +2158,25 @@ def analyze_whole_clip_blur(filepath, sensitivity="balanced"):
     if ext in [".jpg", ".jpeg", ".png", ".heic", ".webp", ".tiff"]:
         return {"path": filepath, "is_blurry": False, "status": "image"}
 
-    w, h = 320, 180
+    w, h = 240, 240
     frame_bytes = w * h
-    cmd = [
-        FFMPEG_BIN, "-nostdin", "-v", "error",
-        "-i", filepath,
-        "-vf", f"fps=1,scale={w}:{h}:flags=bilinear,format=gray",
-        "-frames:v", "8",
-        "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1",
-    ]
-    try:
+
+    def _extract_frames(use_fps=True):
+        vf_str = f"fps=2,scale={w}:{h}:flags=bilinear:force_original_aspect_ratio=increase,crop={w}:{h},format=gray" if use_fps else f"scale={w}:{h}:flags=bilinear:force_original_aspect_ratio=increase,crop={w}:{h},format=gray"
+        cmd = [
+            FFMPEG_BIN, "-nostdin", "-v", "error",
+            "-i", filepath,
+            "-vf", vf_str,
+            "-frames:v", "10" if use_fps else "3",
+            "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1",
+        ]
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
-        raw = proc.stdout
+        return proc.stdout
+
+    try:
+        raw = _extract_frames(use_fps=True)
+        if len(raw) < frame_bytes:
+            raw = _extract_frames(use_fps=False)
     except Exception as e:
         return {"path": filepath, "is_blurry": False, "error": f"FFmpeg decode error: {e}"}
 
@@ -2188,15 +2195,15 @@ def analyze_whole_clip_blur(filepath, sensitivity="balanced"):
         lap_center = float(cv2.Laplacian(center, cv2.CV_64F).var())
         sharps.append((lap_center * 0.7) + (lap_full * 0.3))
 
-    p75_sharp = float(np.percentile(np.array(sharps, dtype=np.float64), 75))
-    thresh_map = {"gentle": 28.0, "balanced": 48.0, "strict": 75.0}
-    thresh = thresh_map.get(sensitivity, 48.0)
-    is_blurry = p75_sharp < thresh
+    med_sharp = float(np.percentile(np.array(sharps, dtype=np.float64), 50))
+    thresh_map = {"gentle": 160.0, "balanced": 260.0, "strict": 400.0}
+    thresh = thresh_map.get(sensitivity, 260.0)
+    is_blurry = med_sharp < thresh
 
     return {
         "path": filepath,
         "is_blurry": bool(is_blurry),
-        "sharpness": round(p75_sharp, 1),
+        "sharpness": round(med_sharp, 1),
         "threshold": thresh,
         "status": "blurry_clip" if is_blurry else "sharp",
     }
