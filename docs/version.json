@@ -1,7 +1,7 @@
 {
-  "version": "2.1.5",
+  "version": "2.1.6",
   "releaseDate": "2026-11-18",
-  "releaseNotes": "Prevent duplicate Import/Export folder popups & add live FFmpeg out_time_us progress bar",
+  "releaseNotes": "Fix Export vs Preview BT.709 color matrix & gamma parity",
   "dmgUrl": "https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg",
   "updateZipUrl": "https://memories-stack.github.io/turbocompress-studio/zcut-update.zip"
 }

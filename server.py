@@ -29,7 +29,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.5"
+ZCUT_VERSION = "2.1.6"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -1079,7 +1079,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.5"
+ZCUT_VERSION = "2.1.6"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -1519,7 +1519,7 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         tot_contrast = user_contrast * (1.0 + (user_clarity * 0.0035) + (user_dehaze * 0.0030) + (user_whites * 0.0015) - (user_blacks * 0.0015))
         tot_saturation = user_saturation * (1.0 + (user_vibrance * 0.0040) + (user_dehaze * 0.0025))
         tot_brightness = user_brightness + (user_shadows * 0.0030) + (user_highlights * 0.0020) + (user_whites * 0.0025) + (user_blacks * 0.0018) - (user_dehaze * 0.0015)
-        tot_gamma = 1.0 + (user_shadows * 0.0025) - (user_highlights * 0.0020)
+        tot_gamma = 1.0
 
         if user_texture > 5:
             vf.append(f"unsharp=3:3:{min(1.5, user_texture * 0.012):.2f}")
@@ -1722,6 +1722,10 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
         if baked_lut and os.path.exists(baked_lut):
             safe_baked = baked_lut.replace("\\", "/").replace(":", "\\:")
             vf.append(f"lut3d=file='{safe_baked}':interp=tetrahedral")
+
+    # Lock RGB <-> YUV conversion strictly to BT.709 TV range (prevents FFmpeg swscale BT.601 color shift on macOS!)
+    if any(("colorchannelmixer" in f or "lut3d" in f) for f in vf):
+        vf.append("scale=in_color_matrix=bt709:out_color_matrix=bt709:out_range=tv,format=yuv420p")
 
     codec_req = (params.get("codec") or "h264").lower()
     is_prores = "prores" in codec_req

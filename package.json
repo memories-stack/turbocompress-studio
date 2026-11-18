@@ -1,7 +1,7 @@
 {
   "name": "turbocompress",
-  "version": "2.1.5",
-  "releaseNotes": "Prevent duplicate Import/Export folder popups & add live FFmpeg out_time_us progress bar",
+  "version": "2.1.6",
+  "releaseNotes": "Fix Export vs Preview BT.709 color matrix & gamma parity",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
