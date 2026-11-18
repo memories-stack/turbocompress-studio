@@ -29,7 +29,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.4"
+ZCUT_VERSION = "2.1.5"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None
@@ -1081,7 +1081,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-ZCUT_VERSION = "2.1.4"
+ZCUT_VERSION = "2.1.5"
 UPDATE_MANIFEST_URL = "https://memories-stack.github.io/turbocompress-studio/version.json"
 DOWNLOAD_PAGE_URL = "https://memories-stack.github.io/turbocompress-studio/"
 SERVER_INSTANCE = None

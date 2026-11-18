@@ -1,7 +1,7 @@
 {
   "name": "turbocompress",
-  "version": "2.1.4",
-  "releaseNotes": "Fix preview vs export color/gamma parity (Full->TV range mapping + eq gamma + color_range tv)",
+  "version": "2.1.5",
+  "releaseNotes": "Prevent duplicate Import/Export folder popups & add live FFmpeg out_time_us progress bar",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
