@@ -71,9 +71,10 @@ static void ensure_server_running(void) {
     }
 }
 
-@interface StudioAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate>
+@interface StudioAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler>
 @property (strong) NSWindow *window;
 @property (strong) WKWebView *webView;
+@property (assign) BOOL isPickingFolder;
 @end
 
 @implementation StudioAppDelegate
@@ -96,6 +97,7 @@ static void ensure_server_running(void) {
     WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
     WKPreferences *prefs = config.preferences;
     prefs.javaScriptCanOpenWindowsAutomatically = YES;
+    [config.userContentController addScriptMessageHandler:self name:@"zcutNative"];
 
     self.webView = [[WKWebView alloc] initWithFrame:self.window.contentView.bounds configuration:config];
     [self.webView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
@@ -190,6 +192,53 @@ completionHandler:(void (^)(NSArray<NSURL *> * _Nullable))completionHandler {
             completionHandler(nil);
         }
     }];
+}
+
+// Instant Native NSOpenPanel Folder Picker via WKScriptMessageHandler (Zero osascript delay!)
+- (void)userContentController:(WKUserContentController *)userContentController
+      didReceiveScriptMessage:(WKScriptMessage *)message {
+    if (![message.name isEqualToString:@"zcutNative"]) return;
+    if (![message.body isKindOfClass:[NSDictionary class]]) return;
+    NSDictionary *payload = (NSDictionary *)message.body;
+    NSString *action = payload[@"action"];
+    if (![action isEqualToString:@"pickFolder"]) return;
+
+    if (self.isPickingFolder) return;
+    self.isPickingFolder = YES;
+
+    NSString *mode = [payload[@"mode"] isKindOfClass:[NSString class]] ? payload[@"mode"] : @"import";
+    NSString *defaultPath = [payload[@"defaultPath"] isKindOfClass:[NSString class]] ? payload[@"defaultPath"] : @"";
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSOpenPanel *panel = [NSOpenPanel openPanel];
+        [panel setCanChooseFiles:NO];
+        [panel setCanChooseDirectories:YES];
+        [panel setAllowsMultipleSelection:NO];
+        [panel setResolvesAliases:YES];
+        [panel setCanCreateDirectories:[mode isEqualToString:@"export"]];
+        [panel setPrompt:[mode isEqualToString:@"export"] ? @"Select Destination" : @"Import Folder"];
+        [panel setMessage:[mode isEqualToString:@"export"]
+            ? @"Select or Create Destination Folder / เลือกหรือสร้างโฟลเดอร์ปลายทาง"
+            : @"Select Video Folder / เลือกโฟลเดอร์วิดีโอ"];
+
+        if (defaultPath.length > 0 && [[NSFileManager defaultManager] fileExistsAtPath:defaultPath]) {
+            [panel setDirectoryURL:[NSURL fileURLWithPath:defaultPath]];
+        }
+
+        [panel beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
+            self.isPickingFolder = NO;
+            NSString *chosen = @"";
+            if (result == NSModalResponseOK) {
+                NSURL *u = [[panel URLs] firstObject];
+                if (u && [u path]) chosen = [u path];
+            }
+            NSDictionary *resp = @{ @"mode": mode, @"path": chosen ?: @"" };
+            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:resp options:0 error:nil];
+            NSString *jsonStr = jsonData ? [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] : @"{}";
+            NSString *js = [NSString stringWithFormat:@"window.__onZCutNativeFolderPicked && window.__onZCutNativeFolderPicked(%@);", jsonStr];
+            [self.webView evaluateJavaScript:js completionHandler:nil];
+        }];
+    });
 }
 
 @end

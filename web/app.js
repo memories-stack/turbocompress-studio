@@ -3990,6 +3990,34 @@ function setupInspectorListeners() {
     return file.path || "";
   }
 
+  function hasNativeFolderBridge() {
+    return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.zcutNative);
+  }
+
+  function pickNativeFolderBridge(mode, defaultPath = "") {
+    return new Promise((resolve) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          resolve("");
+        }
+      }, 120000);
+      window.__onZCutNativeFolderPicked = (payload) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.__onZCutNativeFolderPicked = null;
+        resolve((payload && payload.path) ? payload.path : "");
+      };
+      window.webkit.messageHandlers.zcutNative.postMessage({
+        action: "pickFolder",
+        mode,
+        defaultPath
+      });
+    });
+  }
+
   let isPickingImportFolder = false;
   let lastImportFolderDoneAt = 0;
   async function triggerImportFolder(e) {
@@ -3999,6 +4027,25 @@ function setupInspectorListeners() {
     if (isPickingImportFolder || Date.now() - lastImportFolderDoneAt < 400) return;
     isPickingImportFolder = true;
     try {
+      if (hasNativeFolderBridge()) {
+        const folderPath = await pickNativeFolderBridge("import");
+        if (folderPath) {
+          showToast(`⏳ Scanning folder: ${folderPath}...`);
+          const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths: [folderPath] })
+          });
+          const data = await res.json();
+          await loadClips();
+          if (topSourceFolder) {
+            topSourceFolder.textContent = `📁 ${folderPath.split(/[\\/]/).filter(Boolean).slice(-2).join(" / ")}`;
+          }
+          showToast(`✅ Successfully imported ${data.added || 0} media clips!`);
+        }
+        return;
+      }
+
       if (window.electronAPI && typeof window.electronAPI.selectFolder === "function") {
         const folderPath = await window.electronAPI.selectFolder();
         if (folderPath) {
@@ -4157,6 +4204,32 @@ function setupInspectorListeners() {
     if (isPickingOutputFolder || Date.now() - lastOutputFolderDoneAt < 400) return;
     isPickingOutputFolder = true;
     try {
+      if (hasNativeFolderBridge()) {
+        const curOut = (document.getElementById("inpOutputPath")?.value || "").trim();
+        const dirPath = await pickNativeFolderBridge("export", curOut);
+        if (dirPath) {
+          const res = await fetch("/api/set-output-folder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ output_dir: dirPath })
+          });
+          const data = await res.json();
+          if (data.output_dir) {
+            const inp = document.getElementById("inpOutputPath");
+            if (inp) inp.value = data.output_dir;
+            const inpPinned = document.getElementById("inpOutputPathPinned");
+            if (inpPinned) inpPinned.value = data.output_dir;
+            const topTxt = document.getElementById("topFolderPathText");
+            if (topTxt && data.output_dir) {
+              topTxt.textContent = "Output: " + data.output_dir.split(/[\\/]/).filter(Boolean).slice(-3).join(" / ");
+            }
+            triggerSaveSettings();
+            showToast(`📁 Output destination set to: ${data.output_dir.split(/[\\/]/).filter(Boolean).slice(-2).join(" / ")}`);
+          }
+        }
+        return;
+      }
+
       if (window.electronAPI && typeof window.electronAPI.selectOutputDir === "function") {
         const dirPath = await window.electronAPI.selectOutputDir();
         if (dirPath) {
