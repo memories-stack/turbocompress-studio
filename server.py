@@ -687,7 +687,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
         elif url.path == "/api/browse-folder":
             global _LAST_PICKER_CLOSE_TS
             now_ts = time.time()
-            if (now_ts - _LAST_PICKER_CLOSE_TS < 2.5) or (not _PICKER_LOCK.acquire(blocking=False)):
+            if (now_ts - _LAST_PICKER_CLOSE_TS < 0.4) or (not _PICKER_LOCK.acquire(blocking=False)):
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -703,9 +703,11 @@ class StudioHandler(SimpleHTTPRequestHandler):
                     osa_script = (
                         'try\n'
                         f'    set defLoc to POSIX file "{default_dir}"\n'
-                        '    tell application "System Events" to activate\n'
-                        '    set sel to choose folder with prompt "Select Video Folder / เลือกโฟลเดอร์วิดีโอ" default location (defLoc as alias)\n'
-                        '    return POSIX path of sel\n'
+                        '    tell current application\n'
+                        '        activate\n'
+                        '        set sel to choose folder with prompt "Select Video Folder / เลือกโฟลเดอร์วิดีโอ" default location (defLoc as alias)\n'
+                        '        return POSIX path of sel\n'
+                        '    end tell\n'
                         'on error\n'
                         '    return ""\n'
                         'end try'
@@ -837,7 +839,7 @@ class StudioHandler(SimpleHTTPRequestHandler):
             chosen = data.get("output_dir", "").strip()
             if not chosen:
                 now_ts = time.time()
-                if (now_ts - _LAST_PICKER_CLOSE_TS < 2.5) or (not _PICKER_LOCK.acquire(blocking=False)):
+                if (now_ts - _LAST_PICKER_CLOSE_TS < 0.4) or (not _PICKER_LOCK.acquire(blocking=False)):
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
