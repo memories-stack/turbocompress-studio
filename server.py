@@ -835,38 +835,53 @@ class StudioHandler(SimpleHTTPRequestHandler):
         elif url.path == "/api/set-output-folder":
             chosen = data.get("output_dir", "").strip()
             if not chosen:
-                cur_loc = STATE.get("output_dir") or get_default_output_dir()
-                if not os.path.exists(cur_loc):
-                    cur_loc = get_user_desktop()
-                if sys.platform == "darwin":
-                    osa_script = (
-                        'try\n'
-                        f'    set defLoc to POSIX file "{cur_loc}"\n'
-                        '    tell application "System Events" to activate\n'
-                        '    set sel to choose folder with prompt "Select or Create Destination Folder / เลือกหรือสร้างโฟลเดอร์ปลายทาง" default location (defLoc as alias)\n'
-                        '    return POSIX path of sel\n'
-                        'on error\n'
-                        '    return ""\n'
-                        'end try'
-                    )
-                    try:
-                        res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
-                        chosen = res.stdout.strip()
-                    except Exception:
-                        pass
-                elif sys.platform == "win32":
-                    ps_script = (
-                        'Add-Type -AssemblyName System.Windows.Forms; '
-                        '$d = New-Object System.Windows.Forms.FolderBrowserDialog; '
-                        '$d.ShowNewFolderButton = $true; '
-                        '$d.Description = "Select or Create Destination Folder"; '
-                        'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }'
-                    )
-                    try:
-                        res = subprocess.run(["powershell.exe", "-NoProfile", "-STA", "-Command", ps_script], capture_output=True, text=True)
-                        chosen = res.stdout.strip()
-                    except Exception:
-                        pass
+                if not hasattr(StudioHandler, "_set_output_lock"):
+                    StudioHandler._set_output_lock = threading.Lock()
+                now_ts = time.time()
+                last_ts = getattr(StudioHandler, "_last_set_output_ts", 0.0)
+                if (now_ts - last_ts < 1.5) or (not StudioHandler._set_output_lock.acquire(blocking=False)):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": False, "debounced": True, "output_dir": STATE.get("output_dir", "")}).encode())
+                    return
+                try:
+                    StudioHandler._last_set_output_ts = now_ts
+                    cur_loc = STATE.get("output_dir") or get_default_output_dir()
+                    if not os.path.exists(cur_loc):
+                        cur_loc = get_user_desktop()
+                    if sys.platform == "darwin":
+                        osa_script = (
+                            'try\n'
+                            f'    set defLoc to POSIX file "{cur_loc}"\n'
+                            '    tell application "System Events" to activate\n'
+                            '    set sel to choose folder with prompt "Select or Create Destination Folder / เลือกหรือสร้างโฟลเดอร์ปลายทาง" default location (defLoc as alias)\n'
+                            '    return POSIX path of sel\n'
+                            'on error\n'
+                            '    return ""\n'
+                            'end try'
+                        )
+                        try:
+                            res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True)
+                            chosen = res.stdout.strip()
+                        except Exception:
+                            pass
+                    elif sys.platform == "win32":
+                        ps_script = (
+                            'Add-Type -AssemblyName System.Windows.Forms; '
+                            '$d = New-Object System.Windows.Forms.FolderBrowserDialog; '
+                            '$d.ShowNewFolderButton = $true; '
+                            '$d.Description = "Select or Create Destination Folder"; '
+                            'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }'
+                        )
+                        try:
+                            res = subprocess.run(["powershell.exe", "-NoProfile", "-STA", "-Command", ps_script], capture_output=True, text=True)
+                            chosen = res.stdout.strip()
+                        except Exception:
+                            pass
+                    StudioHandler._last_set_output_ts = time.time()
+                finally:
+                    StudioHandler._set_output_lock.release()
 
             if chosen:
                 os.makedirs(chosen, exist_ok=True)
@@ -1840,6 +1855,19 @@ def process_single_clip(clip_info, params, vf_base, codec, bitrate, total, start
                     if k == "speed":
                         v_clean = v.strip()
                         p["speed"] = v_clean if v_clean.endswith("x") else f"{v_clean}x"
+                    elif k == "out_time_us" and total > 0:
+                        try:
+                            cur_sec = float(v.strip()) / 1_000_000.0
+                            clip_dur = float(clip_info.get("duration") or 0)
+                            if clip_dur > 0.1:
+                                clip_frac = min(0.98, max(0.0, cur_sec / clip_dur))
+                                with proc_lock:
+                                    done_count = len(p["completed_paths"])
+                                    live_pct = ((done_count + clip_frac) / total) * 100.0
+                                    if live_pct > p["percent"]:
+                                        p["percent"] = min(99.5, live_pct)
+                        except Exception:
+                            pass
             proc.wait()
             remove_active_proc(proc)
             return proc.returncode

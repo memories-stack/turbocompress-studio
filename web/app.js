@@ -4148,9 +4148,11 @@ function setupInspectorListeners() {
 
   // Set Output / Destination Folder (Browse or Create New Folder via Dialog)
   let isPickingOutputFolder = false;
+  let lastOutputFolderDoneAt = 0;
   async function triggerSetOutputFolder(e) {
     if (e && typeof e.stopPropagation === "function") e.stopPropagation();
-    if (isPickingOutputFolder) return;
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
+    if (isPickingOutputFolder || Date.now() - lastOutputFolderDoneAt < 1200) return;
     isPickingOutputFolder = true;
     try {
       if (window.electronAPI && typeof window.electronAPI.selectOutputDir === "function") {
@@ -4196,6 +4198,7 @@ function setupInspectorListeners() {
     } catch (err) {
       console.error(err);
     } finally {
+      lastOutputFolderDoneAt = Date.now();
       isPickingOutputFolder = false;
     }
   }
