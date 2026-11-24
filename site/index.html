@@ -1,90 +1,1071 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ZCut PRO — Fast Batch Vertical Studio (Download)</title>
+  <title>ZCut PRO — Fast Batch Vertical Studio for macOS (VideoToolbox, AI Auto Color &amp; Intro Trim)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      --bg: #09090b;
+      --surface: #121215;
+      --surface-2: #18181c;
+      --surface-3: #222228;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --dim: #71717a;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.28);
+      --emerald: #10b981;
+      --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
-      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #122136 0%, #090d14 60%);
-      color: #e5e7eb; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+      min-height: 100vh;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: "Inter", "Noto Sans Thai", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
-    .card {
-      max-width: 720px; width: 100%; background: rgba(17, 24, 39, 0.86);
-      border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 32px;
-      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59, 130, 246, 0.14), transparent 62%),
+        radial-gradient(ellipse 50% 35% at 85% 20%, rgba(16, 185, 129, 0.05), transparent 60%),
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 55%, rgba(0,0,0,0) 100%);
     }
-    .badge {
-      display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
-      background: rgba(16,185,129,0.16); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.4);
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
     }
-    h1 { margin: 12px 0 8px; font-size: 30px; letter-spacing: -0.02em; }
-    .sub { color: #9ca3af; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }
-    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+
+    /* Navbar */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(9, 9, 11, 0.78);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #27272a, #18181b);
+      border: 1px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #60a5fa;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    }
+    .brand-name {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .brand-tag {
+      font-size: 11px;
+      font-family: "JetBrains Mono", monospace;
+      color: var(--muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .nav-links a {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 15px;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #fff !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      box-shadow: 0 4px 18px var(--accent-glow);
+      transition: filter 0.15s, transform 0.15s;
+    }
+    .nav-cta:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+    /* Hero */
+    .hero {
+      padding: 68px 0 44px;
+      text-align: center;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(24, 24, 28, 0.9);
+      border: 1px solid var(--border-strong);
+      font-size: 12px;
+      font-weight: 600;
+      color: #e4e4e7;
+      margin-bottom: 22px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald);
+    }
+    h1 {
+      font-size: clamp(36px, 5.4vw, 60px);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.08;
+      margin: 0 auto 18px;
+      max-width: 880px;
+      background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      max-width: 680px;
+      margin: 0 auto 32px;
+      font-size: clamp(15px, 1.7vw, 17.5px);
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
     .btn-primary {
-      background: linear-gradient(135deg, #10b981, #2563eb); color: #fff; text-decoration: none;
-      padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 26px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 15.5px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.36), inset 0 1px 0 rgba(255,255,255,0.22);
+      transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
     }
-    .btn-secondary {
-      background: rgba(255,255,255,0.06); color: #e5e7eb; text-decoration: none;
-      padding: 12px 18px; border-radius: 10px; font-weight: 500; font-size: 14px; border: 1px solid rgba(255,255,255,0.12);
+    .btn-primary:hover {
+      transform: translateY(-1.5px);
+      filter: brightness(1.08);
+      box-shadow: 0 14px 36px rgba(59, 130, 246, 0.45), inset 0 1px 0 rgba(255,255,255,0.28);
     }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
-    .feat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; font-size: 13px; }
-    .feat b { display: block; margin-bottom: 4px; color: #f9fafb; }
-    .steps { background: rgba(0,0,0,0.28); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 20px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      font-size: 14.5px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-ghost:hover { background: var(--surface-3); border-color: rgba(255,255,255,0.28); }
+    .sub-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      font-size: 12.5px;
+      color: var(--dim);
+    }
+
+    /* Interactive Studio Showcase Window */
+    .showcase-wrap {
+      margin: 40px auto 56px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+      padding: 1px;
+      box-shadow: 0 36px 96px rgba(0, 0, 0, 0.78), 0 0 80px rgba(59, 130, 246, 0.08);
+    }
+    .studio-win {
+      background: #111113;
+      border-radius: 17px;
+      overflow: hidden;
+    }
+    .win-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #161619;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .traffic { display: flex; align-items: center; gap: 7px; }
+    .traffic span { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+    .t-red { background: #ef4444; opacity: 0.85; }
+    .t-yel { background: #f59e0b; opacity: 0.85; }
+    .t-grn { background: #22c55e; opacity: 0.85; }
+    .win-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #0d0d0f;
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .win-tab {
+      appearance: none;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 12.2px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .win-tab:hover { color: var(--text); }
+    .win-tab.active {
+      background: #222228;
+      color: #ffffff;
+      border-color: rgba(228, 228, 231, 0.25);
+    }
+    .win-meta {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .win-body { padding: 20px; min-height: 320px; }
+    .pane { display: none; }
+    .pane.active { display: grid; grid-template-columns: 1.35fr 0.95fr; gap: 18px; align-items: stretch; }
+    .stage-box {
+      background: #0c0c0e;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .stage-visual {
+      height: 196px;
+      border-radius: 9px;
+      background:
+        radial-gradient(circle at 68% 32%, rgba(16, 185, 129, 0.18), transparent 46%),
+        radial-gradient(circle at 30% 65%, rgba(59, 130, 246, 0.2), transparent 55%),
+        linear-gradient(135deg, #1d1f27 0%, #131318 55%, #191a22 100%);
+      border: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .vertical-frame {
+      width: 92px;
+      height: 164px;
+      border: 1.5px solid #3b82f6;
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.08);
+      box-shadow: 0 0 28px rgba(59, 130, 246, 0.25);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 6px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9.5px;
+      color: #93c5fd;
+    }
+    .timeline-bar {
+      width: 86%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .tl-track {
+      height: 36px;
+      border-radius: 8px;
+      background: #141419;
+      border: 1px solid var(--border);
+      display: flex;
+      overflow: hidden;
+    }
+    .tl-blur {
+      width: 24%;
+      background: repeating-linear-gradient(45deg, rgba(239,68,68,0.22), rgba(239,68,68,0.22) 6px, rgba(239,68,68,0.08) 6px, rgba(239,68,68,0.08) 12px);
+      border-right: 1.5px solid #ef4444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      color: #fca5a5;
+    }
+    .tl-sharp {
+      flex: 1;
+      background: linear-gradient(90deg, rgba(16,185,129,0.22), rgba(59,130,246,0.22));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10.5px;
+      color: #6ee7b7;
+    }
+    .exif-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #141418;
+      border: 1px solid var(--border);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      color: #d4d4d8;
+      flex-wrap: wrap;
+    }
+    .panel-box {
+      background: #151519;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: #e4e4e7;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .chip-ok {
+      font-size: 10.5px;
+      font-family: "JetBrains Mono", monospace;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 5px; }
+    .slider-lbl { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+    .slider-lbl span:last-child { font-family: "JetBrains Mono", monospace; color: #e4e4e7; }
+    .slider-track { height: 4px; border-radius: 999px; background: #27272e; position: relative; overflow: hidden; }
+    .slider-fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999px; background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+    .tag {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      color: #d4d4d8;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* Metrics Strip */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin: 0 0 64px;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 18px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .metric-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+    .metric-val {
+      font-family: "JetBrains Mono", monospace;
+      font-size: clamp(20px, 2.3vw, 28px);
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+    }
+    .metric-label { font-size: 13px; color: var(--muted); }
+
+    /* Section Headers */
+    .sec-head { margin-bottom: 26px; }
+    .sec-kicker {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #60a5fa;
+      margin-bottom: 8px;
+    }
+    .sec-title {
+      font-size: clamp(24px, 3vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    .sec-desc { font-size: 15px; color: var(--muted); max-width: 640px; }
+
+    /* Media / Tutorial & Manual Grid */
+    .media-grid {
+      display: grid;
+      grid-template-columns: 1.35fr 0.65fr;
+      gap: 18px;
+      margin-bottom: 68px;
+      align-items: stretch;
+    }
+    .media-card {
+      background: linear-gradient(180deg, #16161a 0%, #111114 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .media-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .media-head a {
+      font-size: 12px;
+      font-weight: 600;
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    .media-head a:hover { text-decoration: underline; }
+    .media-card video {
+      width: 100%;
+      border-radius: 11px;
+      background: #000;
+      display: block;
+      border: 1px solid var(--border);
+    }
+    .manual-thumb {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      display: block;
+      object-fit: cover;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .manual-thumb:hover { transform: scale(1.01); border-color: var(--border-strong); }
+
+    /* Bento Grid */
+    .bento {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 16px;
+      margin-bottom: 68px;
+    }
+    .bento-card {
+      background: linear-gradient(180deg, #16161a 0%, #111114 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .bento-card:hover { border-color: rgba(255, 255, 255, 0.18); transform: translateY(-2px); }
+    .span-3 { grid-column: span 3; }
+    .span-2 { grid-column: span 2; }
+    .icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #1f1f26;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e4e4e7;
+    }
+    .bento-card h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.015em; color: #ffffff; }
+    .bento-card p { font-size: 13.8px; color: var(--muted); line-height: 1.65; }
+
+    /* Download & Guide Section */
+    .dl-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+      margin-bottom: 64px;
+    }
+    .dl-card {
+      background: linear-gradient(180deg, #17171c 0%, #121215 100%);
+      border: 1px solid var(--border-strong);
+      border-radius: 18px;
+      padding: 28px;
+    }
+    .dl-card h3 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .dl-card > p { font-size: 13.8px; color: var(--muted); margin-bottom: 20px; }
+    .dl-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .dl-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #1c1c22;
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .dl-item:hover { background: #25252d; border-color: rgba(255,255,255,0.22); }
+    .dl-item span:last-child { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--dim); }
+    .guide-card {
+      background: #141418;
+      border: 1px solid rgba(245, 158, 11, 0.24);
+      border-radius: 18px;
+      padding: 26px;
+    }
+    .guide-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fcd34d;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .steps { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .steps li { display: flex; gap: 12px; font-size: 13.2px; color: #d4d4d8; align-items: flex-start; }
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fcd34d;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    code {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11.5px;
+      background: #1e1e24;
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 5px;
+      color: #e4e4e7;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12.5px;
+      color: var(--dim);
+    }
+
+    @media (max-width: 900px) {
+      .pane.active, .media-grid, .dl-grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .span-3, .span-2 { grid-column: span 6; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 560px) {
+      .dl-list { grid-template-columns: 1fr; }
+      .hero { padding-top: 44px; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <span class="badge" id="verBadge">ZCut PRO v2.1.0 • macOS Apple Silicon (All-in-One)</span>
-    <h1>ZCut PRO — Fast Batch Vertical Studio</h1>
-    <p class="sub">สตูดิโอตัดต่อ ปรับสี AI และเรนเดอร์วิดีโอแนวตั้ง 9:16 แบบชุดใหญ่ความเร็วสูงด้วย Apple VideoToolbox (ออฟไลน์ 100% + ฝัง FFmpeg ในตัว)</p>
+  <div class="ambient-bg"></div>
 
-    <div class="actions">
-      <a class="btn-primary" id="btnDownloadDmg" href="https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg">⬇️ ดาวน์โหลด ZCut_PRO_Installer.dmg (macOS)</a>
-      <a class="btn-secondary" href="https://github.com/memories-stack/turbocompress-studio/releases">ดู Releases ทั้งหมด</a>
-      <a class="btn-secondary" style="border-color:rgba(16,185,129,0.45);color:#6ee7b7;" href="./ZCut_PRO_Workflow_A4.png" target="_blank">📋 คู่มือทำงาน 5 ขั้นตอน (A4)</a>
-      <a class="btn-secondary" href="./ZCut_PRO_Workflow_A4.pdf" target="_blank">📄 คู่มือ PDF</a>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="#">
+        <div class="brand-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
+        </div>
+        <span class="brand-name">ZCut PRO</span>
+        <span class="brand-tag" id="nav-ver">v2.1.7</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#workflow">เวิร์กโฟลว์</a>
+        <a href="#tutorial">วิดีโอสอน</a>
+        <a href="#features">ความสามารถ</a>
+        <a href="#download">ดาวน์โหลด</a>
+        <a class="nav-cta" id="nav-dmg" href="https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg">ดาวน์โหลด macOS</a>
+      </nav>
     </div>
+  </header>
 
-    <div style="margin-bottom: 22px; background: rgba(0,0,0,0.32); border: 1px solid rgba(16,185,129,0.35); border-radius: 14px; padding: 14px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px;">
-        <b style="font-size: 15px; color: #6ee7b7;">🎬 วิดีโอสอนการใช้งาน ZCut PRO (ทีละขั้นตอน)</b>
-        <a href="./Zcut_Tutorial.mp4" download style="font-size: 12px; color: #93c5fd; text-decoration: none;">⬇️ ดาวน์โหลดวิดีโอ (.mp4)</a>
+  <main class="wrap">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        <span id="verBadge">ZCut PRO v2.1.7 • macOS Apple Silicon &amp; Intel (All-in-One)</span>
       </div>
-      <video controls playsinline preload="metadata" poster="./Zcut-Cover.jpg" style="width: 100%; border-radius: 10px; display: block; background: #000; outline: none;">
-        <source src="./Zcut_Tutorial.mp4" type="video/mp4" />
-        เบราว์เซอร์ของคุณไม่รองรับการเล่นวิดีโอ HTML5 สามารถ <a href="./Zcut_Tutorial.mp4">ดาวน์โหลดวิดีโอที่นี่</a>
-      </video>
-    </div>
+      <h1>สตูดิโอตัดต่อ ปรับสี AI และเรนเดอร์วิดีโอแนวตั้ง 9:16 ชุดใหญ่</h1>
+      <p class="hero-sub">
+        ออกแบบมาเพื่อสายวิดีโอ Reels, TikTok และงานอีเวนต์จำนวนมาก — ตัดช่วงเบลอต้นคลิปอัตโนมัติ,
+        ปรับสี AI แบบไม่กระพริบเฟรม และเรนเดอร์ชุดใหญ่ความเร็วสูงด้วย Apple VideoToolbox พร้อม FFmpeg ฝังในตัว ออฟไลน์ 100%
+      </p>
+      <div class="hero-actions">
+        <a id="btnDownloadDmg" class="btn-primary" href="https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ดาวน์โหลด ZCut_PRO_Installer.dmg (macOS)
+        </a>
+        <a class="btn-ghost" href="#tutorial">
+          ดูวิดีโอสอน &amp; คู่มือ 5 ขั้นตอน
+        </a>
+      </div>
+      <div class="sub-links">
+        <span>Apple VideoToolbox Hardware Encode</span>
+        <span>•</span>
+        <span>ฝัง FFmpeg &amp; Python Runtime ในตัว</span>
+        <span>•</span>
+        <span>อัปเดตอัตโนมัติในแอป (OTA)</span>
+      </div>
+    </section>
 
-    <div class="grid">
-      <div class="feat"><b>✨ Auto Color (Offline)</b>วิเคราะห์แสงและสีด้วย OpenCV/NumPy แล้วปรับสไลเดอร์ให้อัตโนมัติ ไม่กระพริบระหว่างเฟรม</div>
-      <div class="feat"><b>🎯 AI Blur &amp; Intro Trim</b>ตัดช่วงเบลอต้นคลิปและคัดกรองคลิปที่เบลอทั้งคลิปออกจากงานอัตโนมัติ</div>
-      <div class="feat"><b>⚡ VideoToolbox Batch</b>เรนเดอร์แนวตั้ง 1080×1920 (8000 Kb/s) แบบ Multi-Worker ความเร็วสูงสุด</div>
-      <div class="feat"><b>🔄 In-App Auto Update</b>เช็กและอัปเดตเวอร์ชันใหม่ได้ทันทีจากปุ่มมุมขวาบนของโปรแกรม</div>
-    </div>
+    <!-- Interactive Studio Window Showcase -->
+    <section id="workflow" class="showcase-wrap" aria-label="ZCut PRO Interactive Preview">
+      <div class="studio-win">
+        <div class="win-bar">
+          <div class="traffic">
+            <span class="t-red"></span>
+            <span class="t-yel"></span>
+            <span class="t-grn"></span>
+          </div>
+          <div class="win-tabs" role="tablist">
+            <button class="win-tab active" data-tab="trim" role="tab">1. AI Blur &amp; Intro Trim</button>
+            <button class="win-tab" data-tab="color" role="tab">2. Auto Color Studio</button>
+            <button class="win-tab" data-tab="frame" role="tab">3. 9:16 Vertical Framing</button>
+            <button class="win-tab" data-tab="batch" role="tab">4. VideoToolbox Batch</button>
+          </div>
+          <div class="win-meta">
+            <span>VideoToolbox HW</span>
+            <span>•</span>
+            <span>100% Offline</span>
+          </div>
+        </div>
 
-    <div class="steps" style="margin-bottom: 18px;">
-      <b>วิธีติดตั้ง:</b><br>
-      1. ดาวน์โหลดและดับเบิลคลิก <code>ZCut_PRO_Installer.dmg</code><br>
-      2. ลาก <code>ZCut.app</code> ไปวางในโฟลเดอร์ <code>Applications</code><br>
-      3. เปิดครั้งแรก: คลิกขวาที่ <code>ZCut.app</code> → เลือก <b>Open (เปิด)</b> → ยืนยัน Open<br>
-      <span style="color:#94a3b8;font-size:12px;">(หาก macOS แจ้งเตือน "damaged and can't be opened" ให้เปิด Terminal แล้วรัน: <code>xattr -cr /Applications/ZCut.app</code>)</span>
-    </div>
+        <div class="win-body">
+          <!-- Tab 1 -->
+          <div class="pane active" id="pane-trim">
+            <div class="stage-box">
+              <div class="stage-visual">
+                <div class="timeline-bar">
+                  <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace;">
+                    <span>CLIP_0412.MOV</span>
+                    <span style="color:#10b981;">TRIMMED 00:00.85 → SHARP</span>
+                  </div>
+                  <div class="tl-track">
+                    <div class="tl-blur">BLUR INTRO</div>
+                    <div class="tl-sharp">SHARP ACTION SEGMENT · KEEP</div>
+                  </div>
+                </div>
+              </div>
+              <div class="exif-strip">
+                <span>AI Intro Blur Trim · คัดคลิปเบลอทั้งคลิปออกอัตโนมัติ</span>
+                <span>OpenCV Sharpness Pass</span>
+              </div>
+            </div>
+            <div class="panel-box">
+              <div class="panel-head">
+                <span>AI Blur Guard</span>
+                <span class="chip-ok">AUTO TRIM</span>
+              </div>
+              <div class="slider-row">
+                <div class="slider-lbl"><span>Intro Blur Cut</span><span>0.85 sec</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:74%"></div></div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-lbl"><span>Frame Sharpness Score</span><span>96.2 / 100</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:96%"></div></div>
+              </div>
+              <div class="tag-row">
+                <span class="tag">Auto Skip Blurry Clips</span>
+                <span class="tag">Zero Manual Scrub</span>
+              </div>
+            </div>
+          </div>
 
-    <a href="./ZCut_PRO_Workflow_A4.png" target="_blank" style="display:block;text-decoration:none;">
-      <img src="./ZCut_PRO_Workflow_A4.png" alt="ZCut PRO 5-Step Workflow Manual A4" style="width:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.12);display:block;" />
-    </a>
-  </div>
+          <!-- Tab 2 -->
+          <div class="pane" id="pane-color">
+            <div class="stage-box">
+              <div class="stage-visual" style="flex-direction:column; gap:10px; padding:16px;">
+                <svg viewBox="0 0 320 92" width="100%" height="92" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="zg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#10b981" stop-opacity="0.4"/>
+                      <stop offset="100%" stop-color="#10b981" stop-opacity="0.02"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M0 88 Q50 80 90 54 T175 30 T250 42 T320 68 L320 92 L0 92 Z" fill="url(#zg)"/>
+                  <path d="M0 88 Q50 80 90 54 T175 30 T250 42 T320 68" fill="none" stroke="#10b981" stroke-width="2"/>
+                </svg>
+                <div style="font-size:11.5px; color:#a1a1aa; font-family:'JetBrains Mono',monospace;">
+                  OpenCV / NumPy Auto Color · Flicker-Free Temporal Lock
+                </div>
+              </div>
+              <div class="exif-strip">
+                <span>วิเคราะห์แสง-สีอัตโนมัติรายคลิป ไม่กระพริบระหว่างเฟรม</span>
+                <span>LUT &amp; Tone Sliders</span>
+              </div>
+            </div>
+            <div class="panel-box">
+              <div class="panel-head">
+                <span>Auto Color Engine</span>
+                <span class="chip-ok">FLICKER-FREE</span>
+              </div>
+              <div class="slider-row">
+                <div class="slider-lbl"><span>Exposure Balance</span><span>+0.24 EV</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:60%"></div></div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-lbl"><span>Contrast &amp; Vibrance</span><span>+18</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:68%"></div></div>
+              </div>
+              <div class="tag-row">
+                <span class="tag">Skin-Tone Safe</span>
+                <span class="tag">Offline OpenCV</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3 -->
+          <div class="pane" id="pane-frame">
+            <div class="stage-box">
+              <div class="stage-visual">
+                <div class="vertical-frame">
+                  <span>9:16 PRO</span>
+                  <span style="font-size:11px; font-weight:700; color:#fff;">1080×1920</span>
+                  <span>SAFE ZONE</span>
+                </div>
+              </div>
+              <div class="exif-strip">
+                <span>จัดเฟรมแนวตั้ง 9:16 พร้อม Safe Zone สำหรับ Reels &amp; TikTok</span>
+                <span>Watermark / Overlay</span>
+              </div>
+            </div>
+            <div class="panel-box">
+              <div class="panel-head">
+                <span>Vertical Framing</span>
+                <span class="chip-ok">9:16 READY</span>
+              </div>
+              <div class="slider-row">
+                <div class="slider-lbl"><span>Output Resolution</span><span>1080 × 1920</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:100%"></div></div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-lbl"><span>Target Bitrate</span><span>8,000 Kb/s</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:84%"></div></div>
+              </div>
+              <div class="tag-row">
+                <span class="tag">H.264 / HEVC</span>
+                <span class="tag">Social Safe Margins</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 4 -->
+          <div class="pane" id="pane-batch">
+            <div class="stage-box">
+              <div style="display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                  <div>
+                    <div style="font-size:12px; color:var(--muted);">Apple VideoToolbox Multi-Worker Queue</div>
+                    <div style="font-size:26px; font-weight:800; font-family:'JetBrains Mono',monospace;">120 / 120 Clips</div>
+                  </div>
+                  <span class="chip-ok">HARDWARE ACCEL</span>
+                </div>
+                <div class="slider-track" style="height:8px;"><div class="slider-fill" style="width:100%; background:linear-gradient(90deg,#3b82f6,#10b981);"></div></div>
+              </div>
+              <div class="exif-strip">
+                <span>เรนเดอร์หลายคลิปพร้อมกันด้วย Apple Silicon Media Engine</span>
+                <span>ฝัง FFmpeg ในตัว</span>
+              </div>
+            </div>
+            <div class="panel-box">
+              <div class="panel-head">
+                <span>Batch Renderer</span>
+                <span class="chip-ok">MULTI-WORKER</span>
+              </div>
+              <div class="slider-row">
+                <div class="slider-lbl"><span>Encoder</span><span>h264_videotoolbox</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:94%"></div></div>
+              </div>
+              <div class="tag-row">
+                <span class="tag">Zero Setup</span>
+                <span class="tag">All-in-One .DMG</span>
+                <span class="tag">100% Offline</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Metrics -->
+    <section class="metrics" aria-label="ZCut PRO Highlights">
+      <div class="metric-card">
+        <div class="metric-val">9:16</div>
+        <div class="metric-label">เรนเดอร์แนวตั้ง 1080×1920 พร้อมลงโซเชียล</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">8,000 Kb/s</div>
+        <div class="metric-label">ความคมชัดระดับโปรด้วย VideoToolbox</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">All-in-One</div>
+        <div class="metric-label">ฝัง FFmpeg &amp; AI Engine ครบจบใน .DMG เดียว</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">100%</div>
+        <div class="metric-label">ประมวลผลออฟไลน์บนเครื่อง Mac ของคุณ</div>
+      </div>
+    </section>
+
+    <!-- Tutorial Video & A4 Manual -->
+    <section id="tutorial">
+      <div class="sec-head">
+        <div class="sec-kicker">Quickstart &amp; Manual</div>
+        <h2 class="sec-title">วิดีโอสอนใช้งาน &amp; คู่มือ 5 ขั้นตอน</h2>
+        <p class="sec-desc">ดูขั้นตอนการทำงานตั้งแต่โยนคลิปเข้าโปรแกรม ปรับสี AI จนถึงเรนเดอร์ส่งงานชุดใหญ่</p>
+      </div>
+      <div class="media-grid">
+        <div class="media-card">
+          <div class="media-head">
+            <span>วิดีโอสอนการใช้งาน ZCut PRO (ทีละขั้นตอน)</span>
+            <a href="./Zcut_Tutorial.mp4" download>ดาวน์โหลดวิดีโอ (.mp4)</a>
+          </div>
+          <video controls playsinline preload="metadata" poster="./Zcut-Cover.jpg">
+            <source src="./Zcut_Tutorial.mp4" type="video/mp4" />
+            เบราว์เซอร์ของคุณไม่รองรับการเล่นวิดีโอ HTML5
+          </video>
+        </div>
+        <div class="media-card">
+          <div class="media-head">
+            <span>คู่มือทำงาน 5 ขั้นตอน (A4)</span>
+            <a href="./ZCut_PRO_Workflow_A4.pdf" target="_blank">เปิด PDF</a>
+          </div>
+          <a href="./ZCut_PRO_Workflow_A4.png" target="_blank">
+            <img class="manual-thumb" src="./ZCut_PRO_Workflow_A4.png" alt="ZCut PRO 5-Step Workflow Manual A4" />
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bento Features -->
+    <section id="features">
+      <div class="sec-head">
+        <div class="sec-kicker">Engineered for Speed</div>
+        <h2 class="sec-title">ครบทุกเครื่องมือสำหรับงานวิดีโอแนวตั้งชุดใหญ่</h2>
+        <p class="sec-desc">ประมวลผลด้วย Apple VideoToolbox และ OpenCV/NumPy แบบออฟไลน์ในเครื่อง</p>
+      </div>
+      <div class="bento">
+        <article class="bento-card span-3">
+          <div class="icon-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 8l6-3"/><path d="M12 12l7-1"/><path d="M12 16l6 3"/></svg>
+          </div>
+          <h3>Auto Color (Offline &amp; Flicker-Free)</h3>
+          <p>วิเคราะห์แสง เงา และสมดุลสีด้วย OpenCV/NumPy แล้วปรับสไลเดอร์ให้อัตโนมัติรายคลิป คงความเนียนของสีตลอดทั้งคลิปโดยไม่กระพริบระหว่างเฟรม</p>
+        </article>
+        <article class="bento-card span-3">
+          <div class="icon-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+          </div>
+          <h3>AI Blur &amp; Intro Trim</h3>
+          <p>ตรวจจับและตัดช่วงที่กล้องยังไม่นิ่งหรือเบลอตอนต้นคลิปออกอัตโนมัติ พร้อมคัดกรองคลิปที่เบลอทั้งคลิปออกจากคิวงาน ช่วยประหยัดเวลาตัดต่อได้มหาศาล</p>
+        </article>
+        <article class="bento-card span-2">
+          <div class="icon-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h3>VideoToolbox Multi-Worker</h3>
+          <p>เรนเดอร์แนวตั้ง 1080×1920 (8000 Kb/s) แบบ Multi-Worker ใช้ฮาร์ดแวร์ Apple Silicon เต็มสปีดพร้อม FFmpeg ฝังในตัว</p>
+        </article>
+        <article class="bento-card span-2">
+          <div class="icon-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          </div>
+          <h3>In-App Auto Update</h3>
+          <p>เช็กและอัปเดตหน้าตาและฟีเจอร์เวอร์ชันใหม่ได้ทันทีจากปุ่มมุมขวาบนของโปรแกรม ไม่ต้องเสียเวลาโหลดใหม่ทุกครั้ง</p>
+        </article>
+        <article class="bento-card span-2">
+          <div class="icon-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3>ความปลอดภัย 5 ชั้น &amp; ออฟไลน์</h3>
+          <p>ทำงานบนเครื่อง Mac ของคุณ 100% ล็อคพอร์ตและ Origin ภายใน ไม่มีอัปโหลดคลิปขึ้นคลาวด์ ไม่มีค่ารายเดือน</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Download & Install Guide -->
+    <section id="download" class="dl-grid">
+      <div class="dl-card">
+        <h3>ดาวน์โหลด ZCut PRO</h3>
+        <p>ตัวติดตั้ง All-in-One สำหรับ macOS (Apple Silicon &amp; Intel) รวม FFmpeg และเอนจิน AI ในไฟล์เดียว</p>
+        <a id="btnDownloadDmg2" class="btn-primary" style="width:100%;" href="https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ดาวน์โหลด ZCut_PRO_Installer.dmg (แนะนำ)
+        </a>
+        <div class="dl-list">
+          <a class="dl-item" href="./ZCut_PRO_Workflow_A4.png" target="_blank">
+            <span>คู่มือ 5 ขั้นตอน (ภาพ A4)</span>
+            <span>PNG</span>
+          </a>
+          <a class="dl-item" href="./ZCut_PRO_Workflow_A4.pdf" target="_blank">
+            <span>คู่มือ 5 ขั้นตอน (PDF)</span>
+            <span>PDF</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="guide-card">
+        <div class="guide-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          วิธีติดตั้งและเปิดครั้งแรกบน macOS (ทำครั้งเดียว)
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-num">1</span>
+            <span>เปิดไฟล์ <strong>ZCut_PRO_Installer.dmg</strong> แล้วลาก <strong>ZCut.app</strong> ไปวางในโฟลเดอร์ <strong>Applications</strong></span>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <span>เปิดครั้งแรก: คลิกขวาที่ <strong>ZCut.app</strong> → เลือก <strong>Open</strong> หรือเปิด <strong>System Settings → Privacy &amp; Security → Open Anyway</strong></span>
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            <span>หาก macOS แจ้ง <em>"damaged and can't be opened"</em> ให้เปิด Terminal แล้วรัน: <code>xattr -cr /Applications/ZCut.app</code></span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <footer>
+      <div>ZCut PRO • macOS Universal (Apple Silicon &amp; Intel) • 100% Offline Processing</div>
+      <div>Fast Batch Vertical Studio</div>
+    </footer>
+  </main>
+
   <script>
-    fetch("./version.json?t=" + Date.now()).then(r => r.json()).then(d => {
-      if (d.version) document.getElementById("verBadge").textContent = `ZCut PRO v${d.version} • macOS Apple Silicon (All-in-One)`;
-      if (d.dmgUrl) document.getElementById("btnDownloadDmg").href = d.dmgUrl;
-    }).catch(() => {});
+    document.querySelectorAll('.win-tab').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var target = btn.getAttribute('data-tab');
+        document.querySelectorAll('.win-tab').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.pane').forEach(function(p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        var pane = document.getElementById('pane-' + target);
+        if (pane) pane.classList.add('active');
+      });
+    });
+
+    fetch('./version.json?t=' + Date.now())
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) {
+        if (!d) return;
+        if (d.version) {
+          var b = document.getElementById('verBadge');
+          var nv = document.getElementById('nav-ver');
+          if (b) b.textContent = 'ZCut PRO v' + d.version + ' • macOS Apple Silicon & Intel (All-in-One)';
+          if (nv) nv.textContent = 'v' + d.version;
+        }
+        if (d.dmgUrl) {
+          ['btnDownloadDmg', 'btnDownloadDmg2', 'nav-dmg'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.href = d.dmgUrl;
+          });
+        }
+      })
+      .catch(function() {});
   </script>
 </body>
 </html>
