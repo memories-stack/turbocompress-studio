@@ -1,7 +1,7 @@
 {
-  "version": "2.1.7",
-  "releaseDate": "2026-11-18",
-  "releaseNotes": "Calibrate Whole-Clip Blur Screener (240x240 aspect-safe, short-clip fallback, 160/260/400 thresholds)",
+  "version": "2.2.0",
+  "releaseDate": "2026-11-25",
+  "releaseNotes": "AI Video Face Search (AuraFace-v1 CoreML), Apple Vision Face-Aware Camera Smart Tone (Natural/Pro + Batch Auto), Nikon ZR/Z8 EXIF & Lens Strip under Histogram, Neutral Graphite Dark & Soft Daylight Light UI",
   "dmgUrl": "https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg",
   "updateZipUrl": "https://memories-stack.github.io/turbocompress-studio/zcut-update.zip"
 }
