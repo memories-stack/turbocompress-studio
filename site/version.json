@@ -1,7 +1,7 @@
 {
-  "version": "2.4.0",
+  "version": "2.4.1",
   "releaseDate": "2026-11-26",
-  "releaseNotes": "AI Best-Moment Highlight Cutter (Apple Vision 3s/4s/5s/7s/9s/Custom), AI Face-Mask Beauty & Glow (Edge-Preserving Bilateral keeps eyes/hair/bibs sharp), Fast AI Smooth Slow-Motion (30/50/60/120fps at 1.88x speed + audio tempo sync), SnapPro-style Smart Tone Toggle & Clean Zero-Prefill Controls",
+  "releaseNotes": "Multi-Core Parallel Engine up to 8 Workers (auto-boost for Optical Flow), True Motion-Compensated Optical Flow (Diamond Search post-grade — zero ghosting/stutter), AI Highlight Cutter, Face-Mask Beauty & Glow, Smart Tone Toggle",
   "dmgUrl": "https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg",
   "updateZipUrl": "https://memories-stack.github.io/turbocompress-studio/zcut-update.zip"
 }
