@@ -1,7 +1,7 @@
 {
-  "version": "2.3.0",
-  "releaseDate": "2026-11-25",
-  "releaseNotes": "AI Filter Studio (6 Pro LUT Looks + AI Reference Photo 3D .cube Color Match + Pro Skin Smooth & Face Glow), Collapsible Accordion Color UI, 12-Brand Camera EXIF & Video Codec Strip, Retina 1440px Sharp Preview, 4-Column Media Pool & Compact Studio Layout",
+  "version": "2.3.1",
+  "releaseDate": "2026-11-26",
+  "releaseNotes": "Light Mode Full Parity (crisp slider readouts, 2-col AI Look grid, readable Media Pool filenames), 354px Balanced Right Tool Panel, DJI EXIF atom parser fix, AI Filter Studio & Retina 1440px Sharp Preview",
   "dmgUrl": "https://github.com/memories-stack/turbocompress-studio/releases/latest/download/ZCut_PRO_Installer.dmg",
   "updateZipUrl": "https://memories-stack.github.io/turbocompress-studio/zcut-update.zip"
 }
